@@ -6,6 +6,7 @@ const App = () => {
   return (
     <>
     <Navbar/>
+    <Home /> 
     <Home/>
 
     </>
