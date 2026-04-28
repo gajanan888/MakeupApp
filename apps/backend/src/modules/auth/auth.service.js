@@ -1,16 +1,52 @@
-import User from "../models/User.js";
+import bcrypt from "bcrypt";
+import Customer from "../../models/Customer.js";
+import generateToken from "../../utils/generateToken.js";
 
-export const register = async (userData) => {
-  const user = await user.create(data);
-  return user;
-};
+export const registerCustomer = async (data) => {
+  const { name, email, phone, password } = data;
 
-export const login = async ({ email, password }) => {
-  const user = await User.findOne({ where: { email } });
+  const existingUser = await Customer.findOne({
+    where: { email },
+  });
 
-  if (!user || user.password !== password) {
-    throw new Error("Invalid credentials");
+  if (existingUser) {
+    throw new Error("Customer already exists");
   }
 
-  return user;
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  const customer = await Customer.create({
+    name,
+    email,
+    phone,
+    password: hashedPassword,
+  });
+
+  return {
+    id: customer.id,
+    name: customer.name,
+    token: generateToken(customer.id),
+  };
+};
+
+export const loginCustomer = async ({ email, password }) => {
+  const customer = await Customer.findOne({
+    where: { email },
+  });
+
+  if (!customer) {
+    throw new Error("Customer not found");
+  }
+
+  const isMatch = await bcrypt.compare(password, customer.password);
+
+  if (!isMatch) {
+    throw new Error("Invalid password");
+  }
+
+  return {
+    id: customer.id,
+    name: customer.name,
+    token: generateToken(customer.id),
+  };
 };
