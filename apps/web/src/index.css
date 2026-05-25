@@ -1,0 +1,20 @@
+@font-face {
+  font-family: 'luxiachy';
+  src: url('./Fonts/luxiachy.otf');
+}
+@font-face {
+  font-family: '';
+  src: url();
+}
+*{
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+html, body{
+  height: 100%;
+  width: 100%;
+}
+:root{
+  --active: 
+}

@@ -1,1 +1,3 @@
-console.log("Hello, World!");
+import artistRoutes from "./artist.routes.js";
+
+export default artistRoutes;
