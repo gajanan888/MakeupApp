@@ -1,6 +1,8 @@
 import React from 'react';
-import AppNavigator from './navigation/AppNavigation';
+import OnboardingScreen from './screens/common/OnboardingScreen';
 
-export default function App(){
-    return <AppNavigator/>;
-}
+const App = () => {
+    return <OnboardingScreen />
+};
+
+export default App;
