@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import Ionicons from '@react-native-vector-icons/ionicons';
 import {
     View,
     Text,
@@ -7,12 +8,20 @@ import {
     StyleSheet,
 } from 'react-native';
 
-const ClientLoginScreen = () => {
+const ClientLoginScreen = ({ navigation }) => {
+    const [showPassword, setShowPassword] = useState(false);
     return (
         <View style={styles.container}>
 
-            <TouchableOpacity style={styles.backButton}>
-                <Text style={styles.backIcon}>←</Text>
+            <TouchableOpacity
+                onPress={() => navigation.goBack()}
+                style={styles.backButton}
+            >
+                <Ionicons
+                    name="chevron-back"
+                    size={28}
+                    color="#222"
+                />
             </TouchableOpacity>
 
             <Text style={styles.title}>
@@ -23,16 +32,32 @@ const ClientLoginScreen = () => {
                 Sign in to continue
             </Text>
 
-            <TextInput
-                placeholder="Email or Phone"
-                style={styles.input}
-            />
+            <View style={styles.inputContainer}>
 
-            <TextInput
-                placeholder="Password"
-                secureTextEntry
-                style={styles.input}
-            />
+                <TextInput
+                    placeholder="Email or Phone"
+                    style={styles.input}
+                />
+            </View>
+
+            <View style={styles.inputContainer}>
+
+                <TextInput
+                    placeholder="Password"
+                    style={styles.input}
+                    secureTextEntry={!showPassword}
+                />
+
+                <TouchableOpacity
+                    onPress={() => setShowPassword(!showPassword)}
+                >
+                    <Ionicons
+                        name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                        size={22}
+                        color="#999"
+                    />
+                </TouchableOpacity>
+            </View>
 
             <TouchableOpacity>
                 <Text style={styles.forgotPassword}>
@@ -59,15 +84,27 @@ const ClientLoginScreen = () => {
             <View style={styles.socialContainer}>
 
                 <TouchableOpacity style={styles.socialButton}>
-                    <Text style={styles.socialText}>G</Text>
+                    <Ionicons
+                        name="logo-google"
+                        size={24}
+                        color="#EA4335"
+                    />
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.socialButton}>
-                    <Text style={styles.socialText}></Text>
+                    <Ionicons
+                        name="logo-apple"
+                        size={28}
+                        color="#111"
+                    />
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.socialButton}>
-                    <Text style={styles.socialText}>f</Text>
+                    <Ionicons
+                        name="logo-facebook"
+                        size={24}
+                        color="#1877F2"
+                    />
                 </TouchableOpacity>
 
             </View>
@@ -77,7 +114,9 @@ const ClientLoginScreen = () => {
                     Don't have an account?
                 </Text>
 
-                <TouchableOpacity>
+                <TouchableOpacity
+                    onPress={() => navigation.navigate('ClientRegister')}
+                >
                     <Text style={styles.signupLink}>
                         Sign Up
                     </Text>
@@ -99,39 +138,50 @@ const styles = StyleSheet.create({
     },
 
     backButton: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: '#FFFFFF',
-        justifyContent: 'center',
-        alignItems: 'center',
-        elevation: 4,
-    },
-
-    backIcon: {
-        fontSize: 24,
+        marginTop: 10,
+        marginBottom: 30,
+        alignSelf: 'flex-start',
     },
 
     input: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 12,
-        paddingHorizontal: 16,
-        height: 56,
-        marginBottom: 16,
-        borderWidth: 1,
-        borderColor: '#E5E5E5',
+        flex: 1,
+        marginLeft: 12,
+        fontSize: 16,
+        color: '#222',
     },
 
     title: {
-        fontSize: 32,
-        fontWeight: '700',
-        color: '#1A1A1A',
+        fontSize: 38,
+        fontWeight: '800',
+        color: '#111',
+        marginTop: 20,
+        textAlign: 'center',
     },
 
     subtitle: {
         color: '#777',
-        marginTop: 8,
+        marginTop: 4,
         marginBottom: 30,
+        textAlign: 'center',
+
+    },
+
+    inputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+
+        backgroundColor: '#FFFFFF',
+
+        borderWidth: 1,
+        borderColor: '#E5E5E5',
+
+        borderRadius: 18,
+
+        paddingHorizontal: 16,
+
+        height: 60,
+
+        marginBottom: 16,
     },
 
     forgotPassword: {
@@ -182,17 +232,22 @@ const styles = StyleSheet.create({
     },
 
     socialButton: {
-        width: 60,
-        height: 60,
-        borderRadius: 15,
-
-        backgroundColor: '#FFFFFF',
-
+        width: 64,
+        height: 64,
+        backgroundColor: '#FFF',
+        borderRadius: 18,
         justifyContent: 'center',
         alignItems: 'center',
-
         borderWidth: 1,
-        borderColor: '#EAEAEA',
+        borderColor: '#F1F1F1',
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 3,
     },
 
     socialText: {

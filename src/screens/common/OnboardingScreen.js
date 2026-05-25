@@ -16,7 +16,7 @@ const OnboardingScreen = ({ navigation }) => {
     };
 
     const handleSkip = () => {
-        navigation.navigate('RoleSelection');
+        navigation.navigate('ClientHome');
     };
 
     return (

@@ -6,4 +6,20 @@
 !.yarn/sdks
 !.yarn/versions
 
+# Environment
 .env
+
+# Dependencies
+node_modules/
+
+# React Native / Metro
+.metro/
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/app/.cxx/
+
+# Logs
+*.log
