@@ -6,6 +6,8 @@ import OnboardingScreen from '../screens/common/OnboardingScreen';
 import RoleSelectionScreen from '../screens/common/RoleSelectionScreen';
 import ClientLoginScreen from '../screens/client/ClientLoginScreen';
 import ArtistLoginScreen from '../screens/artist/ArtistLoginScreen';
+import ClientRegisterScreen from '../screens/client/ClientRegisterScreen';
+import ClientHomeScreen from '../screens/client/ClientHomeScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -32,6 +34,15 @@ const AppNavigator = () => {
           name="ArtistLogin"
           component={ArtistLoginScreen}
         />
+        <Stack.Screen
+          name="ClientRegister"
+          component={ClientRegisterScreen}
+        />
+
+        <Stack.Screen
+        name="ClientHome"
+        component={ClientHomeScreen}
+      />
       </Stack.Navigator>
     </NavigationContainer>
   );

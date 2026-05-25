@@ -1,5 +1,5 @@
 import React from 'react';
-import Icon from 'react-native-vector-icons/Ionicons';
+import Ionicons from '@react-native-vector-icons/ionicons';
 
 import {
     View,
@@ -13,10 +13,14 @@ const RoleSelectionScreen = ({ navigation }) => {
     return (
         <View style={styles.container}>
             <TouchableOpacity
-                style={styles.backButton}
                 onPress={() => navigation.goBack()}
+                style={styles.backButton}
             >
-                <Text style={styles.backIcon}>←</Text>
+                <Ionicons
+                    name="chevron-back"
+                    size={28}
+                    color="#222"
+                />
             </TouchableOpacity>
 
             <Text style={styles.logo}>
@@ -49,10 +53,6 @@ const RoleSelectionScreen = ({ navigation }) => {
                             CLIENT
                         </Text>
 
-                        <View style={styles.arrowButton}>
-                            <Text style={styles.arrowText}>›</Text>
-                        </View>
-
                     </View>
 
                     <Text style={styles.cardDescription}>
@@ -81,10 +81,6 @@ const RoleSelectionScreen = ({ navigation }) => {
                             ARTIST
                         </Text>
 
-                        <View style={styles.arrowButton}>
-                            <Text style={styles.arrowText}>›</Text>
-                        </View>
-
                     </View>
 
                     <Text style={styles.cardDescription}>
@@ -110,24 +106,9 @@ const styles = StyleSheet.create({
     },
 
     backButton: {
-        width: 48,
-        height: 48,
-        position: 'absolute',
-        borderRadius: 24,
-        backgroundColor: '#FFFFFF',
-        top: 50,
-        left: 24,
-        justifyContent: 'center',
-        alignItems: 'center',
+        marginTop: 10,
+        marginBottom: 30,
         alignSelf: 'flex-start',
-        marginBottom: 20,
-        elevation: 4,
-    },
-
-    backIcon: {
-        fontSize: 24,
-        color: '#1A1A1A',
-        fontWeight: '600',
     },
 
     logo: {
@@ -197,28 +178,4 @@ const styles = StyleSheet.create({
         marginBottom: 6,
     },
 
-    arrowButton: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: '#FF4F87',
-        justifyContent: 'center',
-        alignItems: 'center',
-        shadowColor: '#FF4F87',
-        shadowOffset: {
-            width: 0,
-            height: 4,
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 8,
-        elevation: 3,
-    },
-
-    arrowText: {
-        color: '#FFFFFF',
-        fontSize: 22,
-        fontWeight: '600',
-        alignItems: 'center',
-        marginLeft: 1,
-    },
 });
