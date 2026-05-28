@@ -1,14 +1,14 @@
 import { StyleSheet, Text, View } from 'react-native'
 import React from 'react'
 
-const ArtistProfileScreen = () => {
+const ArtistHomeScreen = () => {
   return (
     <View>
-      <Text>ArtistProfileScreen</Text>
+      <Text>ArtistHomeScreen</Text>
     </View>
   )
 }
 
-export default ArtistProfileScreen
+export default ArtistHomeScreen
 
 const styles = StyleSheet.create({})
