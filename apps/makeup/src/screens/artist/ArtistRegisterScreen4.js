@@ -12,9 +12,10 @@ import {
     TextInput,
     StatusBar,
     Platform,
+    KeyboardAvoidingView,
 } from 'react-native';
 
-import Icon from 'react-native-vector-icons/Feather';
+import Ionicons from '@react-native-vector-icons/ionicons';
 
 const ArtistRegisterScreen4 = ({ navigation }) => {
     const [services, setServices] = useState([
@@ -67,9 +68,14 @@ const ArtistRegisterScreen4 = ({ navigation }) => {
                 barStyle="dark-content"
             />
 
-            <View style={styles.container}>
+            <KeyboardAvoidingView
+                style={styles.container}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+            >
                 <ScrollView
                     showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
                     contentContainerStyle={{
                         paddingBottom: 50,
                     }}>
@@ -165,11 +171,11 @@ const ArtistRegisterScreen4 = ({ navigation }) => {
                         style={styles.addServiceButton}
                         onPress={addService}>
                         <View style={styles.plusCircle}>
-                            <Icon
-                                name="plus"
-                                size={20}
-                                color="#B7796C"
-                            />
+                                <Ionicons
+                                    name="add"
+                                    size={20}
+                                    color="#B7796C"
+                                />
                         </View>
 
                         <Text style={styles.addServiceText}>
@@ -184,15 +190,15 @@ const ArtistRegisterScreen4 = ({ navigation }) => {
                             Let’s Make-up Profile
                         </Text>
 
-                        <Icon
-                            name="arrow-right"
-                            size={22}
-                            color="#FFF"
-                            style={{ marginLeft: 8 }}
-                        />
+                        <Ionicons
+                                name="arrow-forward"
+                                size={22}
+                                color="#FFF"
+                                style={{ marginLeft: 8 }}
+                            />
                     </TouchableOpacity>
                 </ScrollView>
-            </View>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 };

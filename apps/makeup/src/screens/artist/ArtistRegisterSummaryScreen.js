@@ -14,7 +14,7 @@ import {
   Image,
 } from 'react-native';
 
-import Icon from 'react-native-vector-icons/Feather';
+import Ionicons from '@react-native-vector-icons/ionicons';
 
 const ArtistRegisterSummaryScreen = () => {
   return (
@@ -53,8 +53,8 @@ const ArtistRegisterSummaryScreen = () => {
 
               <TouchableOpacity
                 style={styles.editButton}>
-                <Icon
-                  name="edit-2"
+                <Ionicons
+                  name="create"
                   size={18}
                   color="#FFF"
                 />
@@ -69,8 +69,8 @@ const ArtistRegisterSummaryScreen = () => {
                 </Text>
 
                 <TouchableOpacity>
-                  <Icon
-                    name="edit"
+                  <Ionicons
+                    name="create"
                     size={16}
                     color="#FF4F8F"
                   />
@@ -94,8 +94,8 @@ const ArtistRegisterSummaryScreen = () => {
                 </Text>
 
                 <TouchableOpacity>
-                  <Icon
-                    name="edit"
+                  <Ionicons
+                    name="create"
                     size={16}
                     color="#FF4F8F"
                   />
@@ -128,8 +128,8 @@ const ArtistRegisterSummaryScreen = () => {
                 </Text>
 
                 <TouchableOpacity>
-                  <Icon
-                    name="edit"
+                  <Ionicons
+                    name="create"
                     size={16}
                     color="#FF4F8F"
                   />
@@ -165,8 +165,8 @@ const ArtistRegisterSummaryScreen = () => {
                 </Text>
 
                 <TouchableOpacity>
-                  <Icon
-                    name="edit"
+                  <Ionicons
+                    name="create"
                     size={16}
                     color="#FF4F8F"
                   />
@@ -190,8 +190,8 @@ const ArtistRegisterSummaryScreen = () => {
                 </Text>
 
                 <TouchableOpacity>
-                  <Icon
-                    name="edit"
+                  <Ionicons
+                    name="create"
                     size={16}
                     color="#FF4F8F"
                   />
@@ -223,8 +223,8 @@ const ArtistRegisterSummaryScreen = () => {
               Start The Journey
             </Text>
 
-            <Icon
-              name="arrow-right"
+            <Ionicons
+              name="arrow-forward"
               size={22}
               color="#FFF"
               style={{marginLeft: 8}}

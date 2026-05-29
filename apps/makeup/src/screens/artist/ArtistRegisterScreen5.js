@@ -18,40 +18,30 @@ import {
     StatusBar,
     Platform,
     Image,
-    Modal,
-    Pressable,
+    KeyboardAvoidingView,
 } from 'react-native';
 
-import Icon from 'react-native-vector-icons/Feather';
+import Ionicons from '@react-native-vector-icons/ionicons';
 
 import {
-    launchCamera,
     launchImageLibrary,
 } from 'react-native-image-picker';
 
+const PLACEHOLDER_IMAGE =
+    'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?q=80&w=600';
 
 const ArtistRegisterScreen5 = ({ navigation }) => {
-    const [beforeImage, setBeforeImage] =
-        useState(null);
+    const [works, setWorks] = useState([
+        {
+            id: Date.now(),
+            beforeImage: null,
+            afterImage: null,
+            tag: '',
+            description: '',
+        },
+    ]);
 
-    const [afterImage, setAfterImage] =
-        useState(null);
-
-    const [selectedType, setSelectedType] =
-        useState(null);
-
-    const [modalVisible, setModalVisible] =
-        useState(false);
-
-    const [tag, setTag] = useState('');
-
-    const [description, setDescription] =
-        useState('');
-
-    // OPEN IMAGE PICKER
-    const openGallery = async () => {
-        setModalVisible(false);
-
+    const pickImage = async (type, index) => {
         const result = await launchImageLibrary({
             mediaType: 'photo',
             quality: 1,
@@ -62,24 +52,42 @@ const ArtistRegisterScreen5 = ({ navigation }) => {
             return;
         }
 
-        if (
-            result.assets &&
-            result.assets.length > 0
-        ) {
+        if (result.assets && result.assets.length > 0) {
             const imageUri = result.assets[0].uri;
-
-            if (selectedType === 'before') {
-                setBeforeImage(imageUri);
-            } else {
-                setAfterImage(imageUri);
-            }
+            setWorks(prev =>
+                prev.map((item, idx) =>
+                    idx === index
+                        ? {
+                              ...item,
+                              [`${type}Image`]: imageUri,
+                          }
+                        : item,
+                ),
+            );
         }
     };
 
-    // OPEN PICKER
-    const chooseImage = type => {
-        setSelectedType(type);
-        setModalVisible(true);
+    const addWork = () => {
+        setWorks(prev => [
+            ...prev,
+            {
+                id: Date.now() + prev.length,
+                beforeImage: null,
+                afterImage: null,
+                tag: '',
+                description: '',
+            },
+        ]);
+    };
+
+    const updateWorkField = (index, field, value) => {
+        setWorks(prev =>
+            prev.map((item, idx) =>
+                idx === index
+                    ? {...item, [field]: value}
+                    : item,
+            ),
+        );
     };
 
     return (
@@ -89,9 +97,14 @@ const ArtistRegisterScreen5 = ({ navigation }) => {
                 barStyle="dark-content"
             />
 
-            <View style={styles.container}>
+            <KeyboardAvoidingView
+                style={styles.container}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+            >
                 <ScrollView
                     showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
                     contentContainerStyle={{
                         paddingBottom: 50,
                     }}>
@@ -111,197 +124,138 @@ const ArtistRegisterScreen5 = ({ navigation }) => {
                         </Text>
                     </View>
 
-                    {/* IMAGE SHOWCASE */}
-                    <View style={styles.showcaseContainer}>
-                        {/* BEFORE */}
-                        <TouchableOpacity
-                            style={styles.imageBox}
-                            onPress={() =>
-                                chooseImage('before')
-                            }>
-                            {beforeImage ? (
-                                <Image
-                                    source={{ uri: beforeImage }}
-                                    style={styles.image}
-                                />
-                            ) : (
-                                <Image
-                                    source={{
-                                        uri: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?q=80&w=600',
-                                    }}
-                                    style={styles.image}
-                                />
-                            )}
+                    {works.map((work, index) => (
+                        <View key={work?.id ?? index} style={styles.workCard}>
+                            <View style={styles.showcaseContainer}>
+                                <TouchableOpacity
+                                    style={styles.imageBox}
+                                    onPress={() => pickImage('before', index)}>
+                                    <Image
+                                        source={{
+                                            uri:
+                                                work?.beforeImage ||
+                                                PLACEHOLDER_IMAGE,
+                                        }}
+                                        style={styles.image}
+                                    />
+                                    {!work?.beforeImage && (
+                                        <View style={styles.placeholderOverlay}>
+                                            <Text style={styles.placeholderText}>
+                                                Tap to add before image
+                                            </Text>
+                                        </View>
+                                    )}
+                                    <View style={styles.imageLabel}>
+                                        <Text style={styles.labelText}>
+                                            BEFORE
+                                        </Text>
+                                    </View>
+                                </TouchableOpacity>
 
-                            <View style={styles.imageLabel}>
-                                <Text style={styles.labelText}>
-                                    BEFORE
-                                </Text>
+                                <View style={styles.divider} />
+
+                                <TouchableOpacity
+                                    style={styles.imageBox}
+                                    onPress={() => pickImage('after', index)}>
+                                    <Image
+                                        source={{
+                                            uri:
+                                                work?.afterImage ||
+                                                PLACEHOLDER_IMAGE,
+                                        }}
+                                        style={styles.image}
+                                    />
+                                    {!work?.afterImage && (
+                                        <View style={styles.placeholderOverlay}>
+                                            <Text style={styles.placeholderText}>
+                                                Tap to add after image
+                                            </Text>
+                                        </View>
+                                    )}
+                                    <View style={styles.imageLabel}>
+                                        <Text style={styles.labelText}>
+                                            AFTER
+                                        </Text>
+                                    </View>
+                                </TouchableOpacity>
+
+                                <View style={styles.centerTag}>
+                                    <Text style={styles.centerTagText}>
+                                        Example Images
+                                    </Text>
+                                </View>
                             </View>
-                        </TouchableOpacity>
 
-                        {/* DIVIDER */}
-                        <View style={styles.divider} />
-
-                        {/* AFTER */}
-                        <TouchableOpacity
-                            style={styles.imageBox}
-                            onPress={() =>
-                                chooseImage('after')
-                            }>
-                            {afterImage ? (
-                                <Image
-                                    source={{ uri: afterImage }}
-                                    style={styles.image}
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>Add Tag</Text>
+                                <TextInput
+                                    placeholder="Bridal Makeup"
+                                    placeholderTextColor="#C7AAA0"
+                                    value={work?.tag ?? ''}
+                                    onChangeText={text =>
+                                        updateWorkField(
+                                            index,
+                                            'tag',
+                                            text,
+                                        )
+                                    }
+                                    style={styles.input}
                                 />
-                            ) : (
-                                <Image
-                                    source={{
-                                        uri: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=600',
-                                    }}
-                                    style={styles.image}
-                                />
-                            )}
-
-                            <View style={styles.imageLabel}>
-                                <Text style={styles.labelText}>
-                                    AFTER
-                                </Text>
                             </View>
-                        </TouchableOpacity>
 
-                        {/* CENTER TAG */}
-                        <View style={styles.centerTag}>
-                            <Text style={styles.centerTagText}>
-                                Example Images
-                            </Text>
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>Description</Text>
+                                <TextInput
+                                    placeholder="Describe the transformation..."
+                                    placeholderTextColor="#C7AAA0"
+                                    value={work?.description ?? ''}
+                                    onChangeText={text =>
+                                        updateWorkField(
+                                            index,
+                                            'description',
+                                            text,
+                                        )
+                                    }
+                                    multiline
+                                    style={[
+                                        styles.input,
+                                        styles.descriptionInput,
+                                    ]}
+                                />
+                            </View>
                         </View>
-                    </View>
+                    ))}
 
-                    {/* TAG INPUT */}
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>
-                            Add Tag
-                        </Text>
-
-                        <TextInput
-                            placeholder="Bridal Makeup"
-                            placeholderTextColor="#C7AAA0"
-                            value={tag}
-                            onChangeText={setTag}
-                            style={styles.input}
-                        />
-                    </View>
-
-                    {/* DESCRIPTION */}
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>
-                            Description
-                        </Text>
-
-                        <TextInput
-                            placeholder="Describe the transformation..."
-                            placeholderTextColor="#C7AAA0"
-                            value={description}
-                            onChangeText={setDescription}
-                            multiline
-                            style={[
-                                styles.input,
-                                styles.descriptionInput,
-                            ]}
-                        />
-                    </View>
-
-                    {/* CHOOSE FILE BUTTON */}
                     <TouchableOpacity
-                        style={styles.chooseButton}
-                        onPress={() =>
-                            setModalVisible(true)
-                        }>
+                        style={styles.addWorkButton}
+                        onPress={addWork}>
                         <View style={styles.plusCircle}>
-                            <Icon
-                                name="plus"
+                            <Ionicons
+                                name="add"
                                 size={20}
                                 color="#B7796C"
                             />
                         </View>
-
-                        <Text style={styles.chooseText}>
-                            Choose a File
+                        <Text style={styles.addWorkText}>
+                            Add more Work
                         </Text>
                     </TouchableOpacity>
 
-                    {/* SUBMIT BUTTON */}
                     <TouchableOpacity style={styles.button}
                         onPress={() => navigation.navigate('ArtistRegister6')}>
                         <Text style={styles.buttonText}>
                             Let’s Make-up Profile
                         </Text>
 
-                        <Icon
-                            name="arrow-right"
+                        <Ionicons
+                            name="arrow-forward"
                             size={22}
                             color="#FFF"
                             style={{ marginLeft: 8 }}
                         />
                     </TouchableOpacity>
                 </ScrollView>
-            </View>
-
-            {/* BOTTOM MODAL */}
-            <Modal
-                transparent
-                animationType="slide"
-                visible={modalVisible}>
-                <Pressable
-                    style={styles.modalOverlay}
-                    onPress={() =>
-                        setModalVisible(false)
-                    }>
-                    <View style={styles.bottomSheet}>
-                        <Text style={styles.sheetTitle}>
-                            Choose Image
-                        </Text>
-
-                        {/* BEFORE IMAGE */}
-                        <TouchableOpacity
-                            style={styles.sheetButton}
-                            onPress={() =>
-                                chooseImage('before')
-                            }>
-                            <Text style={styles.sheetText}>
-                                Upload Before Makeup
-                            </Text>
-                        </TouchableOpacity>
-
-                        {/* AFTER IMAGE */}
-                        <TouchableOpacity
-                            style={styles.sheetButton}
-                            onPress={() =>
-                                chooseImage('after')
-                            }>
-                            <Text style={styles.sheetText}>
-                                Upload After Makeup
-                            </Text>
-                        </TouchableOpacity>
-
-                        {/* GALLERY */}
-                        <TouchableOpacity
-                            style={styles.galleryButton}
-                            onPress={openGallery}>
-                            <Icon
-                                name="image"
-                                size={20}
-                                color="#FFF"
-                            />
-
-                            <Text style={styles.galleryText}>
-                                Open Gallery
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-                </Pressable>
-            </Modal>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 };
@@ -409,7 +363,7 @@ const styles = StyleSheet.create({
     // INPUTS
 
     inputGroup: {
-        marginTop: 28,
+        marginTop: 20,
     },
 
     label: {
@@ -433,6 +387,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         color: '#111',
         fontSize: 15,
+        marginBottom: 14,
     },
 
     descriptionInput: {
@@ -441,9 +396,26 @@ const styles = StyleSheet.create({
         textAlignVertical: 'top',
     },
 
-    // CHOOSE BUTTON
+    workCard: {
+        marginBottom: 30,
+    },
 
-    chooseButton: {
+    placeholderOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 14,
+        backgroundColor: 'rgba(0,0,0,0.24)',
+    },
+
+    placeholderText: {
+        color: '#FFF',
+        fontSize: 14,
+        fontWeight: '600',
+        textAlign: 'center',
+    },
+
+    addWorkButton: {
         height: 62,
         borderWidth: 1.5,
         borderColor: '#FFD1E1',
@@ -452,20 +424,10 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: 32,
+        marginBottom: 18,
     },
 
-    plusCircle: {
-        width: 34,
-        height: 34,
-        borderRadius: 17,
-        backgroundColor: '#FFE4ED',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 14,
-    },
-
-    chooseText: {
+    addWorkText: {
         color: '#B7796C',
         fontSize: 18,
         fontWeight: '500',
@@ -477,7 +439,7 @@ const styles = StyleSheet.create({
         height: 64,
         backgroundColor: '#FF4F8F',
         borderRadius: 32,
-        marginTop: 38,
+        marginTop: 12,
         justifyContent: 'center',
         alignItems: 'center',
         flexDirection: 'row',
@@ -489,59 +451,4 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
 
-    // MODAL
-
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.35)',
-        justifyContent: 'flex-end',
-    },
-
-    bottomSheet: {
-        backgroundColor: '#FFF',
-        padding: 24,
-        borderTopLeftRadius: 30,
-        borderTopRightRadius: 30,
-    },
-
-    sheetTitle: {
-        fontSize: 22,
-        fontWeight: '700',
-        color: '#111',
-        textAlign: 'center',
-        marginBottom: 24,
-    },
-
-    sheetButton: {
-        height: 58,
-        borderWidth: 1.5,
-        borderColor: '#FFD1E1',
-        borderRadius: 18,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-
-    sheetText: {
-        color: '#B7796C',
-        fontSize: 17,
-        fontWeight: '600',
-    },
-
-    galleryButton: {
-        height: 58,
-        backgroundColor: '#FF4F8F',
-        borderRadius: 18,
-        justifyContent: 'center',
-        alignItems: 'center',
-        flexDirection: 'row',
-        marginTop: 10,
-    },
-
-    galleryText: {
-        color: '#FFF',
-        fontSize: 18,
-        fontWeight: '700',
-        marginLeft: 10,
-    },
 });

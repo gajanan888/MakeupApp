@@ -14,7 +14,7 @@ import {
   Platform,
 } from 'react-native';
 
-import Icon from 'react-native-vector-icons/Feather';
+import Ionicons from '@react-native-vector-icons/ionicons';
 
 const ArtistRegisterScreen6 = ({navigation}) => {
   const [accountHolder, setAccountHolder] =
@@ -62,8 +62,8 @@ const ArtistRegisterScreen6 = ({navigation}) => {
             </Text>
 
             <View style={styles.inputContainer}>
-              <Icon
-                name="user"
+              <Ionicons
+                name="person-outline"
                 size={20}
                 color="#FF4F8F"
                 style={styles.icon}
@@ -86,8 +86,8 @@ const ArtistRegisterScreen6 = ({navigation}) => {
             </Text>
 
             <View style={styles.inputContainer}>
-              <Icon
-                name="briefcase"
+              <Ionicons
+                name="briefcase-outline"
                 size={20}
                 color="#FF4F8F"
                 style={styles.icon}
@@ -110,8 +110,8 @@ const ArtistRegisterScreen6 = ({navigation}) => {
             </Text>
 
             <View style={styles.inputContainer}>
-              <Icon
-                name="credit-card"
+              <Ionicons
+                name="card-outline"
                 size={20}
                 color="#FF4F8F"
                 style={styles.icon}
@@ -135,7 +135,7 @@ const ArtistRegisterScreen6 = ({navigation}) => {
             </Text>
 
             <View style={styles.inputContainer}>
-              <Icon
+              <Ionicons
                 name="hash"
                 size={20}
                 color="#FF4F8F"
@@ -160,8 +160,8 @@ const ArtistRegisterScreen6 = ({navigation}) => {
             </Text>
 
             <View style={styles.inputContainer}>
-              <Icon
-                name="smartphone"
+              <Ionicons
+                name="phone-portrait-outline"
                 size={20}
                 color="#FF4F8F"
                 style={styles.icon}
@@ -179,7 +179,7 @@ const ArtistRegisterScreen6 = ({navigation}) => {
 
           {/* INFO CARD */}
           <View style={styles.infoCard}>
-            <Icon
+            <Ionicons
               name="shield"
               size={20}
               color="#FF4F8F"
@@ -198,8 +198,8 @@ const ArtistRegisterScreen6 = ({navigation}) => {
               Let’s Make-up Profile
             </Text>
 
-            <Icon
-              name="arrow-right"
+            <Ionicons
+              name="arrow-forward"
               size={22}
               color="#FFF"
               style={{marginLeft: 8}}

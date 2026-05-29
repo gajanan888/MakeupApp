@@ -29,9 +29,12 @@ import {
   Image,
   StatusBar,
   Platform,
+  Alert,
+  KeyboardAvoidingView,
 } from 'react-native';
 
-import Icon from 'react-native-vector-icons/Feather';
+import Ionicons from '@react-native-vector-icons/ionicons';
+import * as DocumentPicker from 'react-native-document-picker';
 
 const SPECIALIZATIONS = [
   'Bridal',
@@ -105,6 +108,87 @@ const ArtistRegisterScreen3 = ({ navigation }) => {
     );
   };
 
+  const [certificates, setCertificates] = useState([
+    {
+      id: Date.now(),
+      file: null,
+      certificateNumber: '',
+      instituteName: '',
+      error: '',
+    },
+  ]);
+
+  const addCertificateItem = () => {
+    setCertificates(prev => [
+      ...prev,
+      {
+        id: Date.now() + prev.length,
+        file: null,
+        certificateNumber: '',
+        instituteName: '',
+        error: '',
+      },
+    ]);
+  };
+
+  const updateCertificateField = (index, field, value) => {
+    setCertificates(prev =>
+      prev.map((item, idx) =>
+        idx === index ? {...item, [field]: value} : item,
+      ),
+    );
+  };
+
+  const pickCertificate = async index => {
+    try {
+      const result = await DocumentPicker.pickSingle({
+        type: [DocumentPicker.types.allFiles],
+      });
+
+      if (result.size && result.size > 2 * 1024 * 1024) {
+        setCertificates(prev =>
+          prev.map((item, idx) =>
+            idx === index
+              ? {
+                  ...item,
+                  error: 'File must be under 2MB.',
+                }
+              : item,
+          ),
+        );
+        Alert.alert('File too large', 'Please select a file under 2MB.');
+        return;
+      }
+
+      setCertificates(prev =>
+        prev.map((item, idx) =>
+          idx === index
+            ? {
+                ...item,
+                file: {
+                  name: result.name || 'Certificate',
+                  uri: result.uri,
+                  size: result.size || 0,
+                  type: result.type || 'application/octet-stream',
+                },
+                error: '',
+              }
+            : item,
+        ),
+      );
+    } catch (err) {
+      if (DocumentPicker.isCancel(err)) {
+        return;
+      }
+      console.warn('Certificate pick error:', err);
+      Alert.alert('File selection error', err.message || 'Unable to choose a file.');
+    }
+  };
+
+  const removeCertificate = index => {
+    setCertificates(prev => prev.filter((_, idx) => idx !== index));
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar
@@ -112,9 +196,14 @@ const ArtistRegisterScreen3 = ({ navigation }) => {
         barStyle="dark-content"
       />
 
-      <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
         <ScrollView
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
           contentContainerStyle={{
             paddingBottom: 50,
           }}>
@@ -167,8 +256,8 @@ const ArtistRegisterScreen3 = ({ navigation }) => {
                               item,
                             )
                           }>
-                          <Icon
-                            name="x"
+                          <Ionicons
+                            name="close"
                             size={16}
                             color="#FF4F8F"
                           />
@@ -194,11 +283,11 @@ const ArtistRegisterScreen3 = ({ navigation }) => {
                 style={styles.otherInput}
               />
 
-              <TouchableOpacity
+                <TouchableOpacity
                 style={styles.addOtherButton}
                 onPress={addOtherSpecialization}>
-                <Icon
-                  name="plus"
+                <Ionicons
+                  name="add"
                   size={18}
                   color="#FFF"
                 />
@@ -228,18 +317,10 @@ const ArtistRegisterScreen3 = ({ navigation }) => {
                         item,
                       )
                     }>
-                    <Icon
-                      name={
-                        isSelected
-                          ? 'check'
-                          : 'plus'
-                      }
+                    <Ionicons
+                      name={isSelected ? 'checkmark' : 'add'}
                       size={15}
-                      color={
-                        isSelected
-                          ? '#FFF'
-                          : '#FF4F8F'
-                      }
+                      color={isSelected ? '#FFF' : '#FF4F8F'}
                     />
 
                     <Text
@@ -256,39 +337,85 @@ const ArtistRegisterScreen3 = ({ navigation }) => {
             )}
           </View>
 
-          {/* CERTIFICATE */}
+          {/* CERTIFICATES */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>
               Certificates
             </Text>
 
-            <TouchableOpacity
-              style={styles.uploadBox}>
-              <Text style={styles.placeholder}>
-                Add a file
-              </Text>
+            {certificates.map((cert, index) => (
+              <View key={cert.id} style={styles.certificateCard}>
+                <View style={styles.certificateHeader}>
+                  <Text style={styles.certificateTitle}>
+                    Certificate {index + 1}
+                  </Text>
+                  {certificates.length > 1 ? (
+                    <TouchableOpacity
+                      onPress={() => removeCertificate(index)}>
+                      <Ionicons
+                        name="close"
+                        size={18}
+                        color="#FF4F8F"
+                      />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
 
-              <Icon
-                name="plus"
-                size={20}
-                color="#FF4F8F"
-              />
+                <TouchableOpacity
+                  style={styles.uploadBox}
+                  onPress={() => pickCertificate(index)}>
+                  <View>
+                    <Text style={styles.placeholder}>
+                      {cert.file?.name || 'Pick certificate file'}
+                    </Text>
+                    <Text style={styles.fileHelperText}>
+                      PDF or any file under 2MB
+                    </Text>
+                  </View>
+
+                  <Ionicons
+                    name="add"
+                    size={20}
+                    color="#FF4F8F"
+                  />
+                </TouchableOpacity>
+
+                {cert.error ? (
+                  <Text style={styles.errorText}>
+                    {cert.error}
+                  </Text>
+                ) : null}
+
+                <TextInput
+                  placeholder="Certificate Number"
+                  placeholderTextColor="#C7AAA0"
+                  value={cert.certificateNumber}
+                  onChangeText={text =>
+                    updateCertificateField(index, 'certificateNumber', text)
+                  }
+                  style={styles.input}
+                />
+
+                <TextInput
+                  placeholder="Institute Name"
+                  placeholderTextColor="#C7AAA0"
+                  value={cert.instituteName}
+                  onChangeText={text =>
+                    updateCertificateField(index, 'instituteName', text)
+                  }
+                  style={styles.input}
+                />
+              </View>
+            ))}
+
+            <TouchableOpacity
+              style={styles.addMoreButton}
+              onPress={addCertificateItem}>
+              <Text style={styles.addMoreText}>
+                Add More Certificates
+              </Text>
             </TouchableOpacity>
           </View>
-
-          {/* CERTIFICATE NUMBER */}
-          <TextInput
-            placeholder="Certificate Number"
-            placeholderTextColor="#C7AAA0"
-            style={styles.input}
-          />
-
-          {/* INSTITUTE NAME */}
-          <TextInput
-            placeholder="Institute Name"
-            placeholderTextColor="#C7AAA0"
-            style={styles.input}
-          />
 
           {/* BUTTON */}
           <TouchableOpacity
@@ -298,15 +425,15 @@ const ArtistRegisterScreen3 = ({ navigation }) => {
               Let’s Make-up Profile
             </Text>
 
-            <Icon
-              name="arrow-right"
+            <Ionicons
+              name="arrow-forward"
               size={22}
               color="#FFF"
               style={{marginLeft: 8}}
             />
           </TouchableOpacity>
         </ScrollView>
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -440,6 +567,28 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
 
+  certificateCard: {
+    backgroundColor: '#FFF',
+    borderWidth: 1.5,
+    borderColor: '#FFD1E1',
+    borderRadius: 26,
+    padding: 18,
+    marginTop: 18,
+  },
+
+  certificateHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+
+  certificateTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111',
+  },
+
   optionContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -482,6 +631,59 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+
+  fileHelperText: {
+    color: '#C7AAA0',
+    fontSize: 12,
+    marginTop: 6,
+  },
+
+  fileList: {
+    marginTop: 16,
+  },
+
+  fileChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFF0F4',
+    borderWidth: 1.5,
+    borderColor: '#FFD1E1',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 10,
+  },
+
+  fileName: {
+    color: '#111',
+    fontSize: 14,
+    flex: 1,
+    marginRight: 10,
+  },
+
+  addMoreButton: {
+    height: 54,
+    borderWidth: 1.5,
+    borderColor: '#FF4F8F',
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 14,
+    backgroundColor: '#FFF',
+  },
+
+  addMoreText: {
+    color: '#FF4F8F',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+
+  errorText: {
+    color: '#D32F2F',
+    marginTop: 8,
+    fontSize: 13,
   },
 
   input: {
