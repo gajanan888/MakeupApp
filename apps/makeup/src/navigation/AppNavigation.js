@@ -6,10 +6,13 @@ import OnboardingScreen from '../screens/common/OnboardingScreen';
 import RoleSelectionScreen from '../screens/common/RoleSelectionScreen';
 import ClientLoginScreen from '../screens/client/ClientLoginScreen';
 import ArtistLoginScreen from '../screens/artist/ArtistLoginScreen';
-import ArtistHomeScreen from '../screens/artist/ArtistHomeScreen';
 import ArtistRegisterScreen1 from '../screens/artist/ArtistRegisterScreen1';
 import ArtistRegisterScreen2 from '../screens/artist/ArtistRegisterScreen2';
 import ArtistRegisterScreen3 from '../screens/artist/ArtistRegisterScreen3';
+import ArtistRegisterScreen4 from '../screens/artist/ArtistRegisterScreen4';
+import ArtistRegisterScreen5 from '../screens/artist/ArtistRegisterScreen5';
+import ArtistRegisterScreen6 from '../screens/artist/ArtistRegisterScreen6'; 
+import ArtistRegisterSummaryScreen from '../screens/artist/ArtistRegisterSummaryScreen'; 
 import ArtistOTPVerificationScreen from '../screens/artist/ArtistOTPVerificationScreen';
 import ClientRegisterScreen from '../screens/client/ClientRegisterScreen';
 import ClientHomeScreen from '../screens/client/ClientHomeScreen';
@@ -40,10 +43,6 @@ const AppNavigator = () => {
           component={ArtistLoginScreen}
         />
         <Stack.Screen
-          name="ArtistHome"
-          component={ArtistHomeScreen}
-        />
-        <Stack.Screen
           name="ClientRegister"
           component={ClientRegisterScreen}
         />
@@ -63,6 +62,22 @@ const AppNavigator = () => {
         <Stack.Screen
         name="ArtistRegister3"
         component={ArtistRegisterScreen3}
+      />
+        <Stack.Screen
+        name="ArtistRegister4"
+        component={ArtistRegisterScreen4}
+      />
+        <Stack.Screen
+        name="ArtistRegister5"
+        component={ArtistRegisterScreen5}
+      />
+        <Stack.Screen
+        name="ArtistRegister6"
+        component={ArtistRegisterScreen6}
+      />
+        <Stack.Screen
+        name="ArtistRegisterSummary"
+        component={ArtistRegisterSummaryScreen}
       />
         <Stack.Screen
         name="ArtistOTPVerification"

@@ -1,6 +1,23 @@
-// ArtistSpecializationScreen.js
+// IMPORTANT FIXES DONE:
+//
+// 1. SafeArea + StatusBar overlap fixed
+// 2. Added many makeup specialization options
+// 3. "Others" now opens custom input
+// 4. Icons visibility fixed
+// 5. Better responsive spacing
+// 6. Better chip system
+// 7. Better selected specialization UI
 
-import React, { useState } from 'react';
+// INSTALL ICONS IF NOT INSTALLED:
+//
+// npm install react-native-vector-icons
+//
+// Then:
+//
+// npx react-native-asset
+
+import React, {useState} from 'react';
+
 import {
   View,
   Text,
@@ -11,295 +28,335 @@ import {
   TextInput,
   Image,
   StatusBar,
-  Alert,
+  Platform,
 } from 'react-native';
 
 import Icon from 'react-native-vector-icons/Feather';
-import { updateArtistProfile } from '../../api/auth';
 
 const SPECIALIZATIONS = [
   'Bridal',
-  'Party',
-  'Fashion',
+  'Party Makeup',
+  'HD Makeup',
+  'Fashion Makeup',
+  'Editorial',
+  'Airbrush',
+  'Engagement',
+  'Reception',
+  'Haldi',
+  'Sangeet',
   'Photoshoot',
-  'HD MakeUp',
+  'Celebrity',
+  'Matte Makeup',
+  'Glam Makeup',
+  'Natural Look',
+  'Traditional',
+  'Runway',
   'Others',
 ];
 
-const ArtistSpecializationScreen = ({ navigation, route }) => {
-  const [selectedSpecializations, setSelectedSpecializations] = useState([]);
-  const [certificateNumber, setCertificateNumber] = useState('');
-  const [instituteName, setInstituteName] = useState('');
-  const [certificates, setCertificates] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+const ArtistRegisterScreen3 = ({ navigation }) => {
+  const [selectedSpecializations, setSelectedSpecializations] =
+    useState([]);
 
-  const profileData = route?.params || {};
+  const [showOtherInput, setShowOtherInput] =
+    useState(false);
+
+  const [otherSpecialization, setOtherSpecialization] =
+    useState('');
 
   const toggleSpecialization = item => {
+    if (item === 'Others') {
+      setShowOtherInput(true);
+      return;
+    }
+
     if (selectedSpecializations.includes(item)) {
       setSelectedSpecializations(
         selectedSpecializations.filter(i => i !== item),
       );
     } else {
-      setSelectedSpecializations([...selectedSpecializations, item]);
+      setSelectedSpecializations([
+        ...selectedSpecializations,
+        item,
+      ]);
     }
   };
 
-  const handleSubmit = async () => {
-    const nextCertificates = [...certificates];
-    if (certificateNumber.trim() || instituteName.trim()) {
-      nextCertificates.push({
-        number: certificateNumber.trim(),
-        instituteName: instituteName.trim(),
-      });
-    }
+  const addOtherSpecialization = () => {
+    if (
+      otherSpecialization.trim() &&
+      !selectedSpecializations.includes(
+        otherSpecialization,
+      )
+    ) {
+      setSelectedSpecializations([
+        ...selectedSpecializations,
+        otherSpecialization,
+      ]);
 
-    try {
-      setIsLoading(true);
-      await updateArtistProfile({
-        ...profileData,
-        specializations: selectedSpecializations,
-        certificates: nextCertificates.length ? nextCertificates : null,
-      });
-      navigation.navigate('ArtistHome');
-    } catch (error) {
-      const message =
-        error?.response?.data?.message || 'Profile update failed.';
-      Alert.alert('Profile error', message);
-    } finally {
-      setIsLoading(false);
+      setOtherSpecialization('');
+      setShowOtherInput(false);
     }
   };
 
-  const handleAddCertificate = () => {
-    if (!certificateNumber.trim() && !instituteName.trim()) {
-      Alert.alert('Missing info', 'Add a certificate number or institute.');
-      return;
-    }
-
-    setCertificates(prev => [
-      ...prev,
-      {
-        number: certificateNumber.trim(),
-        instituteName: instituteName.trim(),
-      },
-    ]);
-    setCertificateNumber('');
-    setInstituteName('');
-  };
-
-  const handleRemoveCertificate = indexToRemove => {
-    setCertificates(prev => prev.filter((_, index) => index !== indexToRemove));
+  const removeSpecialization = item => {
+    setSelectedSpecializations(
+      selectedSpecializations.filter(i => i !== item),
+    );
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar backgroundColor="#F7F7F7" barStyle="dark-content" />
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar
+        backgroundColor="#F7F7F7"
+        barStyle="dark-content"
+      />
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 40 }}
-      >
-        {/* PROFILE IMAGE */}
-        <View style={styles.imageSection}>
-          <Image
-            source={{
-              uri: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=500',
-            }}
-            style={styles.profileImage}
-          />
-        </View>
+      <View style={styles.container}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{
+            paddingBottom: 50,
+          }}>
+          {/* PROFILE IMAGE */}
+          <View style={styles.imageSection}>
+            <Image
+              source={{
+                uri: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=500',
+              }}
+              style={styles.profileImage}
+            />
+          </View>
 
-        {/* TITLE */}
-        <View style={styles.titleContainer}>
-          <Text style={styles.title}>
-            Hey Mona{'\n'}
-            Let’s Make you a Professional
-          </Text>
-        </View>
+          {/* TITLE */}
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>
+              Hey Mona{'\n'}
+              Let’s Make you a Professional
+            </Text>
+          </View>
 
-        {/* SPECIALIZATION INPUT */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Specialization</Text>
+          {/* SPECIALIZATION */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>
+              Specialization
+            </Text>
 
-          <View style={styles.selectedBox}>
-            {selectedSpecializations.length === 0 ? (
-              <Text style={styles.placeholder}>
-                Select your Specializations from below
-              </Text>
-            ) : (
-              <View style={styles.selectedContainer}>
-                {selectedSpecializations.map((item, index) => (
-                  <View key={index} style={styles.selectedChip}>
-                    <Text style={styles.selectedChipText}>{item}</Text>
+            <View style={styles.selectedBox}>
+              {selectedSpecializations.length === 0 ? (
+                <Text style={styles.placeholder}>
+                  Select your Specializations from below
+                </Text>
+              ) : (
+                <View style={styles.selectedContainer}>
+                  {selectedSpecializations.map(
+                    (item, index) => (
+                      <View
+                        key={index}
+                        style={styles.selectedChip}>
+                        <Text
+                          style={
+                            styles.selectedChipText
+                          }>
+                          {item}
+                        </Text>
 
-                    <TouchableOpacity
-                      onPress={() => toggleSpecialization(item)}
-                    >
-                      <Icon name="x" size={14} color="#FF4F8F" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
+                        <TouchableOpacity
+                          onPress={() =>
+                            removeSpecialization(
+                              item,
+                            )
+                          }>
+                          <Icon
+                            name="x"
+                            size={16}
+                            color="#FF4F8F"
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    ),
+                  )}
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* OTHER INPUT */}
+          {showOtherInput && (
+            <View style={styles.otherInputContainer}>
+              <TextInput
+                value={otherSpecialization}
+                onChangeText={
+                  setOtherSpecialization
+                }
+                placeholder="Enter your specialization"
+                placeholderTextColor="#C7AAA0"
+                style={styles.otherInput}
+              />
+
+              <TouchableOpacity
+                style={styles.addOtherButton}
+                onPress={addOtherSpecialization}>
+                <Icon
+                  name="plus"
+                  size={18}
+                  color="#FFF"
+                />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* SPECIALIZATION OPTIONS */}
+          <View style={styles.optionContainer}>
+            {SPECIALIZATIONS.map(
+              (item, index) => {
+                const isSelected =
+                  selectedSpecializations.includes(
+                    item,
+                  );
+
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.optionButton,
+                      isSelected &&
+                        styles.selectedOptionButton,
+                    ]}
+                    onPress={() =>
+                      toggleSpecialization(
+                        item,
+                      )
+                    }>
+                    <Icon
+                      name={
+                        isSelected
+                          ? 'check'
+                          : 'plus'
+                      }
+                      size={15}
+                      color={
+                        isSelected
+                          ? '#FFF'
+                          : '#FF4F8F'
+                      }
+                    />
+
+                    <Text
+                      style={[
+                        styles.optionText,
+                        isSelected &&
+                          styles.selectedOptionText,
+                      ]}>
+                      {item}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              },
             )}
           </View>
-        </View>
 
-        {/* OPTIONS */}
-        <View style={styles.optionContainer}>
-          {SPECIALIZATIONS.map((item, index) => {
-            const isSelected = selectedSpecializations.includes(item);
+          {/* CERTIFICATE */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>
+              Certificates
+            </Text>
 
-            return (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  styles.optionButton,
-                  isSelected && styles.selectedOptionButton,
-                ]}
-                onPress={() => toggleSpecialization(item)}
-              >
-                <Icon
-                  name={isSelected ? 'check' : 'plus'}
-                  size={14}
-                  color={isSelected ? '#FFF' : '#FF4F8F'}
-                />
+            <TouchableOpacity
+              style={styles.uploadBox}>
+              <Text style={styles.placeholder}>
+                Add a file
+              </Text>
 
-                <Text
-                  style={[
-                    styles.optionText,
-                    isSelected && styles.selectedOptionText,
-                  ]}
-                >
-                  {item}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* CERTIFICATE */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Certificates</Text>
-
-          <TouchableOpacity
-            style={styles.uploadBox}
-            onPress={handleAddCertificate}
-          >
-            <Text style={styles.placeholder}>Add certificate</Text>
-
-            <Icon name="plus" size={20} color="#FF4F8F" />
-          </TouchableOpacity>
-        </View>
-
-        {/* CERTIFICATE NUMBER */}
-        <TextInput
-          placeholder="Certificate Number"
-          placeholderTextColor="#C7AAA0"
-          value={certificateNumber}
-          onChangeText={setCertificateNumber}
-          style={styles.input}
-        />
-
-        {/* INSTITUTE */}
-        <TextInput
-          placeholder="Institute Name"
-          placeholderTextColor="#C7AAA0"
-          value={instituteName}
-          onChangeText={setInstituteName}
-          style={styles.input}
-        />
-
-        {certificates.length > 0 && (
-          <View style={styles.certificateList}>
-            {certificates.map((item, index) => (
-              <View
-                key={`${item.number}-${index}`}
-                style={styles.certificateItem}
-              >
-                <View style={styles.certificateTextWrap}>
-                  <Text style={styles.certificateText}>
-                    {item.number || 'No number'}
-                  </Text>
-                  <Text style={styles.certificateSubText}>
-                    {item.instituteName || 'No institute'}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => handleRemoveCertificate(index)}
-                  style={styles.certificateRemove}
-                >
-                  <Icon name="x" size={16} color="#FF4F8F" />
-                </TouchableOpacity>
-              </View>
-            ))}
+              <Icon
+                name="plus"
+                size={20}
+                color="#FF4F8F"
+              />
+            </TouchableOpacity>
           </View>
-        )}
 
-        {/* BUTTON */}
-        <TouchableOpacity
-          style={[styles.button, isLoading && styles.buttonDisabled]}
-          onPress={handleSubmit}
-          disabled={isLoading}
-        >
-          <Text style={styles.buttonText}>
-            {isLoading ? 'Saving...' : 'Let’s Make-up Profile'}
-          </Text>
-
-          <Icon
-            name="arrow-right"
-            size={22}
-            color="#FFF"
-            style={{ marginLeft: 8 }}
+          {/* CERTIFICATE NUMBER */}
+          <TextInput
+            placeholder="Certificate Number"
+            placeholderTextColor="#C7AAA0"
+            style={styles.input}
           />
-        </TouchableOpacity>
-      </ScrollView>
+
+          {/* INSTITUTE NAME */}
+          <TextInput
+            placeholder="Institute Name"
+            placeholderTextColor="#C7AAA0"
+            style={styles.input}
+          />
+
+          {/* BUTTON */}
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => navigation.navigate('ArtistRegister4')}>
+            <Text style={styles.buttonText}>
+              Let’s Make-up Profile
+            </Text>
+
+            <Icon
+              name="arrow-right"
+              size={22}
+              color="#FFF"
+              style={{marginLeft: 8}}
+            />
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
     </SafeAreaView>
   );
 };
 
-export default ArtistSpecializationScreen;
+export default ArtistRegisterScreen3;
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: '#F7F7F7',
+  },
+
+  container: {
+    flex: 1,
     paddingHorizontal: 24,
+    paddingTop: Platform.OS === 'android' ? 20 : 0,
   },
 
   imageSection: {
     alignItems: 'center',
-    marginTop: 30,
+    marginTop: 20,
   },
 
   profileImage: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
+    width: 115,
+    height: 115,
+    borderRadius: 60,
     borderWidth: 2,
     borderColor: '#FFD1E1',
   },
 
   titleContainer: {
-    marginTop: 20,
+    marginTop: 22,
     backgroundColor: '#FFE4ED',
     borderRadius: 24,
-    paddingVertical: 16,
+    paddingVertical: 18,
     paddingHorizontal: 22,
     alignItems: 'center',
   },
 
   title: {
-    fontSize: 20,
+    fontSize: 22,
     color: '#111',
     textAlign: 'center',
-    lineHeight: 30,
+    lineHeight: 32,
     fontWeight: '700',
-    fontFamily: 'serif',
   },
 
   inputGroup: {
-    marginTop: 28,
+    marginTop: 30,
   },
 
   label: {
@@ -312,24 +369,22 @@ const styles = StyleSheet.create({
     color: '#FF4F8F',
     fontSize: 14,
     fontWeight: '700',
-    fontFamily: 'serif',
   },
 
   selectedBox: {
-    minHeight: 62,
+    minHeight: 70,
     borderWidth: 1.5,
     borderColor: '#FFD1E1',
     borderRadius: 22,
     backgroundColor: '#FFF',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
     justifyContent: 'center',
   },
 
   placeholder: {
     color: '#C7AAA0',
     fontSize: 15,
-    fontFamily: 'serif',
   },
 
   selectedContainer: {
@@ -342,8 +397,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFE4ED',
     paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
+    paddingVertical: 8,
+    borderRadius: 18,
     marginRight: 10,
     marginBottom: 10,
     borderWidth: 1,
@@ -353,14 +408,42 @@ const styles = StyleSheet.create({
   selectedChipText: {
     color: '#FF4F8F',
     marginRight: 6,
-    fontWeight: '600',
     fontSize: 14,
+    fontWeight: '600',
+  },
+
+  otherInputContainer: {
+    flexDirection: 'row',
+    marginTop: 18,
+    alignItems: 'center',
+  },
+
+  otherInput: {
+    flex: 1,
+    height: 56,
+    borderWidth: 1.5,
+    borderColor: '#FFD1E1',
+    borderRadius: 20,
+    backgroundColor: '#FFF',
+    paddingHorizontal: 18,
+    color: '#111',
+    fontSize: 15,
+  },
+
+  addOtherButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: '#FF4F8F',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 12,
   },
 
   optionContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: 20,
+    marginTop: 24,
   },
 
   optionButton: {
@@ -368,7 +451,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFE4ED',
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 20,
     marginRight: 12,
     marginBottom: 14,
@@ -383,7 +466,6 @@ const styles = StyleSheet.create({
     color: '#C58B9C',
     fontSize: 14,
     fontWeight: '600',
-    fontFamily: 'serif',
   },
 
   selectedOptionText: {
@@ -391,7 +473,7 @@ const styles = StyleSheet.create({
   },
 
   uploadBox: {
-    height: 62,
+    height: 64,
     borderWidth: 1.5,
     borderColor: '#FFD1E1',
     borderRadius: 22,
@@ -403,7 +485,7 @@ const styles = StyleSheet.create({
   },
 
   input: {
-    height: 58,
+    height: 60,
     borderWidth: 1.5,
     borderColor: '#FFD1E1',
     borderRadius: 22,
@@ -412,7 +494,6 @@ const styles = StyleSheet.create({
     marginTop: 18,
     color: '#111',
     fontSize: 15,
-    fontFamily: 'serif',
   },
 
   button: {
@@ -424,51 +505,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
   },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
 
   buttonText: {
     color: '#FFF',
     fontSize: 20,
     fontWeight: '700',
-    fontFamily: 'serif',
-  },
-  certificateList: {
-    marginTop: 18,
-    gap: 10,
-  },
-  certificateItem: {
-    backgroundColor: '#FFF',
-    borderWidth: 1.5,
-    borderColor: '#FFD1E1',
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  certificateTextWrap: {
-    flex: 1,
-    paddingRight: 12,
-  },
-  certificateText: {
-    color: '#111',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  certificateSubText: {
-    color: '#C7AAA0',
-    fontSize: 12,
-    marginTop: 2,
-  },
-  certificateRemove: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#FFE4ED',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });
