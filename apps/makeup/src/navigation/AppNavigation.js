@@ -16,6 +16,10 @@ import ArtistRegisterSummaryScreen from '../screens/artist/ArtistRegisterSummary
 import ArtistOTPVerificationScreen from '../screens/artist/ArtistOTPVerificationScreen';
 import ClientRegisterScreen from '../screens/client/ClientRegisterScreen';
 import ClientHomeScreen from '../screens/client/ClientHomeScreen';
+import ForgotPasswordScreen from '../screens/common/ForgotPasswordScreen';
+import OtpVerificationScreen from '../screens/common/OtpVerificationScreen';
+import CreateNewPasswordScreen from '../screens/common/CreateNewPasswordScreen';
+import SearchScreen from '../screens/client/SearchScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -83,6 +87,24 @@ const AppNavigator = () => {
         name="ArtistOTPVerification"
         component={ArtistOTPVerificationScreen}
       />
+        <Stack.Screen
+          name="ForgotPassword"
+          component={ForgotPasswordScreen}
+        />
+
+        <Stack.Screen
+          name="OtpVerification"
+          component={OtpVerificationScreen}
+        />
+
+        <Stack.Screen
+          name="CreateNewPassword"
+          component={CreateNewPasswordScreen}
+        />
+        <Stack.Screen
+          name="Search"
+          component={SearchScreen}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

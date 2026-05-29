@@ -1,5 +1,6 @@
 import React from 'react';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import BottomNavigation from '../../components/BottomNavigation';
 import {
     View,
     Text,
@@ -10,7 +11,7 @@ import {
     Image,
 } from 'react-native';
 
-const ClientHomeScreen = () => {
+const ClientHomeScreen = ({ navigation }) => {
     const featuredArtists = [
         {
             id: 1,
@@ -327,54 +328,10 @@ const ClientHomeScreen = () => {
 
                 </View>
             </ScrollView>
-            <View style={styles.bottomNav}>
-
-                <TouchableOpacity style={styles.navItem}>
-                    <Ionicons
-                        name="home"
-                        size={24}
-                        color="#FF4F87"
-                    />
-                    <Text style={styles.activeNavText}>Home</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.navItem}>
-                    <Ionicons
-                        name="search-outline"
-                        size={24}
-                        color="#999"
-                    />
-                    <Text style={styles.navText}>Search</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.navItem}>
-                    <Ionicons
-                        name="calendar-outline"
-                        size={24}
-                        color="#999"
-                    />
-                    <Text style={styles.navText}>Bookings</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.navItem}>
-                    <Ionicons
-                        name="chatbubble-ellipses-outline"
-                        size={24}
-                        color="#999"
-                    />
-                    <Text style={styles.navText}>Chat</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.navItem}>
-                    <Ionicons
-                        name="person-outline"
-                        size={24}
-                        color="#999"
-                    />
-                    <Text style={styles.navText}>Profile</Text>
-                </TouchableOpacity>
-
-            </View>
+            <BottomNavigation
+                navigation={navigation}
+                activeTab="Home"
+            />
         </View>
 
     );
