@@ -15,7 +15,7 @@ export const loginClient = async (email, password) => {
   return payload;
 };
 
-export const registerClient = async (data) => {
+export const registerClient = async data => {
   const response = await api.post('/api/customer/auth/register', data);
 
   const payload = response?.data?.data;
@@ -24,4 +24,44 @@ export const registerClient = async (data) => {
   }
 
   return payload;
+};
+
+export const loginArtist = async (email, password) => {
+  const response = await api.post('/api/artist/auth/login', {
+    email,
+    password,
+  });
+
+  const payload = response?.data?.data;
+  if (payload?.token) {
+    await AsyncStorage.setItem('token', payload.token);
+  }
+
+  return payload;
+};
+
+export const registerArtist = async data => {
+  const response = await api.post('/api/artist/auth/register', data);
+
+  const payload = response?.data?.data;
+  if (payload?.token) {
+    await AsyncStorage.setItem('token', payload.token);
+  }
+
+  return payload;
+};
+
+export const updateArtistProfile = async data => {
+  const response = await api.put('/api/artist/profile', data);
+  return response?.data?.data;
+};
+
+export const sendOtp = async phone => {
+  const response = await api.post('/api/otp/send', { phone });
+  return response?.data;
+};
+
+export const verifyOtp = async (sessionId, otp) => {
+  const response = await api.post('/api/otp/verify', { sessionId, otp });
+  return response?.data;
 };

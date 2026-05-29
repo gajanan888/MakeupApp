@@ -18,7 +18,19 @@ export const updateArtistProfile = async (artistId, data) => {
     throw new Error("Artist not found");
   }
 
-  const allowedFields = ["name", "email", "phone", "pricing", "experience"];
+  const allowedFields = [
+    "name",
+    "email",
+    "phone",
+    "pricing",
+    "experience",
+    "profileImage",
+    "gender",
+    "bio",
+    "location",
+    "specializations",
+    "certificates",
+  ];
   const updates = {};
 
   for (const key of allowedFields) {

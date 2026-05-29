@@ -7,7 +7,7 @@
 !.yarn/versions
 
 # Environment
-.env
+# .env
 
 # Dependencies
 node_modules/

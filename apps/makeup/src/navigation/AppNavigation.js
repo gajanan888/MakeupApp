@@ -6,6 +6,7 @@ import OnboardingScreen from '../screens/common/OnboardingScreen';
 import RoleSelectionScreen from '../screens/common/RoleSelectionScreen';
 import ClientLoginScreen from '../screens/client/ClientLoginScreen';
 import ArtistLoginScreen from '../screens/artist/ArtistLoginScreen';
+import ArtistHomeScreen from '../screens/artist/ArtistHomeScreen';
 import ArtistRegisterScreen1 from '../screens/artist/ArtistRegisterScreen1';
 import ArtistRegisterScreen2 from '../screens/artist/ArtistRegisterScreen2';
 import ArtistRegisterScreen3 from '../screens/artist/ArtistRegisterScreen3';
@@ -37,6 +38,10 @@ const AppNavigator = () => {
         <Stack.Screen
           name="ArtistLogin"
           component={ArtistLoginScreen}
+        />
+        <Stack.Screen
+          name="ArtistHome"
+          component={ArtistHomeScreen}
         />
         <Stack.Screen
           name="ClientRegister"

@@ -27,6 +27,30 @@ const Artist = sequelize.define("Artist", {
   experience: {
     type: DataTypes.INTEGER,
   },
+
+  profileImage: {
+    type: DataTypes.STRING,
+  },
+
+  gender: {
+    type: DataTypes.STRING,
+  },
+
+  bio: {
+    type: DataTypes.TEXT,
+  },
+
+  location: {
+    type: DataTypes.TEXT,
+  },
+
+  specializations: {
+    type: DataTypes.ARRAY(DataTypes.STRING),
+  },
+
+  certificates: {
+    type: DataTypes.JSONB,
+  },
 });
 
 export default Artist;

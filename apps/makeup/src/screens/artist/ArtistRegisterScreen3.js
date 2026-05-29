@@ -1,6 +1,6 @@
 // ArtistSpecializationScreen.js
 
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -11,9 +11,11 @@ import {
   TextInput,
   Image,
   StatusBar,
+  Alert,
 } from 'react-native';
 
 import Icon from 'react-native-vector-icons/Feather';
+import { updateArtistProfile } from '../../api/auth';
 
 const SPECIALIZATIONS = [
   'Bridal',
@@ -24,9 +26,14 @@ const SPECIALIZATIONS = [
   'Others',
 ];
 
-const ArtistSpecializationScreen = () => {
-  const [selectedSpecializations, setSelectedSpecializations] =
-    useState([]);
+const ArtistSpecializationScreen = ({ navigation, route }) => {
+  const [selectedSpecializations, setSelectedSpecializations] = useState([]);
+  const [certificateNumber, setCertificateNumber] = useState('');
+  const [instituteName, setInstituteName] = useState('');
+  const [certificates, setCertificates] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const profileData = route?.params || {};
 
   const toggleSpecialization = item => {
     if (selectedSpecializations.includes(item)) {
@@ -34,23 +41,65 @@ const ArtistSpecializationScreen = () => {
         selectedSpecializations.filter(i => i !== item),
       );
     } else {
-      setSelectedSpecializations([
-        ...selectedSpecializations,
-        item,
-      ]);
+      setSelectedSpecializations([...selectedSpecializations, item]);
     }
+  };
+
+  const handleSubmit = async () => {
+    const nextCertificates = [...certificates];
+    if (certificateNumber.trim() || instituteName.trim()) {
+      nextCertificates.push({
+        number: certificateNumber.trim(),
+        instituteName: instituteName.trim(),
+      });
+    }
+
+    try {
+      setIsLoading(true);
+      await updateArtistProfile({
+        ...profileData,
+        specializations: selectedSpecializations,
+        certificates: nextCertificates.length ? nextCertificates : null,
+      });
+      navigation.navigate('ArtistHome');
+    } catch (error) {
+      const message =
+        error?.response?.data?.message || 'Profile update failed.';
+      Alert.alert('Profile error', message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAddCertificate = () => {
+    if (!certificateNumber.trim() && !instituteName.trim()) {
+      Alert.alert('Missing info', 'Add a certificate number or institute.');
+      return;
+    }
+
+    setCertificates(prev => [
+      ...prev,
+      {
+        number: certificateNumber.trim(),
+        instituteName: instituteName.trim(),
+      },
+    ]);
+    setCertificateNumber('');
+    setInstituteName('');
+  };
+
+  const handleRemoveCertificate = indexToRemove => {
+    setCertificates(prev => prev.filter((_, index) => index !== indexToRemove));
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar
-        backgroundColor="#F7F7F7"
-        barStyle="dark-content"
-      />
+      <StatusBar backgroundColor="#F7F7F7" barStyle="dark-content" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{paddingBottom: 40}}>
+        contentContainerStyle={{ paddingBottom: 40 }}
+      >
         {/* PROFILE IMAGE */}
         <View style={styles.imageSection}>
           <Image
@@ -71,9 +120,7 @@ const ArtistSpecializationScreen = () => {
 
         {/* SPECIALIZATION INPUT */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>
-            Specialization
-          </Text>
+          <Text style={styles.label}>Specialization</Text>
 
           <View style={styles.selectedBox}>
             {selectedSpecializations.length === 0 ? (
@@ -83,22 +130,13 @@ const ArtistSpecializationScreen = () => {
             ) : (
               <View style={styles.selectedContainer}>
                 {selectedSpecializations.map((item, index) => (
-                  <View
-                    key={index}
-                    style={styles.selectedChip}>
-                    <Text style={styles.selectedChipText}>
-                      {item}
-                    </Text>
+                  <View key={index} style={styles.selectedChip}>
+                    <Text style={styles.selectedChipText}>{item}</Text>
 
                     <TouchableOpacity
-                      onPress={() =>
-                        toggleSpecialization(item)
-                      }>
-                      <Icon
-                        name="x"
-                        size={14}
-                        color="#FF4F8F"
-                      />
+                      onPress={() => toggleSpecialization(item)}
+                    >
+                      <Icon name="x" size={14} color="#FF4F8F" />
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -110,38 +148,29 @@ const ArtistSpecializationScreen = () => {
         {/* OPTIONS */}
         <View style={styles.optionContainer}>
           {SPECIALIZATIONS.map((item, index) => {
-            const isSelected =
-              selectedSpecializations.includes(item);
+            const isSelected = selectedSpecializations.includes(item);
 
             return (
               <TouchableOpacity
                 key={index}
                 style={[
                   styles.optionButton,
-                  isSelected &&
-                    styles.selectedOptionButton,
+                  isSelected && styles.selectedOptionButton,
                 ]}
-                onPress={() =>
-                  toggleSpecialization(item)
-                }>
+                onPress={() => toggleSpecialization(item)}
+              >
                 <Icon
-                  name={
-                    isSelected ? 'check' : 'plus'
-                  }
+                  name={isSelected ? 'check' : 'plus'}
                   size={14}
-                  color={
-                    isSelected
-                      ? '#FFF'
-                      : '#FF4F8F'
-                  }
+                  color={isSelected ? '#FFF' : '#FF4F8F'}
                 />
 
                 <Text
                   style={[
                     styles.optionText,
-                    isSelected &&
-                      styles.selectedOptionText,
-                  ]}>
+                    isSelected && styles.selectedOptionText,
+                  ]}
+                >
                   {item}
                 </Text>
               </TouchableOpacity>
@@ -151,20 +180,15 @@ const ArtistSpecializationScreen = () => {
 
         {/* CERTIFICATE */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>
-            Certificates
-          </Text>
+          <Text style={styles.label}>Certificates</Text>
 
-          <TouchableOpacity style={styles.uploadBox}>
-            <Text style={styles.placeholder}>
-              Add a file
-            </Text>
+          <TouchableOpacity
+            style={styles.uploadBox}
+            onPress={handleAddCertificate}
+          >
+            <Text style={styles.placeholder}>Add certificate</Text>
 
-            <Icon
-              name="plus"
-              size={20}
-              color="#FF4F8F"
-            />
+            <Icon name="plus" size={20} color="#FF4F8F" />
           </TouchableOpacity>
         </View>
 
@@ -172,6 +196,8 @@ const ArtistSpecializationScreen = () => {
         <TextInput
           placeholder="Certificate Number"
           placeholderTextColor="#C7AAA0"
+          value={certificateNumber}
+          onChangeText={setCertificateNumber}
           style={styles.input}
         />
 
@@ -179,39 +205,52 @@ const ArtistSpecializationScreen = () => {
         <TextInput
           placeholder="Institute Name"
           placeholderTextColor="#C7AAA0"
+          value={instituteName}
+          onChangeText={setInstituteName}
           style={styles.input}
         />
 
-        {/* SECOND CERTIFICATE */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>
-            Certificates
-          </Text>
-
-          <TouchableOpacity style={styles.uploadBox}>
-            <Text style={styles.placeholder}>
-              Add a file
-            </Text>
-
-            <Icon
-              name="plus"
-              size={20}
-              color="#FF4F8F"
-            />
-          </TouchableOpacity>
-        </View>
+        {certificates.length > 0 && (
+          <View style={styles.certificateList}>
+            {certificates.map((item, index) => (
+              <View
+                key={`${item.number}-${index}`}
+                style={styles.certificateItem}
+              >
+                <View style={styles.certificateTextWrap}>
+                  <Text style={styles.certificateText}>
+                    {item.number || 'No number'}
+                  </Text>
+                  <Text style={styles.certificateSubText}>
+                    {item.instituteName || 'No institute'}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => handleRemoveCertificate(index)}
+                  style={styles.certificateRemove}
+                >
+                  <Icon name="x" size={16} color="#FF4F8F" />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* BUTTON */}
-        <TouchableOpacity style={styles.button}>
+        <TouchableOpacity
+          style={[styles.button, isLoading && styles.buttonDisabled]}
+          onPress={handleSubmit}
+          disabled={isLoading}
+        >
           <Text style={styles.buttonText}>
-            Let’s Make-up Profile
+            {isLoading ? 'Saving...' : 'Let’s Make-up Profile'}
           </Text>
 
           <Icon
             name="arrow-right"
             size={22}
             color="#FFF"
-            style={{marginLeft: 8}}
+            style={{ marginLeft: 8 }}
           />
         </TouchableOpacity>
       </ScrollView>
@@ -385,11 +424,51 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
   },
+  buttonDisabled: {
+    opacity: 0.7,
+  },
 
   buttonText: {
     color: '#FFF',
     fontSize: 20,
     fontWeight: '700',
     fontFamily: 'serif',
+  },
+  certificateList: {
+    marginTop: 18,
+    gap: 10,
+  },
+  certificateItem: {
+    backgroundColor: '#FFF',
+    borderWidth: 1.5,
+    borderColor: '#FFD1E1',
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  certificateTextWrap: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  certificateText: {
+    color: '#111',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  certificateSubText: {
+    color: '#C7AAA0',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  certificateRemove: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#FFE4ED',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

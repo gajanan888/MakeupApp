@@ -7,6 +7,7 @@ import artistAuthRoutes from "../modules/artist/artistAuth.routes.js";
 import bookingRoutes from "../modules/booking/booking.routes.js";
 import adminAuthRoutes from "../modules/admin/auth.routes.js";
 import adminRoutes from "../modules/admin/admin.routes.js";
+import otpRoutes from "../modules/otp/otp.routes.js";
 
 const router = express.Router();
 
@@ -17,5 +18,6 @@ router.use("/artist", artistRoutes);
 router.use("/booking", bookingRoutes);
 router.use("/admin/auth", adminAuthRoutes);
 router.use("/admin", adminRoutes);
+router.use("/otp", otpRoutes);
 
 export default router;
