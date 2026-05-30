@@ -19,7 +19,10 @@ import {
     Platform,
     Image,
     KeyboardAvoidingView,
+    Alert,
 } from 'react-native';
+
+import { uploadFile } from '../../api/files';
 
 import Ionicons from '@react-native-vector-icons/ionicons';
 
@@ -53,17 +56,43 @@ const ArtistRegisterScreen5 = ({ navigation }) => {
         }
 
         if (result.assets && result.assets.length > 0) {
-            const imageUri = result.assets[0].uri;
-            setWorks(prev =>
-                prev.map((item, idx) =>
-                    idx === index
-                        ? {
-                              ...item,
-                              [`${type}Image`]: imageUri,
-                          }
-                        : item,
-                ),
-            );
+            const asset = result.assets[0];
+            const file = {
+                uri: asset.uri,
+                name: asset.fileName || `photo_${Date.now()}.jpg`,
+                type: asset.type || 'image/jpeg',
+            };
+
+            try {
+                // Set local uri first for instant feedback to the user
+                setWorks(prev =>
+                    prev.map((item, idx) =>
+                        idx === index
+                            ? {
+                                  ...item,
+                                  [`${type}Image`]: asset.uri,
+                              }
+                            : item,
+                    ),
+                );
+
+                const url = await uploadFile(file);
+                if (url) {
+                    setWorks(prev =>
+                        prev.map((item, idx) =>
+                            idx === index
+                                ? {
+                                      ...item,
+                                      [`${type}Image`]: url,
+                                  }
+                                : item,
+                        ),
+                    );
+                }
+            } catch (err) {
+                console.warn('Upload failed', err);
+                Alert.alert('Upload failed', err.message || 'Unable to upload image');
+            }
         }
     };
 
