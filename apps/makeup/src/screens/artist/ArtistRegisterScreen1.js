@@ -10,7 +10,10 @@ import {
     ScrollView,
     KeyboardAvoidingView,
     Platform,
+    Alert,
 } from 'react-native';
+
+import { sendOtp } from '../../api/auth';
 
 const ArtistRegisterScreen1 = ({ navigation }) => {
     const [fullName, setFullName] = useState('');
@@ -19,6 +22,8 @@ const ArtistRegisterScreen1 = ({ navigation }) => {
 
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -32,7 +37,7 @@ const ArtistRegisterScreen1 = ({ navigation }) => {
 
     const [termsError, setTermsError] = useState('');
 
-    const handleRegister = () => {
+    const handleRegister = async () => {
 
         let valid = true;
 
@@ -90,7 +95,40 @@ const ArtistRegisterScreen1 = ({ navigation }) => {
 
         if (!valid) return;
 
-        navigation.navigate('ArtistOTPVerification');
+        try {
+            setIsSubmitting(true);
+            const response = await sendOtp(phone.trim());
+
+            if (
+                response?.Status &&
+                String(response.Status).toLowerCase() !== 'success'
+            ) {
+                throw new Error(response?.Details || 'Failed to send OTP');
+            }
+
+            const sessionId =
+                response?.Details ||
+                response?.details ||
+                response?.sessionId ||
+                response?.session_id;
+
+            if (!sessionId) {
+                throw new Error('Did not receive a valid session ID. Please try again.');
+            }
+
+            navigation.navigate('ArtistOTPVerification', {
+                sessionId,
+                phone: phone.trim(),
+                email: email.trim(),
+                fullName: fullName.trim(),
+                password,
+            });
+        } catch (error) {
+            const msg = error?.response?.data?.message || error?.message || 'Failed to send verification code';
+            Alert.alert('Verification Error', msg);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -313,16 +351,15 @@ const ArtistRegisterScreen1 = ({ navigation }) => {
                     {/* Register Button */}
 
                     <TouchableOpacity
-                        disabled={!isChecked}
+                        disabled={!isChecked || isSubmitting}
                         style={[
                             styles.registerButton,
-                            !isChecked && styles.disabledButton,
+                            (!isChecked || isSubmitting) && styles.disabledButton,
                         ]}
                         onPress={handleRegister}
-
                     >
                         <Text style={styles.registerText}>
-                            Create Account
+                            {isSubmitting ? 'Sending Code...' : 'Create Account'}
                         </Text>
                     </TouchableOpacity>
 
