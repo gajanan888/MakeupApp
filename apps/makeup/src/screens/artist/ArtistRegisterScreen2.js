@@ -1,5 +1,5 @@
 // ProfileSetupScreen.js
-import {PermissionsAndroid, Platform} from 'react-native';
+import { PermissionsAndroid, Platform } from 'react-native';
 import React, { useState } from 'react';
 import {
   View,
@@ -20,11 +20,9 @@ import {
 
 import Ionicons from '@react-native-vector-icons/ionicons';
 
-import {
-  launchCamera,
-  launchImageLibrary,
-} from 'react-native-image-picker';
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { uploadFile } from '../../api/files';
+import { useArtistRegistration } from '../../context/ArtistRegistrationContext';
 
 const requestPermissions = async () => {
   if (Platform.OS === 'android') {
@@ -50,27 +48,45 @@ const requestPermissions = async () => {
 
   return true;
 };
-const containerPaddingTop = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 8 : 20;
+const containerPaddingTop =
+  Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 8 : 20;
 const ProfileSetupScreen = ({ navigation }) => {
-  const [profileImage, setProfileImage] = useState(null);
+  const { data, setProfileInfo } = useArtistRegistration();
+  const [profileImage, setProfileImage] = useState(
+    data.profile.profileImage || null,
+  );
+  const [uploadError, setUploadError] = useState('');
   const [imagePickerVisible, setImagePickerVisible] = useState(false);
   const [optionModalVisible, setOptionModalVisible] = useState(false);
   const [activeOption, setActiveOption] = useState('');
-  const [selectedGender, setSelectedGender] = useState('');
-  const [selectedExperience, setSelectedExperience] = useState('');
-  const [bio, setBio] = useState('');
-  const [location, setLocation] = useState('');
+  const [selectedGender, setSelectedGender] = useState(
+    data.profile.gender || '',
+  );
+  const [selectedExperience, setSelectedExperience] = useState(
+    data.profile.experience || '',
+  );
+  const [bio, setBio] = useState(data.profile.bio || '');
+  const [location, setLocation] = useState(data.profile.location || '');
+
+  const displayName = data.basic.name || 'Artist';
 
   const genderOptions = ['Female', 'Male', 'Other'];
-  const experienceOptions = ['0-1 years', '1-2 years', '2-3 years', '3-4 years', '4-5 years', '5+ years'];
+  const experienceOptions = [
+    '0-1 years',
+    '1-2 years',
+    '2-3 years',
+    '3-4 years',
+    '4-5 years',
+    '5+ years',
+  ];
 
-  const openOptionModal = (type) => {
+  const openOptionModal = type => {
     Keyboard.dismiss();
     setActiveOption(type);
     setOptionModalVisible(true);
   };
 
-  const handleOptionSelect = (value) => {
+  const handleOptionSelect = value => {
     if (activeOption === 'gender') {
       setSelectedGender(value);
     } else if (activeOption === 'experience') {
@@ -80,101 +96,96 @@ const ProfileSetupScreen = ({ navigation }) => {
   };
 
   const openCamera = async () => {
-  const granted = await requestPermissions();
+    const granted = await requestPermissions();
 
-  if (!granted) {
-    Alert.alert(
-      'Permission Required',
-      'Camera permission is needed',
-    );
-    return;
-  }
-
-  setImagePickerVisible(false);
-
-  const result = await launchCamera({
-    mediaType: 'photo',
-    quality: 1,
-    cameraType: 'front',
-    saveToPhotos: true,
-  });
-
-  if (result.didCancel) return;
-
-  if (result.assets && result.assets.length > 0) {
-    try {
-      const asset = result.assets[0];
-      const file = {
-        uri: asset.uri,
-        name: asset.fileName || `photo_${Date.now()}.jpg`,
-        type: asset.type || 'image/jpeg',
-      };
-
-      const url = await uploadFile(file);
-      if (url) {
-        setProfileImage(url);
-      } else {
-        setProfileImage(asset.uri);
-      }
-    } catch (err) {
-      console.warn('Upload failed', err);
-      Alert.alert('Upload failed', err.message || 'Unable to upload image');
-      setProfileImage(result.assets[0].uri);
+    if (!granted) {
+      Alert.alert('Permission Required', 'Camera permission is needed');
+      return;
     }
-  }
-};
+
+    setImagePickerVisible(false);
+
+    const result = await launchCamera({
+      mediaType: 'photo',
+      quality: 1,
+      cameraType: 'front',
+      saveToPhotos: true,
+    });
+
+    if (result.didCancel) return;
+
+    if (result.assets && result.assets.length > 0) {
+      try {
+        setUploadError('');
+        const asset = result.assets[0];
+        const file = {
+          uri: asset.uri,
+          name: asset.fileName || `photo_${Date.now()}.jpg`,
+          type: asset.type || 'image/jpeg',
+        };
+
+        const url = await uploadFile(file);
+        if (url) {
+          setProfileImage(url);
+        } else {
+          setProfileImage(asset.uri);
+        }
+      } catch (err) {
+        console.warn('Upload failed', err);
+        setUploadError(err.message || 'Unable to upload image');
+        Alert.alert('Upload failed', err.message || 'Unable to upload image');
+        setProfileImage(result.assets[0].uri);
+      }
+    }
+  };
 
   // OPEN GALLERY
-const openGallery = async () => {
-  const granted = await requestPermissions();
+  const openGallery = async () => {
+    const granted = await requestPermissions();
 
-  if (!granted) {
-    Alert.alert(
-      'Permission Required',
-      'Gallery permission is needed',
-    );
-    return;
-  }
-
-  setImagePickerVisible(false);
-
-  const result = await launchImageLibrary({
-    mediaType: 'photo',
-    quality: 1,
-    selectionLimit: 1,
-  });
-
-  if (result.didCancel) return;
-
-  if (result.assets && result.assets.length > 0) {
-    try {
-      const asset = result.assets[0];
-      const file = {
-        uri: asset.uri,
-        name: asset.fileName || `photo_${Date.now()}.jpg`,
-        type: asset.type || 'image/jpeg',
-      };
-
-      const url = await uploadFile(file);
-      if (url) {
-        setProfileImage(url);
-      } else {
-        setProfileImage(asset.uri);
-      }
-    } catch (err) {
-      console.warn('Upload failed', err);
-      Alert.alert('Upload failed', err.message || 'Unable to upload image');
-      setProfileImage(result.assets[0].uri);
+    if (!granted) {
+      Alert.alert('Permission Required', 'Gallery permission is needed');
+      return;
     }
-  }
-};
+
+    setImagePickerVisible(false);
+
+    const result = await launchImageLibrary({
+      mediaType: 'photo',
+      quality: 1,
+      selectionLimit: 1,
+    });
+
+    if (result.didCancel) return;
+
+    if (result.assets && result.assets.length > 0) {
+      try {
+        setUploadError('');
+        const asset = result.assets[0];
+        const file = {
+          uri: asset.uri,
+          name: asset.fileName || `photo_${Date.now()}.jpg`,
+          type: asset.type || 'image/jpeg',
+        };
+
+        const url = await uploadFile(file);
+        if (url) {
+          setProfileImage(url);
+        } else {
+          setProfileImage(asset.uri);
+        }
+      } catch (err) {
+        console.warn('Upload failed', err);
+        setUploadError(err.message || 'Unable to upload image');
+        Alert.alert('Upload failed', err.message || 'Unable to upload image');
+        setProfileImage(result.assets[0].uri);
+      }
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar
-        backgroundColor="#F7F7F7"
-        barStyle="dark-content"
-      />
+      <StatusBar backgroundColor="#F7F7F7" barStyle="dark-content" />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -186,127 +197,136 @@ const openGallery = async () => {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ flexGrow: 1, paddingBottom: 12 }}
         >
-     
-        
+          {/* PROFILE SECTION */}
+          <View style={styles.imageSection}>
+            <View style={styles.imageWrapper}>
+              <Image
+                source={
+                  profileImage
+                    ? { uri: profileImage }
+                    : {
+                        uri: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=500',
+                      }
+                }
+                style={styles.profileImage}
+              />
 
-        {/* PROFILE SECTION */}
-        <View style={styles.imageSection}>
-          <View style={styles.imageWrapper}>
-            <Image
-              source={
-                profileImage
-                  ? { uri: profileImage }
-                  : {
-                      uri: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=500',
-                    }
-              }
-              style={styles.profileImage}
-            />
+              {/* ADD IMAGE BUTTON */}
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={() => {
+                  Keyboard.dismiss();
+                  setImagePickerVisible(true);
+                }}
+              >
+                <Ionicons name="add" size={20} color="#111" />
+              </TouchableOpacity>
+            </View>
 
-            {/* ADD IMAGE BUTTON */}
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={() => { Keyboard.dismiss(); setImagePickerVisible(true); }}
-            >
-              <Ionicons name="add" size={20} color="#111" />
+            {!!uploadError ? (
+              <Text style={styles.uploadErrorText}>{uploadError}</Text>
+            ) : null}
+
+            {/* NAME */}
+            <TouchableOpacity style={styles.nameContainer}>
+              <Text style={styles.nameText}>{displayName}</Text>
             </TouchableOpacity>
           </View>
 
-          {/* NAME */}
-          <TouchableOpacity style={styles.nameContainer}>
-            <Text style={styles.nameText}>Mona Lisa</Text>
-          </TouchableOpacity>
-        </View>
+          {/* BIO */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Bio</Text>
 
-        {/* BIO */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Bio</Text>
-
-          <TextInput
-            placeholder="A short Intro about you, Mona"
-            placeholderTextColor="#B7A9A1"
-            multiline
-            style={[styles.input, styles.bioInput]}
-          />
-        </View>
-
-        {/* GENDER */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Gender</Text>
-
-          <TouchableOpacity
-            style={styles.dropdown}
-            onPress={() => openOptionModal('gender')}
-          >
-            <Text
-              style={
-                selectedGender ? styles.dropdownText : styles.placeholder
-              }
-            >
-              {selectedGender || 'Select your Gender'}
-            </Text>
-
-            <Ionicons
-              name="chevron-down"
-              size={22}
-              color="#FF4F8F"
+            <TextInput
+              placeholder="A short Intro about you, Mona"
+              placeholderTextColor="#B7A9A1"
+              multiline
+              value={bio}
+              onChangeText={setBio}
+              style={[styles.input, styles.bioInput]}
             />
-          </TouchableOpacity>
-        </View>
+          </View>
 
-        {/* EXPERIENCE */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Experience</Text>
+          {/* GENDER */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Gender</Text>
 
-          <TouchableOpacity
-            style={styles.dropdown}
-            onPress={() => openOptionModal('experience')}
-          >
-            <Text
-              style={
-                selectedExperience
-                  ? styles.dropdownText
-                  : styles.placeholder
-              }
+            <TouchableOpacity
+              style={styles.dropdown}
+              onPress={() => openOptionModal('gender')}
             >
-              {selectedExperience || 'Select experience'}
-            </Text>
+              <Text
+                style={
+                  selectedGender ? styles.dropdownText : styles.placeholder
+                }
+              >
+                {selectedGender || 'Select your Gender'}
+              </Text>
 
-            <Ionicons
-              name="chevron-down"
-              size={22}
-              color="#FF4F8F"
-            />
-          </TouchableOpacity>
-        </View>
+              <Ionicons name="chevron-down" size={22} color="#FF4F8F" />
+            </TouchableOpacity>
+          </View>
 
-        {/* LOCATION */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Location</Text>
+          {/* EXPERIENCE */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Experience</Text>
 
-          <TextInput
-            placeholder="Give service City/Area
+            <TouchableOpacity
+              style={styles.dropdown}
+              onPress={() => openOptionModal('experience')}
+            >
+              <Text
+                style={
+                  selectedExperience ? styles.dropdownText : styles.placeholder
+                }
+              >
+                {selectedExperience || 'Select experience'}
+              </Text>
+
+              <Ionicons name="chevron-down" size={22} color="#FF4F8F" />
+            </TouchableOpacity>
+          </View>
+
+          {/* LOCATION */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Location</Text>
+
+            <TextInput
+              placeholder="Give service City/Area
 (Can choose more than one area)"
-            placeholderTextColor="#B7A9A1"
-            multiline
-            style={[styles.input, styles.locationInput]}
-          />
-        </View>
+              placeholderTextColor="#B7A9A1"
+              multiline
+              value={location}
+              onChangeText={setLocation}
+              style={[styles.input, styles.locationInput]}
+            />
+          </View>
 
-        {/* BUTTON */}
-        <TouchableOpacity style={styles.button} onPress={() => { Keyboard.dismiss(); navigation.navigate('ArtistRegister3'); }}>
-          <Text style={styles.buttonText}>
-            Let’s Make-up Profile
-          </Text>
+          {/* BUTTON */}
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => {
+              Keyboard.dismiss();
+              setProfileInfo({
+                profileImage,
+                gender: selectedGender,
+                bio,
+                location,
+                experience: selectedExperience,
+              });
+              navigation.navigate('ArtistRegister3');
+            }}
+          >
+            <Text style={styles.buttonText}>Let’s Make-up Profile</Text>
 
-          <Ionicons
-            name="arrow-forward"
-            size={22}
-            color="#FFF"
-            style={{ marginLeft: 10 }}
-          />
-        </TouchableOpacity>
-      </ScrollView>
+            <Ionicons
+              name="arrow-forward"
+              size={22}
+              color="#FFF"
+              style={{ marginLeft: 10 }}
+            />
+          </TouchableOpacity>
+        </ScrollView>
       </KeyboardAvoidingView>
 
       {/* IMAGE PICKER MODAL */}
@@ -320,40 +340,20 @@ const openGallery = async () => {
           onPress={() => setImagePickerVisible(false)}
         >
           <View style={styles.bottomSheet}>
-            <Text style={styles.sheetTitle}>
-              Choose Profile Photo
-            </Text>
+            <Text style={styles.sheetTitle}>Choose Profile Photo</Text>
 
             {/* CAMERA */}
-            <TouchableOpacity
-              style={styles.sheetButton}
-              onPress={openCamera}
-            >
-              <Ionicons
-                name="camera"
-                size={22}
-                color="#FF4F8F"
-              />
+            <TouchableOpacity style={styles.sheetButton} onPress={openCamera}>
+              <Ionicons name="camera" size={22} color="#FF4F8F" />
 
-              <Text style={styles.sheetButtonText}>
-                Open Camera
-              </Text>
+              <Text style={styles.sheetButtonText}>Open Camera</Text>
             </TouchableOpacity>
 
             {/* GALLERY */}
-            <TouchableOpacity
-              style={styles.sheetButton}
-              onPress={openGallery}
-            >
-              <Ionicons
-                name="image"
-                size={22}
-                color="#FF4F8F"
-              />
+            <TouchableOpacity style={styles.sheetButton} onPress={openGallery}>
+              <Ionicons name="image" size={22} color="#FF4F8F" />
 
-              <Text style={styles.sheetButtonText}>
-                Choose from Gallery
-              </Text>
+              <Text style={styles.sheetButtonText}>Choose from Gallery</Text>
             </TouchableOpacity>
 
             {/* CANCEL */}
@@ -361,9 +361,7 @@ const openGallery = async () => {
               style={styles.cancelButton}
               onPress={() => setImagePickerVisible(false)}
             >
-              <Text style={styles.cancelText}>
-                Cancel
-              </Text>
+              <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -387,25 +385,24 @@ const openGallery = async () => {
                 : 'Select Experience'}
             </Text>
 
-            {(activeOption === 'gender' ? genderOptions : experienceOptions).map(
-              (item) => (
-                <TouchableOpacity
-                  key={item}
-                  style={styles.sheetButton}
-                  onPress={() => handleOptionSelect(item)}
-                >
-                  <Text style={styles.sheetButtonText}>{item}</Text>
-                </TouchableOpacity>
-              ),
-            )}
+            {(activeOption === 'gender'
+              ? genderOptions
+              : experienceOptions
+            ).map(item => (
+              <TouchableOpacity
+                key={item}
+                style={styles.sheetButton}
+                onPress={() => handleOptionSelect(item)}
+              >
+                <Text style={styles.sheetButtonText}>{item}</Text>
+              </TouchableOpacity>
+            ))}
 
             <TouchableOpacity
               style={styles.cancelButton}
               onPress={() => setOptionModalVisible(false)}
             >
-              <Text style={styles.cancelText}>
-                Cancel
-              </Text>
+              <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -471,6 +468,14 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1.5,
     borderColor: '#FFD1E1',
+  },
+
+  uploadErrorText: {
+    marginTop: 12,
+    color: '#D32F2F',
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 
   nameText: {

@@ -16,7 +16,7 @@
 //
 // npx react-native-asset
 
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 
 import {
   View,
@@ -36,6 +36,7 @@ import {
 import Ionicons from '@react-native-vector-icons/ionicons';
 import * as DocumentPicker from 'react-native-document-picker';
 import { uploadFile } from '../../api/files';
+import { useArtistRegistration } from '../../context/ArtistRegistrationContext';
 
 const SPECIALIZATIONS = [
   'Bridal',
@@ -58,15 +59,22 @@ const SPECIALIZATIONS = [
   'Others',
 ];
 
+const MAX_CERTIFICATE_SIZE = 2 * 1024 * 1024;
+const ALLOWED_CERTIFICATE_TYPES = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+]);
+
 const ArtistRegisterScreen3 = ({ navigation }) => {
-  const [selectedSpecializations, setSelectedSpecializations] =
-    useState([]);
+  const { data, setSpecializations, setCertificates } = useArtistRegistration();
+  const [selectedSpecializations, setSelectedSpecializations] = useState(
+    data.specializations || [],
+  );
 
-  const [showOtherInput, setShowOtherInput] =
-    useState(false);
+  const [showOtherInput, setShowOtherInput] = useState(false);
 
-  const [otherSpecialization, setOtherSpecialization] =
-    useState('');
+  const [otherSpecialization, setOtherSpecialization] = useState('');
 
   const toggleSpecialization = item => {
     if (item === 'Others') {
@@ -79,19 +87,14 @@ const ArtistRegisterScreen3 = ({ navigation }) => {
         selectedSpecializations.filter(i => i !== item),
       );
     } else {
-      setSelectedSpecializations([
-        ...selectedSpecializations,
-        item,
-      ]);
+      setSelectedSpecializations([...selectedSpecializations, item]);
     }
   };
 
   const addOtherSpecialization = () => {
     if (
       otherSpecialization.trim() &&
-      !selectedSpecializations.includes(
-        otherSpecialization,
-      )
+      !selectedSpecializations.includes(otherSpecialization)
     ) {
       setSelectedSpecializations([
         ...selectedSpecializations,
@@ -104,23 +107,27 @@ const ArtistRegisterScreen3 = ({ navigation }) => {
   };
 
   const removeSpecialization = item => {
-    setSelectedSpecializations(
-      selectedSpecializations.filter(i => i !== item),
-    );
+    setSelectedSpecializations(selectedSpecializations.filter(i => i !== item));
   };
 
-  const [certificates, setCertificates] = useState([
-    {
-      id: Date.now(),
-      file: null,
-      certificateNumber: '',
-      instituteName: '',
-      error: '',
-    },
-  ]);
+  const [certificates, setCertificatesState] = useState(
+    data.certificates && data.certificates.length > 0
+      ? data.certificates
+      : [
+          {
+            id: Date.now(),
+            file: null,
+            certificateNumber: '',
+            instituteName: '',
+            error: '',
+          },
+        ],
+  );
+
+  const displayName = data.basic.name || 'Artist';
 
   const addCertificateItem = () => {
-    setCertificates(prev => [
+    setCertificatesState(prev => [
       ...prev,
       {
         id: Date.now() + prev.length,
@@ -133,9 +140,22 @@ const ArtistRegisterScreen3 = ({ navigation }) => {
   };
 
   const updateCertificateField = (index, field, value) => {
-    setCertificates(prev =>
+    setCertificatesState(prev =>
       prev.map((item, idx) =>
-        idx === index ? {...item, [field]: value} : item,
+        idx === index ? { ...item, [field]: value } : item,
+      ),
+    );
+  };
+
+  const setCertificateError = (index, message) => {
+    setCertificatesState(prev =>
+      prev.map((item, idx) =>
+        idx === index
+          ? {
+              ...item,
+              error: message,
+            }
+          : item,
       ),
     );
   };
@@ -143,35 +163,47 @@ const ArtistRegisterScreen3 = ({ navigation }) => {
   const pickCertificate = async index => {
     try {
       const result = await DocumentPicker.pickSingle({
-        type: [DocumentPicker.types.allFiles],
+        type: [
+          DocumentPicker.types.pdf,
+          DocumentPicker.types.doc,
+          DocumentPicker.types.docx,
+        ],
+        copyTo: 'cachesDirectory',
       });
 
-      if (result.size && result.size > 2 * 1024 * 1024) {
-        setCertificates(prev =>
-          prev.map((item, idx) =>
-            idx === index
-              ? {
-                  ...item,
-                  error: 'File must be under 2MB.',
-                }
-              : item,
-          ),
+      const mimeType = (result.type || '').toLowerCase();
+      const fileSize = Number(result.size || 0);
+
+      if (mimeType && !ALLOWED_CERTIFICATE_TYPES.has(mimeType)) {
+        setCertificateError(
+          index,
+          'Only PDF, DOC, or DOCX certificate files are allowed.',
         );
+        Alert.alert(
+          'Invalid file type',
+          'Please select a PDF, DOC, or DOCX certificate file.',
+        );
+        return;
+      }
+
+      if (fileSize > MAX_CERTIFICATE_SIZE) {
+        setCertificateError(index, 'File must be under 2MB.');
         Alert.alert('File too large', 'Please select a file under 2MB.');
         return;
       }
 
       // upload to backend -> cloudinary
       try {
+        setCertificateError(index, '');
         const fileObj = {
-          uri: result.uri,
+          uri: result.fileCopyUri || result.uri,
           name: result.name || `file_${Date.now()}`,
           type: result.type || 'application/octet-stream',
         };
 
         const url = await uploadFile(fileObj);
 
-        setCertificates(prev =>
+        setCertificatesState(prev =>
           prev.map((item, idx) =>
             idx === index
               ? {
@@ -189,6 +221,10 @@ const ArtistRegisterScreen3 = ({ navigation }) => {
         );
       } catch (err) {
         console.warn('Certificate upload failed', err);
+        setCertificateError(
+          index,
+          err.message || 'Unable to upload file right now.',
+        );
         Alert.alert('Upload failed', err.message || 'Unable to upload file');
       }
     } catch (err) {
@@ -196,20 +232,20 @@ const ArtistRegisterScreen3 = ({ navigation }) => {
         return;
       }
       console.warn('Certificate pick error:', err);
-      Alert.alert('File selection error', err.message || 'Unable to choose a file.');
+      Alert.alert(
+        'File selection error',
+        err.message || 'Unable to choose a file.',
+      );
     }
   };
 
   const removeCertificate = index => {
-    setCertificates(prev => prev.filter((_, idx) => idx !== index));
+    setCertificatesState(prev => prev.filter((_, idx) => idx !== index));
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar
-        backgroundColor="#F7F7F7"
-        barStyle="dark-content"
-      />
+      <StatusBar backgroundColor="#F7F7F7" barStyle="dark-content" />
 
       <KeyboardAvoidingView
         style={styles.container}
@@ -221,12 +257,15 @@ const ArtistRegisterScreen3 = ({ navigation }) => {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{
             paddingBottom: 50,
-          }}>
-          {/* PROFILE IMAGE */}
+          }}
+        >
+          {/* PROFILE IMAGE (use uploaded profile image from previous screen) */}
           <View style={styles.imageSection}>
             <Image
               source={{
-                uri: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=500',
+                uri:
+                  data?.profile?.profileImage ||
+                  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=500',
               }}
               style={styles.profileImage}
             />
@@ -235,16 +274,15 @@ const ArtistRegisterScreen3 = ({ navigation }) => {
           {/* TITLE */}
           <View style={styles.titleContainer}>
             <Text style={styles.title}>
-              Hey Mona{'\n'}
+              Hey {displayName}
+              {'\n'}
               Let’s Make you a Professional
             </Text>
           </View>
 
           {/* SPECIALIZATION */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>
-              Specialization
-            </Text>
+            <Text style={styles.label}>Specialization</Text>
 
             <View style={styles.selectedBox}>
               {selectedSpecializations.length === 0 ? (
@@ -253,33 +291,17 @@ const ArtistRegisterScreen3 = ({ navigation }) => {
                 </Text>
               ) : (
                 <View style={styles.selectedContainer}>
-                  {selectedSpecializations.map(
-                    (item, index) => (
-                      <View
-                        key={index}
-                        style={styles.selectedChip}>
-                        <Text
-                          style={
-                            styles.selectedChipText
-                          }>
-                          {item}
-                        </Text>
+                  {selectedSpecializations.map((item, index) => (
+                    <View key={index} style={styles.selectedChip}>
+                      <Text style={styles.selectedChipText}>{item}</Text>
 
-                        <TouchableOpacity
-                          onPress={() =>
-                            removeSpecialization(
-                              item,
-                            )
-                          }>
-                          <Ionicons
-                            name="close"
-                            size={16}
-                            color="#FF4F8F"
-                          />
-                        </TouchableOpacity>
-                      </View>
-                    ),
-                  )}
+                      <TouchableOpacity
+                        onPress={() => removeSpecialization(item)}
+                      >
+                        <Ionicons name="close" size={16} color="#FF4F8F" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
                 </View>
               )}
             </View>
@@ -290,73 +312,57 @@ const ArtistRegisterScreen3 = ({ navigation }) => {
             <View style={styles.otherInputContainer}>
               <TextInput
                 value={otherSpecialization}
-                onChangeText={
-                  setOtherSpecialization
-                }
+                onChangeText={setOtherSpecialization}
                 placeholder="Enter your specialization"
                 placeholderTextColor="#C7AAA0"
                 style={styles.otherInput}
               />
 
-                <TouchableOpacity
+              <TouchableOpacity
                 style={styles.addOtherButton}
-                onPress={addOtherSpecialization}>
-                <Ionicons
-                  name="add"
-                  size={18}
-                  color="#FFF"
-                />
+                onPress={addOtherSpecialization}
+              >
+                <Ionicons name="add" size={18} color="#FFF" />
               </TouchableOpacity>
             </View>
           )}
 
           {/* SPECIALIZATION OPTIONS */}
           <View style={styles.optionContainer}>
-            {SPECIALIZATIONS.map(
-              (item, index) => {
-                const isSelected =
-                  selectedSpecializations.includes(
-                    item,
-                  );
+            {SPECIALIZATIONS.map((item, index) => {
+              const isSelected = selectedSpecializations.includes(item);
 
-                return (
-                  <TouchableOpacity
-                    key={index}
+              return (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.optionButton,
+                    isSelected && styles.selectedOptionButton,
+                  ]}
+                  onPress={() => toggleSpecialization(item)}
+                >
+                  <Ionicons
+                    name={isSelected ? 'checkmark' : 'add'}
+                    size={15}
+                    color={isSelected ? '#FFF' : '#FF4F8F'}
+                  />
+
+                  <Text
                     style={[
-                      styles.optionButton,
-                      isSelected &&
-                        styles.selectedOptionButton,
+                      styles.optionText,
+                      isSelected && styles.selectedOptionText,
                     ]}
-                    onPress={() =>
-                      toggleSpecialization(
-                        item,
-                      )
-                    }>
-                    <Ionicons
-                      name={isSelected ? 'checkmark' : 'add'}
-                      size={15}
-                      color={isSelected ? '#FFF' : '#FF4F8F'}
-                    />
-
-                    <Text
-                      style={[
-                        styles.optionText,
-                        isSelected &&
-                          styles.selectedOptionText,
-                      ]}>
-                      {item}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              },
-            )}
+                  >
+                    {item}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           {/* CERTIFICATES */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>
-              Certificates
-            </Text>
+            <Text style={styles.label}>Certificates</Text>
 
             {certificates.map((cert, index) => (
               <View key={cert.id} style={styles.certificateCard}>
@@ -365,20 +371,16 @@ const ArtistRegisterScreen3 = ({ navigation }) => {
                     Certificate {index + 1}
                   </Text>
                   {certificates.length > 1 ? (
-                    <TouchableOpacity
-                      onPress={() => removeCertificate(index)}>
-                      <Ionicons
-                        name="close"
-                        size={18}
-                        color="#FF4F8F"
-                      />
+                    <TouchableOpacity onPress={() => removeCertificate(index)}>
+                      <Ionicons name="close" size={18} color="#FF4F8F" />
                     </TouchableOpacity>
                   ) : null}
                 </View>
 
                 <TouchableOpacity
                   style={styles.uploadBox}
-                  onPress={() => pickCertificate(index)}>
+                  onPress={() => pickCertificate(index)}
+                >
                   <View>
                     <Text style={styles.placeholder}>
                       {cert.file?.name || 'Pick certificate file'}
@@ -388,17 +390,11 @@ const ArtistRegisterScreen3 = ({ navigation }) => {
                     </Text>
                   </View>
 
-                  <Ionicons
-                    name="add"
-                    size={20}
-                    color="#FF4F8F"
-                  />
+                  <Ionicons name="add" size={20} color="#FF4F8F" />
                 </TouchableOpacity>
 
                 {cert.error ? (
-                  <Text style={styles.errorText}>
-                    {cert.error}
-                  </Text>
+                  <Text style={styles.errorText}>{cert.error}</Text>
                 ) : null}
 
                 <TextInput
@@ -425,26 +421,28 @@ const ArtistRegisterScreen3 = ({ navigation }) => {
 
             <TouchableOpacity
               style={styles.addMoreButton}
-              onPress={addCertificateItem}>
-              <Text style={styles.addMoreText}>
-                Add More Certificates
-              </Text>
+              onPress={addCertificateItem}
+            >
+              <Text style={styles.addMoreText}>Add More Certificates</Text>
             </TouchableOpacity>
           </View>
 
           {/* BUTTON */}
           <TouchableOpacity
             style={styles.button}
-            onPress={() => navigation.navigate('ArtistRegister4')}>
-            <Text style={styles.buttonText}>
-              Let’s Make-up Profile
-            </Text>
+            onPress={() => {
+              setSpecializations(selectedSpecializations);
+              setCertificates(certificates);
+              navigation.navigate('ArtistRegister4');
+            }}
+          >
+            <Text style={styles.buttonText}>Let’s Make-up Profile</Text>
 
             <Ionicons
               name="arrow-forward"
               size={22}
               color="#FFF"
-              style={{marginLeft: 8}}
+              style={{ marginLeft: 8 }}
             />
           </TouchableOpacity>
         </ScrollView>

@@ -1,6 +1,6 @@
 // PaymentDetailsScreen.js
 
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 
 import {
   View,
@@ -15,51 +15,78 @@ import {
 } from 'react-native';
 
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { useArtistRegistration } from '../../context/ArtistRegistrationContext';
 
-const ArtistRegisterScreen6 = ({navigation}) => {
-  const [accountHolder, setAccountHolder] =
-    useState('');
+const ACCOUNT_NUMBER_REGEX = /^\d{6,18}$/;
+const IFSC_REGEX = /^[A-Z]{4}0[A-Z0-9]{6}$/;
 
-  const [bankName, setBankName] =
-    useState('');
+const ArtistRegisterScreen6 = ({ navigation }) => {
+  const { data, setPayment } = useArtistRegistration();
 
-  const [accountNumber, setAccountNumber] =
-    useState('');
+  const [error, setError] = useState('');
 
-  const [ifscCode, setIfscCode] =
-    useState('');
+  const [accountHolder, setAccountHolder] = useState(
+    data.payment.accountHolder || '',
+  );
 
-  const [upiId, setUpiId] = useState('');
+  const [bankName, setBankName] = useState(data.payment.bankName || '');
+
+  const [accountNumber, setAccountNumber] = useState(
+    data.payment.accountNumber || '',
+  );
+
+  const [ifscCode, setIfscCode] = useState(data.payment.ifscCode || '');
+
+  const [upiId, setUpiId] = useState(data.payment.upiId || '');
+
+  const validatePayment = () => {
+    const normalizedAccountNumber = accountNumber.trim();
+    const normalizedIfscCode = ifscCode
+      .trim()
+      .replace(/\s+/g, '')
+      .toUpperCase();
+
+    if (!accountHolder.trim()) {
+      return 'Account holder name is required.';
+    }
+
+    if (!bankName.trim()) {
+      return 'Bank name is required.';
+    }
+
+    if (!ACCOUNT_NUMBER_REGEX.test(normalizedAccountNumber)) {
+      return 'Account number must contain 6 to 18 digits.';
+    }
+
+    if (!IFSC_REGEX.test(normalizedIfscCode)) {
+      return 'IFSC code must be 11 characters like ABCD0123456.';
+    }
+
+    return '';
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar
-        backgroundColor="#F7F7F7"
-        barStyle="dark-content"
-      />
+      <StatusBar backgroundColor="#F7F7F7" barStyle="dark-content" />
 
       <View style={styles.container}>
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             paddingBottom: 50,
-          }}>
+          }}
+        >
           {/* HEADER */}
           <View style={styles.headerCard}>
             <Text style={styles.headerText}>
               Setup your{'\n'}
-              <Text style={styles.pinkText}>
-                Payment
-              </Text>{' '}
-              Details
+              <Text style={styles.pinkText}>Payment</Text> Details
             </Text>
           </View>
 
           {/* ACCOUNT HOLDER */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>
-              Account Holder Name
-            </Text>
+            <Text style={styles.label}>Account Holder Name</Text>
 
             <View style={styles.inputContainer}>
               <Ionicons
@@ -81,9 +108,7 @@ const ArtistRegisterScreen6 = ({navigation}) => {
 
           {/* BANK NAME */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>
-              Bank Name
-            </Text>
+            <Text style={styles.label}>Bank Name</Text>
 
             <View style={styles.inputContainer}>
               <Ionicons
@@ -105,9 +130,7 @@ const ArtistRegisterScreen6 = ({navigation}) => {
 
           {/* ACCOUNT NUMBER */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>
-              Account Number
-            </Text>
+            <Text style={styles.label}>Account Number</Text>
 
             <View style={styles.inputContainer}>
               <Ionicons
@@ -130,9 +153,7 @@ const ArtistRegisterScreen6 = ({navigation}) => {
 
           {/* IFSC */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>
-              IFSC Code
-            </Text>
+            <Text style={styles.label}>IFSC Code</Text>
 
             <View style={styles.inputContainer}>
               <Ionicons
@@ -155,9 +176,7 @@ const ArtistRegisterScreen6 = ({navigation}) => {
 
           {/* UPI */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>
-              UPI ID
-            </Text>
+            <Text style={styles.label}>UPI ID</Text>
 
             <View style={styles.inputContainer}>
               <Ionicons
@@ -179,30 +198,50 @@ const ArtistRegisterScreen6 = ({navigation}) => {
 
           {/* INFO CARD */}
           <View style={styles.infoCard}>
-            <Ionicons
-              name="shield"
-              size={20}
-              color="#FF4F8F"
-            />
+            <Ionicons name="shield" size={20} color="#FF4F8F" />
 
             <Text style={styles.infoText}>
-              Your payment details are safely
-              encrypted and securely stored.
+              Your payment details are safely encrypted and securely stored.
             </Text>
           </View>
 
+          {!!error ? <Text style={styles.errorText}>{error}</Text> : null}
+
           {/* BUTTON */}
-          <TouchableOpacity style={styles.button}>
-            <Text style={styles.buttonText} 
-            onPress={()=> navigation.navigate('ArtistRegisterSummary')}>
-              Let’s Make-up Profile
-            </Text>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => {
+              const validationError = validatePayment();
+
+              if (validationError) {
+                setError(validationError);
+                return;
+              }
+
+              const normalizedAccountNumber = accountNumber.trim();
+              const normalizedIfscCode = ifscCode
+                .trim()
+                .replace(/\s+/g, '')
+                .toUpperCase();
+
+              setError('');
+              setPayment({
+                accountHolder: accountHolder.trim(),
+                bankName: bankName.trim(),
+                accountNumber: normalizedAccountNumber,
+                ifscCode: normalizedIfscCode,
+                upiId,
+              });
+              navigation.navigate('ArtistRegisterSummary');
+            }}
+          >
+            <Text style={styles.buttonText}>Let’s Make-up Profile</Text>
 
             <Ionicons
               name="arrow-forward"
               size={22}
               color="#FFF"
-              style={{marginLeft: 8}}
+              style={{ marginLeft: 8 }}
             />
           </TouchableOpacity>
         </ScrollView>
@@ -307,6 +346,13 @@ const styles = StyleSheet.create({
     color: '#B7796C',
     lineHeight: 22,
     fontSize: 14,
+  },
+
+  errorText: {
+    marginTop: 14,
+    color: '#D32F2F',
+    fontSize: 13,
+    fontWeight: '600',
   },
 
   // BUTTON

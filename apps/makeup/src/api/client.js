@@ -1,7 +1,9 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_BASE_URL = 'http://172.19.12.84:5000';
+const API_BASE_URLS = ['http://10.188.47.179:5000', 'http://10.0.2.2:5000'];
+
+const API_BASE_URL = API_BASE_URLS[0];
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -13,8 +15,40 @@ api.interceptors.request.use(async config => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  
+
   return config;
 });
+
+api.interceptors.response.use(
+  response => response,
+  async error => {
+    const originalRequest = error?.config;
+
+    if (!originalRequest || originalRequest.__retriedForNetworkError) {
+      throw error;
+    }
+
+    const isNetworkError =
+      error?.message === 'Network Error' ||
+      !error?.response ||
+      error?.code === 'ECONNABORTED';
+
+    if (!isNetworkError) {
+      throw error;
+    }
+
+    const currentBaseURL = originalRequest.baseURL || api.defaults.baseURL;
+    const fallbackBaseURL = API_BASE_URLS.find(url => url !== currentBaseURL);
+
+    if (!fallbackBaseURL) {
+      throw error;
+    }
+
+    originalRequest.__retriedForNetworkError = true;
+    originalRequest.baseURL = fallbackBaseURL;
+
+    return api.request(originalRequest);
+  },
+);
 
 export default api;
