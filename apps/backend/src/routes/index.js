@@ -8,6 +8,7 @@ import bookingRoutes from "../modules/booking/booking.routes.js";
 import adminAuthRoutes from "../modules/admin/auth.routes.js";
 import adminRoutes from "../modules/admin/admin.routes.js";
 import otpRoutes from "../modules/otp/otp.routes.js";
+import uploadRoutes from "../modules/upload/upload.routes.js";
 
 const router = express.Router();
 
@@ -19,5 +20,6 @@ router.use("/booking", bookingRoutes);
 router.use("/admin/auth", adminAuthRoutes);
 router.use("/admin", adminRoutes);
 router.use("/otp", otpRoutes);
+router.use("/upload", uploadRoutes);
 
 export default router;

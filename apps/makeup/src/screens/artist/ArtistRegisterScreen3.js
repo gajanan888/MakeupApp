@@ -35,6 +35,7 @@ import {
 
 import Ionicons from '@react-native-vector-icons/ionicons';
 import * as DocumentPicker from 'react-native-document-picker';
+import { uploadFile } from '../../api/files';
 
 const SPECIALIZATIONS = [
   'Bridal',
@@ -160,22 +161,36 @@ const ArtistRegisterScreen3 = ({ navigation }) => {
         return;
       }
 
-      setCertificates(prev =>
-        prev.map((item, idx) =>
-          idx === index
-            ? {
-                ...item,
-                file: {
-                  name: result.name || 'Certificate',
-                  uri: result.uri,
-                  size: result.size || 0,
-                  type: result.type || 'application/octet-stream',
-                },
-                error: '',
-              }
-            : item,
-        ),
-      );
+      // upload to backend -> cloudinary
+      try {
+        const fileObj = {
+          uri: result.uri,
+          name: result.name || `file_${Date.now()}`,
+          type: result.type || 'application/octet-stream',
+        };
+
+        const url = await uploadFile(fileObj);
+
+        setCertificates(prev =>
+          prev.map((item, idx) =>
+            idx === index
+              ? {
+                  ...item,
+                  file: {
+                    name: result.name || 'Certificate',
+                    url: url || result.uri,
+                    size: result.size || 0,
+                    type: result.type || 'application/octet-stream',
+                  },
+                  error: '',
+                }
+              : item,
+          ),
+        );
+      } catch (err) {
+        console.warn('Certificate upload failed', err);
+        Alert.alert('Upload failed', err.message || 'Unable to upload file');
+      }
     } catch (err) {
       if (DocumentPicker.isCancel(err)) {
         return;

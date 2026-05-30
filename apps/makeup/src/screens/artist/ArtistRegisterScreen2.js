@@ -24,6 +24,7 @@ import {
   launchCamera,
   launchImageLibrary,
 } from 'react-native-image-picker';
+import { uploadFile } from '../../api/files';
 
 const requestPermissions = async () => {
   if (Platform.OS === 'android') {
@@ -101,7 +102,25 @@ const ProfileSetupScreen = ({ navigation }) => {
   if (result.didCancel) return;
 
   if (result.assets && result.assets.length > 0) {
-    setProfileImage(result.assets[0].uri);
+    try {
+      const asset = result.assets[0];
+      const file = {
+        uri: asset.uri,
+        name: asset.fileName || `photo_${Date.now()}.jpg`,
+        type: asset.type || 'image/jpeg',
+      };
+
+      const url = await uploadFile(file);
+      if (url) {
+        setProfileImage(url);
+      } else {
+        setProfileImage(asset.uri);
+      }
+    } catch (err) {
+      console.warn('Upload failed', err);
+      Alert.alert('Upload failed', err.message || 'Unable to upload image');
+      setProfileImage(result.assets[0].uri);
+    }
   }
 };
 
@@ -128,7 +147,25 @@ const openGallery = async () => {
   if (result.didCancel) return;
 
   if (result.assets && result.assets.length > 0) {
-    setProfileImage(result.assets[0].uri);
+    try {
+      const asset = result.assets[0];
+      const file = {
+        uri: asset.uri,
+        name: asset.fileName || `photo_${Date.now()}.jpg`,
+        type: asset.type || 'image/jpeg',
+      };
+
+      const url = await uploadFile(file);
+      if (url) {
+        setProfileImage(url);
+      } else {
+        setProfileImage(asset.uri);
+      }
+    } catch (err) {
+      console.warn('Upload failed', err);
+      Alert.alert('Upload failed', err.message || 'Unable to upload image');
+      setProfileImage(result.assets[0].uri);
+    }
   }
 };
 
