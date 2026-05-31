@@ -12,18 +12,22 @@ import {
   TextInput,
   StatusBar,
   Platform,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useArtistRegistration } from '../../context/ArtistRegistrationContext';
+import { updateArtistProfile } from '../../api/auth';
 
 const ACCOUNT_NUMBER_REGEX = /^\d{6,18}$/;
 const IFSC_REGEX = /^[A-Z]{4}0[A-Z0-9]{6}$/;
 
-const ArtistRegisterScreen6 = ({ navigation }) => {
+const ArtistRegisterScreen6 = ({ navigation, route }) => {
   const { data, setPayment } = useArtistRegistration();
 
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [accountHolder, setAccountHolder] = useState(
     data.payment.accountHolder || '',
@@ -209,8 +213,8 @@ const ArtistRegisterScreen6 = ({ navigation }) => {
 
           {/* BUTTON */}
           <TouchableOpacity
-            style={styles.button}
-            onPress={() => {
+            style={[styles.button, isSubmitting && { opacity: 0.7 }]}
+            onPress={async () => {
               const validationError = validatePayment();
 
               if (validationError) {
@@ -225,24 +229,49 @@ const ArtistRegisterScreen6 = ({ navigation }) => {
                 .toUpperCase();
 
               setError('');
-              setPayment({
-                accountHolder: accountHolder.trim(),
-                bankName: bankName.trim(),
-                accountNumber: normalizedAccountNumber,
-                ifscCode: normalizedIfscCode,
-                upiId,
-              });
-              navigation.navigate('ArtistRegisterSummary');
+              
+              try {
+                setIsSubmitting(true);
+                const paymentPayload = {
+                  accountHolder: accountHolder.trim(),
+                  bankName: bankName.trim(),
+                  accountNumber: normalizedAccountNumber,
+                  ifscCode: normalizedIfscCode,
+                  upiId,
+                };
+                
+                await updateArtistProfile({ payment: paymentPayload });
+                setPayment(paymentPayload);
+                
+                if (route?.params?.fromPending) {
+                  navigation.navigate('ArtistRegistrationPending');
+                } else {
+                  navigation.navigate('ArtistRegisterSummary');
+                }
+              } catch (err) {
+                console.error('Save step 6 error:', err);
+                const msg = err?.response?.data?.message || err?.message || 'Failed to save payment details';
+                Alert.alert('Error', msg);
+              } finally {
+                setIsSubmitting(false);
+              }
             }}
+            disabled={isSubmitting}
           >
-            <Text style={styles.buttonText}>Let’s Make-up Profile</Text>
+            {isSubmitting ? (
+              <ActivityIndicator color="#FFF" size="small" />
+            ) : (
+              <>
+                <Text style={styles.buttonText}>Let’s Make-up Profile</Text>
 
-            <Ionicons
-              name="arrow-forward"
-              size={22}
-              color="#FFF"
-              style={{ marginLeft: 8 }}
-            />
+                <Ionicons
+                  name="arrow-forward"
+                  size={22}
+                  color="#FFF"
+                  style={{ marginLeft: 8 }}
+                />
+              </>
+            )}
           </TouchableOpacity>
         </ScrollView>
       </View>

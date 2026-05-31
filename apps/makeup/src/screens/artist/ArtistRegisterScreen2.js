@@ -23,6 +23,8 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { uploadFile } from '../../api/files';
 import { useArtistRegistration } from '../../context/ArtistRegistrationContext';
+import { updateArtistProfile } from '../../api/auth';
+import { ActivityIndicator } from 'react-native';
 
 const requestPermissions = async () => {
   if (Platform.OS === 'android') {
@@ -50,7 +52,8 @@ const requestPermissions = async () => {
 };
 const containerPaddingTop =
   Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 8 : 20;
-const ProfileSetupScreen = ({ navigation }) => {
+const ProfileSetupScreen = ({ navigation, route }) => {
+  const fromPending = route?.params?.fromPending;
   const { data, setProfileInfo } = useArtistRegistration();
   const [profileImage, setProfileImage] = useState(
     data.profile.profileImage || null,
@@ -58,6 +61,7 @@ const ProfileSetupScreen = ({ navigation }) => {
   const [uploadError, setUploadError] = useState('');
   const [imagePickerVisible, setImagePickerVisible] = useState(false);
   const [optionModalVisible, setOptionModalVisible] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeOption, setActiveOption] = useState('');
   const [selectedGender, setSelectedGender] = useState(
     data.profile.gender || '',
@@ -304,27 +308,51 @@ const ProfileSetupScreen = ({ navigation }) => {
 
           {/* BUTTON */}
           <TouchableOpacity
-            style={styles.button}
-            onPress={() => {
+            style={[styles.button, isSubmitting && { opacity: 0.7 }]}
+            onPress={async () => {
               Keyboard.dismiss();
-              setProfileInfo({
-                profileImage,
-                gender: selectedGender,
-                bio,
-                location,
-                experience: selectedExperience,
-              });
-              navigation.navigate('ArtistRegister3');
+              try {
+                setIsSubmitting(true);
+                const profilePayload = {
+                  profileImage,
+                  gender: selectedGender,
+                  bio,
+                  location,
+                  experience: selectedExperience,
+                };
+                
+                await updateArtistProfile({ profile: profilePayload });
+                setProfileInfo(profilePayload);
+                
+                if (fromPending) {
+                  navigation.navigate('ArtistRegistrationPending');
+                } else {
+                  navigation.navigate('ArtistRegister3');
+                }
+              } catch (error) {
+                console.error('Save step 2 error:', error);
+                const msg = error?.response?.data?.message || error?.message || 'Failed to save basic info';
+                Alert.alert('Error', msg);
+              } finally {
+                setIsSubmitting(false);
+              }
             }}
+            disabled={isSubmitting}
           >
-            <Text style={styles.buttonText}>Let’s Make-up Profile</Text>
+            {isSubmitting ? (
+              <ActivityIndicator color="#FFF" size="small" />
+            ) : (
+              <>
+                <Text style={styles.buttonText}>Let’s Make-up Profile</Text>
 
-            <Ionicons
-              name="arrow-forward"
-              size={22}
-              color="#FFF"
-              style={{ marginLeft: 10 }}
-            />
+                <Ionicons
+                  name="arrow-forward"
+                  size={22}
+                  color="#FFF"
+                  style={{ marginLeft: 10 }}
+                />
+              </>
+            )}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>

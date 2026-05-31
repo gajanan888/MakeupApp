@@ -150,7 +150,7 @@ const ClientHomeScreen = ({ navigation }) => {
                     {/* Categories */}
 
                     <View style={styles.categoriesSection}>
-                        <View style={styles.sectionHeader}>
+                        <View style={styles.sectionHeaderSimple}>
                             <Text style={styles.sectionTitle}>
                                 Categories
                             </Text>
@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
         marginLeft: 12,
     },
 
-    sectionHeader: {
+    sectionHeaderSimple: {
         marginBottom: 14,
     },
 

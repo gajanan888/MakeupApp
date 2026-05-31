@@ -20,19 +20,21 @@ import {
   Image,
   KeyboardAvoidingView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 
 import { uploadFile } from '../../api/files';
 
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useArtistRegistration } from '../../context/ArtistRegistrationContext';
+import { updateArtistProfile } from '../../api/auth';
 
 import { launchImageLibrary } from 'react-native-image-picker';
 
 const PLACEHOLDER_IMAGE =
   'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?q=80&w=600';
 
-const ArtistRegisterScreen5 = ({ navigation }) => {
+const ArtistRegisterScreen5 = ({ navigation, route }) => {
   const { data, setPortfolio } = useArtistRegistration();
   const [works, setWorks] = useState(
     data.portfolio && data.portfolio.length > 0
@@ -47,6 +49,7 @@ const ArtistRegisterScreen5 = ({ navigation }) => {
           },
         ],
   );
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const pickImage = async (type, index) => {
     const result = await launchImageLibrary({
@@ -236,20 +239,49 @@ const ArtistRegisterScreen5 = ({ navigation }) => {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.button}
-            onPress={() => {
-              setPortfolio(works);
-              navigation.navigate('ArtistRegister6');
+            style={[styles.button, isSubmitting && { opacity: 0.7 }]}
+            onPress={async () => {
+              try {
+                setIsSubmitting(true);
+                const portfolioPayload = works.map(item => ({
+                  beforeImage: item?.beforeImage,
+                  afterImage: item?.afterImage,
+                  tag: item?.tag,
+                  description: item?.description,
+                }));
+                
+                await updateArtistProfile({ portfolio: portfolioPayload });
+                setPortfolio(works);
+                
+                if (route?.params?.fromPending) {
+                  navigation.navigate('ArtistRegistrationPending');
+                } else {
+                  navigation.navigate('ArtistRegister6');
+                }
+              } catch (error) {
+                console.error('Save step 5 error:', error);
+                const msg = error?.response?.data?.message || error?.message || 'Failed to save portfolio';
+                Alert.alert('Error', msg);
+              } finally {
+                setIsSubmitting(false);
+              }
             }}
+            disabled={isSubmitting}
           >
-            <Text style={styles.buttonText}>Let’s Make-up Profile</Text>
+            {isSubmitting ? (
+              <ActivityIndicator color="#FFF" size="small" />
+            ) : (
+              <>
+                <Text style={styles.buttonText}>Let’s Make-up Profile</Text>
 
-            <Ionicons
-              name="arrow-forward"
-              size={22}
-              color="#FFF"
-              style={{ marginLeft: 8 }}
-            />
+                <Ionicons
+                  name="arrow-forward"
+                  size={22}
+                  color="#FFF"
+                  style={{ marginLeft: 8 }}
+                />
+              </>
+            )}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>

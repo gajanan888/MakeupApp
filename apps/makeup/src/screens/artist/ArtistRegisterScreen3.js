@@ -31,12 +31,14 @@ import {
   Platform,
   Alert,
   KeyboardAvoidingView,
+  ActivityIndicator,
 } from 'react-native';
 
 import Ionicons from '@react-native-vector-icons/ionicons';
-import * as DocumentPicker from 'react-native-document-picker';
+import { pick, isCancel, types, keepLocalCopy } from '@react-native-documents/picker';
 import { uploadFile } from '../../api/files';
 import { useArtistRegistration } from '../../context/ArtistRegistrationContext';
+import { updateArtistProfile } from '../../api/auth';
 
 const SPECIALIZATIONS = [
   'Bridal',
@@ -66,11 +68,12 @@ const ALLOWED_CERTIFICATE_TYPES = new Set([
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ]);
 
-const ArtistRegisterScreen3 = ({ navigation }) => {
+const ArtistRegisterScreen3 = ({ navigation, route }) => {
   const { data, setSpecializations, setCertificates } = useArtistRegistration();
   const [selectedSpecializations, setSelectedSpecializations] = useState(
     data.specializations || [],
   );
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [showOtherInput, setShowOtherInput] = useState(false);
 
@@ -162,13 +165,12 @@ const ArtistRegisterScreen3 = ({ navigation }) => {
 
   const pickCertificate = async index => {
     try {
-      const result = await DocumentPicker.pickSingle({
+      const [result] = await pick({
         type: [
-          DocumentPicker.types.pdf,
-          DocumentPicker.types.doc,
-          DocumentPicker.types.docx,
+          types.pdf,
+          types.doc,
+          types.docx,
         ],
-        copyTo: 'cachesDirectory',
       });
 
       const mimeType = (result.type || '').toLowerCase();
@@ -195,8 +197,17 @@ const ArtistRegisterScreen3 = ({ navigation }) => {
       // upload to backend -> cloudinary
       try {
         setCertificateError(index, '');
+        
+        // keep local copy to get a file path
+        const [localCopy] = await keepLocalCopy({
+          files: [{ uri: result.uri, fileName: result.name }],
+          destination: 'cachesDirectory',
+        });
+        
+        const localUri = localCopy.status === 'success' ? localCopy.localUri : result.uri;
+
         const fileObj = {
-          uri: result.fileCopyUri || result.uri,
+          uri: localUri,
           name: result.name || `file_${Date.now()}`,
           type: result.type || 'application/octet-stream',
         };
@@ -210,7 +221,7 @@ const ArtistRegisterScreen3 = ({ navigation }) => {
                   ...item,
                   file: {
                     name: result.name || 'Certificate',
-                    url: url || result.uri,
+                    url: url || localUri,
                     size: result.size || 0,
                     type: result.type || 'application/octet-stream',
                   },
@@ -228,7 +239,7 @@ const ArtistRegisterScreen3 = ({ navigation }) => {
         Alert.alert('Upload failed', err.message || 'Unable to upload file');
       }
     } catch (err) {
-      if (DocumentPicker.isCancel(err)) {
+      if (isCancel(err)) {
         return;
       }
       console.warn('Certificate pick error:', err);
@@ -429,21 +440,57 @@ const ArtistRegisterScreen3 = ({ navigation }) => {
 
           {/* BUTTON */}
           <TouchableOpacity
-            style={styles.button}
-            onPress={() => {
-              setSpecializations(selectedSpecializations);
-              setCertificates(certificates);
-              navigation.navigate('ArtistRegister4');
+            style={[styles.button, isSubmitting && { opacity: 0.7 }]}
+            onPress={async () => {
+              try {
+                setIsSubmitting(true);
+                const certPayload = certificates.map(cert => ({
+                  fileName: cert?.file?.name || cert?.fileName,
+                  fileUrl: cert?.file?.url || cert?.fileUrl,
+                  fileSize: cert?.file?.size || cert?.fileSize,
+                  fileType: cert?.file?.type || cert?.fileType,
+                  certificateNumber: cert?.certificateNumber,
+                  instituteName: cert?.instituteName,
+                }));
+                
+                const payload = {
+                  specializations: selectedSpecializations,
+                  certificates: certPayload,
+                };
+                
+                await updateArtistProfile(payload);
+                setSpecializations(selectedSpecializations);
+                setCertificates(certificates);
+                
+                if (route?.params?.fromPending) {
+                  navigation.navigate('ArtistRegistrationPending');
+                } else {
+                  navigation.navigate('ArtistRegister4');
+                }
+              } catch (error) {
+                console.error('Save step 3 error:', error);
+                const msg = error?.response?.data?.message || error?.message || 'Failed to save specializations';
+                Alert.alert('Error', msg);
+              } finally {
+                setIsSubmitting(false);
+              }
             }}
+            disabled={isSubmitting}
           >
-            <Text style={styles.buttonText}>Let’s Make-up Profile</Text>
+            {isSubmitting ? (
+              <ActivityIndicator color="#FFF" size="small" />
+            ) : (
+              <>
+                <Text style={styles.buttonText}>Let’s Make-up Profile</Text>
 
-            <Ionicons
-              name="arrow-forward"
-              size={22}
-              color="#FFF"
-              style={{ marginLeft: 8 }}
-            />
+                <Ionicons
+                  name="arrow-forward"
+                  size={22}
+                  color="#FFF"
+                  style={{ marginLeft: 8 }}
+                />
+              </>
+            )}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>

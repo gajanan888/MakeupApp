@@ -6,10 +6,70 @@ import {
     TextInput,
     TouchableOpacity,
     StyleSheet,
+    Alert,
+    ActivityIndicator,
 } from 'react-native';
+import { loginArtist, getArtistProfile } from '../../api/auth';
+import { useArtistRegistration } from '../../context/ArtistRegistrationContext';
 
 const ArtistLoginScreen = ({ navigation }) => {
     const [showPassword, setShowPassword] = useState(false);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const { loadProfileData } = useArtistRegistration();
+
+    const handleLogin = async () => {
+        if (!email.trim() || !password) {
+            Alert.alert('Error', 'Please enter both email/phone and password');
+            return;
+        }
+
+        try {
+            setIsLoading(true);
+            const loginRes = await loginArtist(email.trim(), password);
+            if (!loginRes?.token) {
+                throw new Error('No authentication token received');
+            }
+
+            const profileData = await getArtistProfile();
+            if (!profileData) {
+                throw new Error('Failed to retrieve artist profile details');
+            }
+
+            // Check if profile is complete
+            const hasProfile = profileData.profile && 
+                               profileData.profile.profileImage && 
+                               profileData.profile.gender && 
+                               profileData.profile.bio && 
+                               profileData.profile.location && 
+                               profileData.profile.experience;
+
+            const hasSpecializations = profileData.specializations && profileData.specializations.length > 0;
+            const hasServices = profileData.services && profileData.services.length > 0;
+            const hasPortfolio = profileData.portfolio && profileData.portfolio.length > 0;
+            const hasPayment = profileData.payment && 
+                              (profileData.payment.upiId || 
+                               (profileData.payment.accountNumber && profileData.payment.ifscCode));
+
+            const isComplete = hasProfile && hasSpecializations && hasServices && hasPortfolio && hasPayment;
+
+            loadProfileData(profileData);
+
+            if (isComplete) {
+                navigation.navigate('ArtistHome');
+            } else {
+                navigation.navigate('ArtistRegistrationPending');
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            const msg = error?.response?.data?.message || error?.message || 'Login failed';
+            Alert.alert('Login Failed', msg);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
         <View style={styles.container}>
 
@@ -38,6 +98,10 @@ const ArtistLoginScreen = ({ navigation }) => {
                     placeholder="Email or Phone"
                     placeholderTextColor="#C7AAA0"
                     style={styles.input}
+                    value={email}
+                    onChangeText={setEmail}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
                 />
             </View>
 
@@ -48,6 +112,9 @@ const ArtistLoginScreen = ({ navigation }) => {
                     placeholderTextColor="#C7AAA0"
                     style={styles.input}
                     secureTextEntry={!showPassword}
+                    value={password}
+                    onChangeText={setPassword}
+                    autoCapitalize="none"
                 />
 
                 <TouchableOpacity
@@ -67,10 +134,18 @@ const ArtistLoginScreen = ({ navigation }) => {
                 </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.signInButton}>
-                <Text style={styles.signInText} onPress={()=> navigation.navigate("ArtistHome")}>
-                    Sign In
-                </Text>
+            <TouchableOpacity 
+                style={[styles.signInButton, isLoading && { opacity: 0.7 }]} 
+                onPress={handleLogin}
+                disabled={isLoading}
+            >
+                {isLoading ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                    <Text style={styles.signInText}>
+                        Sign In
+                    </Text>
+                )}
             </TouchableOpacity>
 
             <View style={styles.dividerContainer}>

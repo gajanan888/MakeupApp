@@ -14,6 +14,8 @@ import ArtistRegisterScreen5 from '../screens/artist/ArtistRegisterScreen5';
 import ArtistRegisterScreen6 from '../screens/artist/ArtistRegisterScreen6'; 
 import ArtistRegisterSummaryScreen from '../screens/artist/ArtistRegisterSummaryScreen'; 
 import ArtistOTPVerificationScreen from '../screens/artist/ArtistOTPVerificationScreen';
+import ArtistRegistrationPendingScreen from '../screens/artist/ArtistRegistrationPendingScreen';
+import ArtistHomeScreen from '../screens/artist/ArtistHomeScreen';
 import ClientRegisterScreen from '../screens/client/ClientRegisterScreen';
 import ClientHomeScreen from '../screens/client/ClientHomeScreen';
 import ForgotPasswordScreen from '../screens/common/ForgotPasswordScreen';
@@ -86,6 +88,14 @@ const AppNavigator = () => {
         <Stack.Screen
         name="ArtistOTPVerification"
         component={ArtistOTPVerificationScreen}
+      />
+        <Stack.Screen
+        name="ArtistRegistrationPending"
+        component={ArtistRegistrationPendingScreen}
+      />
+        <Stack.Screen
+        name="ArtistHome"
+        component={ArtistHomeScreen}
       />
         <Stack.Screen
           name="ForgotPassword"

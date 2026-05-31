@@ -58,6 +58,11 @@ export const updateArtistProfile = async data => {
 
 export const updateArtistProfileRaw = updateArtistProfile;
 
+export const getArtistProfile = async () => {
+  const response = await api.get('/api/artist/profile');
+  return response?.data?.data;
+};
+
 export const sendOtp = async phone => {
   const response = await api.post('/api/otp/send', { phone });
   return response?.data;

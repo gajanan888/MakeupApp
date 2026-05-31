@@ -13,26 +13,73 @@ import {
   StatusBar,
   Platform,
   KeyboardAvoidingView,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useArtistRegistration } from '../../context/ArtistRegistrationContext';
+import { updateArtistProfile } from '../../api/auth';
 
-const ArtistRegisterScreen4 = ({ navigation }) => {
+const ArtistRegisterScreen4 = ({ navigation, route }) => {
   const { data, setServices } = useArtistRegistration();
-  const [services, setServicesState] = useState(
-    data.services && data.services.length > 0
-      ? data.services
-      : [
-          {
-            id: 1,
-            specialization: '',
+  
+  const getInitialServices = () => {
+    const specs = data.specializations || [];
+    
+    // If services already exist, map/merge them to preserve details
+    if (data.services && data.services.length > 0) {
+      if (specs.length > 0) {
+        const existingMap = {};
+        data.services.forEach(s => {
+          if (s.specialization) {
+            existingMap[s.specialization.toLowerCase()] = s;
+          }
+        });
+        
+        return specs.map((spec, idx) => {
+          const key = spec.toLowerCase();
+          if (existingMap[key]) {
+            const { timeRange, ...rest } = existingMap[key];
+            return {
+              ...rest,
+              specialization: spec,
+            };
+          }
+          return {
+            id: Date.now() + idx,
+            specialization: spec,
             duration: '',
-            timeRange: '',
             priceRange: '',
-          },
-        ],
-  );
+          };
+        });
+      }
+      return data.services.map(({ timeRange, ...rest }) => rest);
+    }
+    
+    // If no existing services but we have step 3 specializations
+    if (specs.length > 0) {
+      return specs.map((spec, idx) => ({
+        id: Date.now() + idx,
+        specialization: spec,
+        duration: '',
+        priceRange: '',
+      }));
+    }
+    
+    // Fallback default
+    return [
+      {
+        id: Date.now(),
+        specialization: '',
+        duration: '',
+        priceRange: '',
+      },
+    ];
+  };
+
+  const [services, setServicesState] = useState(getInitialServices());
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // ADD NEW SERVICE
   const addService = () => {
@@ -40,7 +87,6 @@ const ArtistRegisterScreen4 = ({ navigation }) => {
       id: Date.now(),
       specialization: '',
       duration: '',
-      timeRange: '',
       priceRange: '',
     };
 
@@ -101,12 +147,19 @@ const ArtistRegisterScreen4 = ({ navigation }) => {
                 onChangeText={text =>
                   updateService(service.id, 'specialization', text)
                 }
-                style={styles.input}
+                editable={!(data.specializations || []).includes(service.specialization)}
+                style={[
+                  styles.input,
+                  (data.specializations || []).includes(service.specialization) && {
+                    backgroundColor: '#EAEAEA',
+                    color: '#666',
+                  },
+                ]}
               />
 
               {/* DURATION */}
               <TextInput
-                placeholder="Duration of service"
+                placeholder="Duration of service (e.g. 1-2 hours or 30-45 mins)"
                 placeholderTextColor="#C7AAA0"
                 value={service.duration}
                 onChangeText={text =>
@@ -114,27 +167,17 @@ const ArtistRegisterScreen4 = ({ navigation }) => {
                 }
                 style={styles.input}
               />
-
-              {/* TIME RANGE */}
-              <TextInput
-                placeholder="Enter Time Range"
-                placeholderTextColor="#C7AAA0"
-                value={service.timeRange}
-                onChangeText={text =>
-                  updateService(service.id, 'timeRange', text)
-                }
-                style={styles.input}
-              />
+              <Text style={styles.helperText}>Must be a time range (e.g., '1-2 hours' or '30-45 mins')</Text>
 
               {/* PRICE RANGE */}
               <TextInput
-                placeholder="Service Price Range"
+                placeholder="Service Price or Price Range (e.g., 1500 or 1000-2000)"
                 placeholderTextColor="#C7AAA0"
                 value={service.priceRange}
                 onChangeText={text =>
                   updateService(service.id, 'priceRange', text)
                 }
-                keyboardType="numeric"
+                keyboardType="default"
                 style={styles.input}
               />
             </View>
@@ -154,20 +197,97 @@ const ArtistRegisterScreen4 = ({ navigation }) => {
 
           {/* SUBMIT BUTTON */}
           <TouchableOpacity
-            style={styles.button}
-            onPress={() => {
-              setServices(services);
-              navigation.navigate('ArtistRegister5');
-            }}
-          >
-            <Text style={styles.buttonText}>Let’s Make-up Profile</Text>
+            style={[styles.button, isSubmitting && { opacity: 0.7 }]}
+            onPress={async () => {
+              const DURATION_RANGE_REGEX = /^\d+(\.\d+)?\s*-\s*\d+(\.\d+)?\s*(min|mins|minute|minutes|hr|hrs|hour|hours)$/i;
+              
+              // Validate inputs
+              for (let i = 0; i < services.length; i++) {
+                const s = services[i];
+                const specName = s.specialization || `Service ${i + 1}`;
+                
+                if (!s.specialization.trim()) {
+                  Alert.alert('Validation Error', `Specialization name cannot be empty for service ${i + 1}`);
+                  return;
+                }
+                
+                if (!s.duration.trim()) {
+                  Alert.alert('Validation Error', `Duration is required for ${specName}`);
+                  return;
+                }
+                
+                if (!DURATION_RANGE_REGEX.test(s.duration.trim())) {
+                  Alert.alert('Validation Error', `Duration for ${specName} must be a range (e.g. '1-2 hours' or '30-45 mins')`);
+                  return;
+                }
+                
+                if (!s.priceRange.trim()) {
+                  Alert.alert('Validation Error', `Price is required for ${specName}`);
+                  return;
+                }
+                
+                const priceTrimmed = s.priceRange.trim();
+                const isSinglePrice = /^\d+$/.test(priceTrimmed);
+                const isPriceRange = /^\d+\s*-\s*\d+$/.test(priceTrimmed);
+                
+                if (!isSinglePrice && !isPriceRange) {
+                  Alert.alert('Validation Error', `Price for ${specName} must be a valid number or range (e.g. '1500' or '1000-2000')`);
+                  return;
+                }
+                
+                if (isSinglePrice) {
+                  const priceVal = parseInt(priceTrimmed, 10);
+                  if (priceVal <= 0) {
+                    Alert.alert('Validation Error', `Price for ${specName} must be greater than 0`);
+                    return;
+                  }
+                } else if (isPriceRange) {
+                  const parts = priceTrimmed.split('-').map(p => parseInt(p.trim(), 10));
+                  if (parts[0] <= 0 || parts[1] <= 0) {
+                    Alert.alert('Validation Error', `Prices in range for ${specName} must be greater than 0`);
+                    return;
+                  }
+                  if (parts[0] >= parts[1]) {
+                    Alert.alert('Validation Error', `Minimum price must be less than maximum price for ${specName}`);
+                    return;
+                  }
+                }
+              }
 
-            <Ionicons
-              name="arrow-forward"
-              size={22}
-              color="#FFF"
-              style={{ marginLeft: 8 }}
-            />
+              try {
+                setIsSubmitting(true);
+                await updateArtistProfile({ services });
+                setServices(services);
+                
+                if (route?.params?.fromPending) {
+                  navigation.navigate('ArtistRegistrationPending');
+                } else {
+                  navigation.navigate('ArtistRegister5');
+                }
+              } catch (error) {
+                console.error('Save step 4 error:', error);
+                const msg = error?.response?.data?.message || error?.message || 'Failed to save services';
+                Alert.alert('Error', msg);
+              } finally {
+                setIsSubmitting(false);
+              }
+            }}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator color="#FFF" size="small" />
+            ) : (
+              <>
+                <Text style={styles.buttonText}>Let’s Make-up Profile</Text>
+
+                <Ionicons
+                  name="arrow-forward"
+                  size={22}
+                  color="#FFF"
+                  style={{ marginLeft: 8 }}
+                />
+              </>
+            )}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -247,6 +367,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     color: '#111',
     fontSize: 15,
+    marginBottom: 14,
+  },
+
+  helperText: {
+    color: '#B7796C',
+    fontSize: 12,
+    marginLeft: 18,
+    marginTop: -8,
     marginBottom: 14,
   },
 
