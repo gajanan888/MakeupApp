@@ -11,8 +11,8 @@ import ArtistRegisterScreen2 from '../screens/artist/ArtistRegisterScreen2';
 import ArtistRegisterScreen3 from '../screens/artist/ArtistRegisterScreen3';
 import ArtistRegisterScreen4 from '../screens/artist/ArtistRegisterScreen4';
 import ArtistRegisterScreen5 from '../screens/artist/ArtistRegisterScreen5';
-import ArtistRegisterScreen6 from '../screens/artist/ArtistRegisterScreen6'; 
-import ArtistRegisterSummaryScreen from '../screens/artist/ArtistRegisterSummaryScreen'; 
+import ArtistRegisterScreen6 from '../screens/artist/ArtistRegisterScreen6';
+import ArtistRegisterSummaryScreen from '../screens/artist/ArtistRegisterSummaryScreen';
 import ArtistOTPVerificationScreen from '../screens/artist/ArtistOTPVerificationScreen';
 import ClientRegisterScreen from '../screens/client/ClientRegisterScreen';
 import ClientHomeScreen from '../screens/client/ClientHomeScreen';
@@ -20,7 +20,8 @@ import ForgotPasswordScreen from '../screens/common/ForgotPasswordScreen';
 import OtpVerificationScreen from '../screens/common/OtpVerificationScreen';
 import CreateNewPasswordScreen from '../screens/common/CreateNewPasswordScreen';
 import SearchScreen from '../screens/client/SearchScreen';
-
+import ArtistDetailsScreen from '../screens/client/ArtistDetailsScreen'
+import BookAppointmentScreen from '../screens/client/BookAppointmentScreen';
 const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
@@ -52,41 +53,41 @@ const AppNavigator = () => {
         />
 
         <Stack.Screen
-        name="ClientHome"
-        component={ClientHomeScreen}
-      />
+          name="ClientHome"
+          component={ClientHomeScreen}
+        />
         <Stack.Screen
-        name="ArtistRegister1"
-        component={ArtistRegisterScreen1}
-      />
+          name="ArtistRegister1"
+          component={ArtistRegisterScreen1}
+        />
         <Stack.Screen
-        name="ArtistRegister2"
-        component={ArtistRegisterScreen2}
-      />
+          name="ArtistRegister2"
+          component={ArtistRegisterScreen2}
+        />
         <Stack.Screen
-        name="ArtistRegister3"
-        component={ArtistRegisterScreen3}
-      />
+          name="ArtistRegister3"
+          component={ArtistRegisterScreen3}
+        />
         <Stack.Screen
-        name="ArtistRegister4"
-        component={ArtistRegisterScreen4}
-      />
+          name="ArtistRegister4"
+          component={ArtistRegisterScreen4}
+        />
         <Stack.Screen
-        name="ArtistRegister5"
-        component={ArtistRegisterScreen5}
-      />
+          name="ArtistRegister5"
+          component={ArtistRegisterScreen5}
+        />
         <Stack.Screen
-        name="ArtistRegister6"
-        component={ArtistRegisterScreen6}
-      />
+          name="ArtistRegister6"
+          component={ArtistRegisterScreen6}
+        />
         <Stack.Screen
-        name="ArtistRegisterSummary"
-        component={ArtistRegisterSummaryScreen}
-      />
+          name="ArtistRegisterSummary"
+          component={ArtistRegisterSummaryScreen}
+        />
         <Stack.Screen
-        name="ArtistOTPVerification"
-        component={ArtistOTPVerificationScreen}
-      />
+          name="ArtistOTPVerification"
+          component={ArtistOTPVerificationScreen}
+        />
         <Stack.Screen
           name="ForgotPassword"
           component={ForgotPasswordScreen}
@@ -104,6 +105,17 @@ const AppNavigator = () => {
         <Stack.Screen
           name="Search"
           component={SearchScreen}
+        />
+
+        <Stack.Screen
+          name="ArtistDetails"
+          component={ArtistDetailsScreen}
+        />
+
+        <Stack.Screen
+          name="BookAppointment"
+          component={BookAppointmentScreen}
+          options={{ headerShown: false }}
         />
       </Stack.Navigator>
     </NavigationContainer>
