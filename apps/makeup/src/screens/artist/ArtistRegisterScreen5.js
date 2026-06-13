@@ -8,540 +8,475 @@
 import React, { useState } from 'react';
 
 import {
-    View,
-    Text,
-    StyleSheet,
-    SafeAreaView,
-    TouchableOpacity,
-    ScrollView,
-    TextInput,
-    StatusBar,
-    Platform,
-    Image,
-    Modal,
-    Pressable,
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  TouchableOpacity,
+  ScrollView,
+  TextInput,
+  StatusBar,
+  Platform,
+  Image,
+  KeyboardAvoidingView,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 
-import Icon from 'react-native-vector-icons/Feather';
+import { uploadFile } from '../../api/files';
 
-import {
-    launchCamera,
-    launchImageLibrary,
-} from 'react-native-image-picker';
+import Ionicons from '@react-native-vector-icons/ionicons';
+import { useArtistRegistration } from '../../context/ArtistRegistrationContext';
+import { updateArtistProfile } from '../../api/auth';
 
+import { launchImageLibrary } from 'react-native-image-picker';
 
-const ArtistRegisterScreen5 = ({ navigation }) => {
-    const [beforeImage, setBeforeImage] =
-        useState(null);
+const PLACEHOLDER_IMAGE =
+  'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?q=80&w=600';
 
-    const [afterImage, setAfterImage] =
-        useState(null);
+const ArtistRegisterScreen5 = ({ navigation, route }) => {
+  const { data, setPortfolio } = useArtistRegistration();
+  const [works, setWorks] = useState(
+    data.portfolio && data.portfolio.length > 0
+      ? data.portfolio
+      : [
+          {
+            id: Date.now(),
+            beforeImage: null,
+            afterImage: null,
+            tag: '',
+            description: '',
+          },
+        ],
+  );
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const [selectedType, setSelectedType] =
-        useState(null);
+  const pickImage = async (type, index) => {
+    const result = await launchImageLibrary({
+      mediaType: 'photo',
+      quality: 1,
+      selectionLimit: 1,
+    });
 
-    const [modalVisible, setModalVisible] =
-        useState(false);
+    if (result.didCancel) {
+      return;
+    }
 
-    const [tag, setTag] = useState('');
+    if (result.assets && result.assets.length > 0) {
+      const asset = result.assets[0];
+      const file = {
+        uri: asset.uri,
+        name: asset.fileName || `photo_${Date.now()}.jpg`,
+        type: asset.type || 'image/jpeg',
+      };
 
-    const [description, setDescription] =
-        useState('');
+      try {
+        // Set local uri first for instant feedback to the user
+        setWorks(prev =>
+          prev.map((item, idx) =>
+            idx === index
+              ? {
+                  ...item,
+                  [`${type}Image`]: asset.uri,
+                }
+              : item,
+          ),
+        );
 
-    // OPEN IMAGE PICKER
-    const openGallery = async () => {
-        setModalVisible(false);
-
-        const result = await launchImageLibrary({
-            mediaType: 'photo',
-            quality: 1,
-            selectionLimit: 1,
-        });
-
-        if (result.didCancel) {
-            return;
+        const url = await uploadFile(file);
+        if (url) {
+          setWorks(prev =>
+            prev.map((item, idx) =>
+              idx === index
+                ? {
+                    ...item,
+                    [`${type}Image`]: url,
+                  }
+                : item,
+            ),
+          );
         }
+      } catch (err) {
+        console.warn('Upload failed', err);
+        Alert.alert('Upload failed', err.message || 'Unable to upload image');
+      }
+    }
+  };
 
-        if (
-            result.assets &&
-            result.assets.length > 0
-        ) {
-            const imageUri = result.assets[0].uri;
+  const addWork = () => {
+    setWorks(prev => [
+      ...prev,
+      {
+        id: Date.now() + prev.length,
+        beforeImage: null,
+        afterImage: null,
+        tag: '',
+        description: '',
+      },
+    ]);
+  };
 
-            if (selectedType === 'before') {
-                setBeforeImage(imageUri);
-            } else {
-                setAfterImage(imageUri);
-            }
-        }
-    };
-
-    // OPEN PICKER
-    const chooseImage = type => {
-        setSelectedType(type);
-        setModalVisible(true);
-    };
-
-    return (
-        <SafeAreaView style={styles.safeArea}>
-            <StatusBar
-                backgroundColor="#F7F7F7"
-                barStyle="dark-content"
-            />
-
-            <View style={styles.container}>
-                <ScrollView
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={{
-                        paddingBottom: 50,
-                    }}>
-                    {/* HEADER */}
-                    <View style={styles.headerCard}>
-                        <Text style={styles.headerText}>
-                            Let’s{' '}
-                            <Text style={styles.pinkText}>
-                                Flaunt
-                            </Text>
-                            {'\n'}
-                            Your Work{'\n'}
-                            with{' '}
-                            <Text style={styles.pinkText}>
-                                World
-                            </Text>
-                        </Text>
-                    </View>
-
-                    {/* IMAGE SHOWCASE */}
-                    <View style={styles.showcaseContainer}>
-                        {/* BEFORE */}
-                        <TouchableOpacity
-                            style={styles.imageBox}
-                            onPress={() =>
-                                chooseImage('before')
-                            }>
-                            {beforeImage ? (
-                                <Image
-                                    source={{ uri: beforeImage }}
-                                    style={styles.image}
-                                />
-                            ) : (
-                                <Image
-                                    source={{
-                                        uri: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?q=80&w=600',
-                                    }}
-                                    style={styles.image}
-                                />
-                            )}
-
-                            <View style={styles.imageLabel}>
-                                <Text style={styles.labelText}>
-                                    BEFORE
-                                </Text>
-                            </View>
-                        </TouchableOpacity>
-
-                        {/* DIVIDER */}
-                        <View style={styles.divider} />
-
-                        {/* AFTER */}
-                        <TouchableOpacity
-                            style={styles.imageBox}
-                            onPress={() =>
-                                chooseImage('after')
-                            }>
-                            {afterImage ? (
-                                <Image
-                                    source={{ uri: afterImage }}
-                                    style={styles.image}
-                                />
-                            ) : (
-                                <Image
-                                    source={{
-                                        uri: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=600',
-                                    }}
-                                    style={styles.image}
-                                />
-                            )}
-
-                            <View style={styles.imageLabel}>
-                                <Text style={styles.labelText}>
-                                    AFTER
-                                </Text>
-                            </View>
-                        </TouchableOpacity>
-
-                        {/* CENTER TAG */}
-                        <View style={styles.centerTag}>
-                            <Text style={styles.centerTagText}>
-                                Example Images
-                            </Text>
-                        </View>
-                    </View>
-
-                    {/* TAG INPUT */}
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>
-                            Add Tag
-                        </Text>
-
-                        <TextInput
-                            placeholder="Bridal Makeup"
-                            placeholderTextColor="#C7AAA0"
-                            value={tag}
-                            onChangeText={setTag}
-                            style={styles.input}
-                        />
-                    </View>
-
-                    {/* DESCRIPTION */}
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>
-                            Description
-                        </Text>
-
-                        <TextInput
-                            placeholder="Describe the transformation..."
-                            placeholderTextColor="#C7AAA0"
-                            value={description}
-                            onChangeText={setDescription}
-                            multiline
-                            style={[
-                                styles.input,
-                                styles.descriptionInput,
-                            ]}
-                        />
-                    </View>
-
-                    {/* CHOOSE FILE BUTTON */}
-                    <TouchableOpacity
-                        style={styles.chooseButton}
-                        onPress={() =>
-                            setModalVisible(true)
-                        }>
-                        <View style={styles.plusCircle}>
-                            <Icon
-                                name="plus"
-                                size={20}
-                                color="#B7796C"
-                            />
-                        </View>
-
-                        <Text style={styles.chooseText}>
-                            Choose a File
-                        </Text>
-                    </TouchableOpacity>
-
-                    {/* SUBMIT BUTTON */}
-                    <TouchableOpacity style={styles.button}
-                        onPress={() => navigation.navigate('ArtistRegister6')}>
-                        <Text style={styles.buttonText}>
-                            Let’s Make-up Profile
-                        </Text>
-
-                        <Icon
-                            name="arrow-right"
-                            size={22}
-                            color="#FFF"
-                            style={{ marginLeft: 8 }}
-                        />
-                    </TouchableOpacity>
-                </ScrollView>
-            </View>
-
-            {/* BOTTOM MODAL */}
-            <Modal
-                transparent
-                animationType="slide"
-                visible={modalVisible}>
-                <Pressable
-                    style={styles.modalOverlay}
-                    onPress={() =>
-                        setModalVisible(false)
-                    }>
-                    <View style={styles.bottomSheet}>
-                        <Text style={styles.sheetTitle}>
-                            Choose Image
-                        </Text>
-
-                        {/* BEFORE IMAGE */}
-                        <TouchableOpacity
-                            style={styles.sheetButton}
-                            onPress={() =>
-                                chooseImage('before')
-                            }>
-                            <Text style={styles.sheetText}>
-                                Upload Before Makeup
-                            </Text>
-                        </TouchableOpacity>
-
-                        {/* AFTER IMAGE */}
-                        <TouchableOpacity
-                            style={styles.sheetButton}
-                            onPress={() =>
-                                chooseImage('after')
-                            }>
-                            <Text style={styles.sheetText}>
-                                Upload After Makeup
-                            </Text>
-                        </TouchableOpacity>
-
-                        {/* GALLERY */}
-                        <TouchableOpacity
-                            style={styles.galleryButton}
-                            onPress={openGallery}>
-                            <Icon
-                                name="image"
-                                size={20}
-                                color="#FFF"
-                            />
-
-                            <Text style={styles.galleryText}>
-                                Open Gallery
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-                </Pressable>
-            </Modal>
-        </SafeAreaView>
+  const updateWorkField = (index, field, value) => {
+    setWorks(prev =>
+      prev.map((item, idx) =>
+        idx === index ? { ...item, [field]: value } : item,
+      ),
     );
+  };
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar backgroundColor="#F7F7F7" barStyle="dark-content" />
+
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{
+            paddingBottom: 50,
+          }}
+        >
+          {/* HEADER */}
+          <View style={styles.headerCard}>
+            <Text style={styles.headerText}>
+              Let’s <Text style={styles.pinkText}>Flaunt</Text>
+              {'\n'}
+              Your Work{'\n'}
+              with <Text style={styles.pinkText}>World</Text>
+            </Text>
+          </View>
+
+          {works.map((work, index) => (
+            <View key={work?.id ?? index} style={styles.workCard}>
+              <View style={styles.showcaseContainer}>
+                <TouchableOpacity
+                  style={styles.imageBox}
+                  onPress={() => pickImage('before', index)}
+                >
+                  <Image
+                    source={{
+                      uri: work?.beforeImage || PLACEHOLDER_IMAGE,
+                    }}
+                    style={styles.image}
+                  />
+                  {!work?.beforeImage && (
+                    <View style={styles.placeholderOverlay}>
+                      <Text style={styles.placeholderText}>
+                        Tap to add before image
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.imageLabel}>
+                    <Text style={styles.labelText}>BEFORE</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <View style={styles.divider} />
+
+                <TouchableOpacity
+                  style={styles.imageBox}
+                  onPress={() => pickImage('after', index)}
+                >
+                  <Image
+                    source={{
+                      uri: work?.afterImage || PLACEHOLDER_IMAGE,
+                    }}
+                    style={styles.image}
+                  />
+                  {!work?.afterImage && (
+                    <View style={styles.placeholderOverlay}>
+                      <Text style={styles.placeholderText}>
+                        Tap to add after image
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.imageLabel}>
+                    <Text style={styles.labelText}>AFTER</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <View style={styles.centerTag}>
+                  <Text style={styles.centerTagText}>Example Images</Text>
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Add Tag</Text>
+                <TextInput
+                  placeholder="Bridal Makeup"
+                  placeholderTextColor="#C7AAA0"
+                  value={work?.tag ?? ''}
+                  onChangeText={text => updateWorkField(index, 'tag', text)}
+                  style={styles.input}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Description</Text>
+                <TextInput
+                  placeholder="Describe the transformation..."
+                  placeholderTextColor="#C7AAA0"
+                  value={work?.description ?? ''}
+                  onChangeText={text =>
+                    updateWorkField(index, 'description', text)
+                  }
+                  multiline
+                  style={[styles.input, styles.descriptionInput]}
+                />
+              </View>
+            </View>
+          ))}
+
+          <TouchableOpacity style={styles.addWorkButton} onPress={addWork}>
+            <View style={styles.plusCircle}>
+              <Ionicons name="add" size={20} color="#B7796C" />
+            </View>
+            <Text style={styles.addWorkText}>Add more Work</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.button, isSubmitting && { opacity: 0.7 }]}
+            onPress={async () => {
+              try {
+                setIsSubmitting(true);
+                const portfolioPayload = works.map(item => ({
+                  beforeImage: item?.beforeImage,
+                  afterImage: item?.afterImage,
+                  tag: item?.tag,
+                  description: item?.description,
+                }));
+                
+                await updateArtistProfile({ portfolio: portfolioPayload });
+                setPortfolio(works);
+                
+                if (route?.params?.fromPending) {
+                  navigation.navigate('ArtistRegistrationPending');
+                } else {
+                  navigation.navigate('ArtistRegister6');
+                }
+              } catch (error) {
+                console.error('Save step 5 error:', error);
+                const msg = error?.response?.data?.message || error?.message || 'Failed to save portfolio';
+                Alert.alert('Error', msg);
+              } finally {
+                setIsSubmitting(false);
+              }
+            }}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator color="#FFF" size="small" />
+            ) : (
+              <>
+                <Text style={styles.buttonText}>Let’s Make-up Profile</Text>
+
+                <Ionicons
+                  name="arrow-forward"
+                  size={22}
+                  color="#FFF"
+                  style={{ marginLeft: 8 }}
+                />
+              </>
+            )}
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
 };
 
 export default ArtistRegisterScreen5;
 
 const styles = StyleSheet.create({
-    safeArea: {
-        flex: 1,
-        backgroundColor: '#F7F7F7',
-    },
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F7F7F7',
+  },
 
-    container: {
-        flex: 1,
-        paddingHorizontal: 24,
-        paddingTop: Platform.OS === 'android' ? 20 : 0,
-    },
+  container: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: Platform.OS === 'android' ? 20 : 0,
+  },
 
-    // HEADER
+  // HEADER
 
-    headerCard: {
-        backgroundColor: '#FFE4ED',
-        borderRadius: 30,
-        paddingVertical: 28,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: 20,
-        marginBottom: 35,
-    },
+  headerCard: {
+    backgroundColor: '#FFE4ED',
+    borderRadius: 30,
+    paddingVertical: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 35,
+  },
 
-    headerText: {
-        fontSize: 24,
-        color: '#111',
-        textAlign: 'center',
-        lineHeight: 36,
-        fontWeight: '700',
-    },
+  headerText: {
+    fontSize: 24,
+    color: '#111',
+    textAlign: 'center',
+    lineHeight: 36,
+    fontWeight: '700',
+  },
 
-    pinkText: {
-        color: '#FF4F8F',
-    },
+  pinkText: {
+    color: '#FF4F8F',
+  },
 
-    // SHOWCASE
+  // SHOWCASE
 
-    showcaseContainer: {
-        height: 340,
-        borderWidth: 1.5,
-        borderStyle: 'dashed',
-        borderColor: '#FFB5CC',
-        borderRadius: 28,
-        backgroundColor: '#FFF',
-        flexDirection: 'row',
-        overflow: 'hidden',
-        position: 'relative',
-    },
+  showcaseContainer: {
+    height: 340,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: '#FFB5CC',
+    borderRadius: 28,
+    backgroundColor: '#FFF',
+    flexDirection: 'row',
+    overflow: 'hidden',
+    position: 'relative',
+  },
 
-    divider: {
-        width: 1,
-        backgroundColor: '#FFD1E1',
-    },
+  divider: {
+    width: 1,
+    backgroundColor: '#FFD1E1',
+  },
 
-    imageBox: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
+  imageBox: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 
-    image: {
-        width: '100%',
-        height: '100%',
-        resizeMode: 'cover',
-    },
+  image: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
 
-    imageLabel: {
-        position: 'absolute',
-        bottom: 18,
-        backgroundColor: 'rgba(255,255,255,0.9)',
-        paddingHorizontal: 18,
-        paddingVertical: 6,
-        borderRadius: 16,
-    },
+  imageLabel: {
+    position: 'absolute',
+    bottom: 18,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    paddingHorizontal: 18,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
 
-    labelText: {
-        color: '#111',
-        fontWeight: '700',
-        fontSize: 13,
-    },
+  labelText: {
+    color: '#111',
+    fontWeight: '700',
+    fontSize: 13,
+  },
 
-    centerTag: {
-        position: 'absolute',
-        top: 16,
-        alignSelf: 'center',
-        backgroundColor: '#FFE4ED',
-        paddingHorizontal: 18,
-        paddingVertical: 8,
-        borderRadius: 18,
-    },
+  centerTag: {
+    position: 'absolute',
+    top: 16,
+    alignSelf: 'center',
+    backgroundColor: '#FFE4ED',
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    borderRadius: 18,
+  },
 
-    centerTagText: {
-        color: '#FF4F8F',
-        fontWeight: '700',
-        fontSize: 14,
-    },
+  centerTagText: {
+    color: '#FF4F8F',
+    fontWeight: '700',
+    fontSize: 14,
+  },
 
-    // INPUTS
+  // INPUTS
 
-    inputGroup: {
-        marginTop: 28,
-    },
+  inputGroup: {
+    marginTop: 20,
+  },
 
-    label: {
-        alignSelf: 'flex-start',
-        backgroundColor: '#F7F7F7',
-        paddingHorizontal: 10,
-        marginLeft: 18,
-        marginBottom: -10,
-        zIndex: 10,
-        color: '#FF4F8F',
-        fontSize: 14,
-        fontWeight: '700',
-    },
+  label: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#F7F7F7',
+    paddingHorizontal: 10,
+    marginLeft: 18,
+    marginBottom: -10,
+    zIndex: 10,
+    color: '#FF4F8F',
+    fontSize: 14,
+    fontWeight: '700',
+  },
 
-    input: {
-        height: 58,
-        borderWidth: 1.5,
-        borderColor: '#FFD1E1',
-        borderRadius: 22,
-        backgroundColor: '#FFF',
-        paddingHorizontal: 20,
-        color: '#111',
-        fontSize: 15,
-    },
+  input: {
+    height: 58,
+    borderWidth: 1.5,
+    borderColor: '#FFD1E1',
+    borderRadius: 22,
+    backgroundColor: '#FFF',
+    paddingHorizontal: 20,
+    color: '#111',
+    fontSize: 15,
+    marginBottom: 14,
+  },
 
-    descriptionInput: {
-        height: 120,
-        paddingTop: 18,
-        textAlignVertical: 'top',
-    },
+  descriptionInput: {
+    height: 120,
+    paddingTop: 18,
+    textAlignVertical: 'top',
+  },
 
-    // CHOOSE BUTTON
+  workCard: {
+    marginBottom: 30,
+  },
 
-    chooseButton: {
-        height: 62,
-        borderWidth: 1.5,
-        borderColor: '#FFD1E1',
-        borderRadius: 24,
-        backgroundColor: '#FFF',
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: 32,
-    },
+  placeholderOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    backgroundColor: 'rgba(0,0,0,0.24)',
+  },
 
-    plusCircle: {
-        width: 34,
-        height: 34,
-        borderRadius: 17,
-        backgroundColor: '#FFE4ED',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 14,
-    },
+  placeholderText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
 
-    chooseText: {
-        color: '#B7796C',
-        fontSize: 18,
-        fontWeight: '500',
-    },
+  addWorkButton: {
+    height: 62,
+    borderWidth: 1.5,
+    borderColor: '#FFD1E1',
+    borderRadius: 24,
+    backgroundColor: '#FFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 18,
+  },
 
-    // SUBMIT BUTTON
+  addWorkText: {
+    color: '#B7796C',
+    fontSize: 18,
+    fontWeight: '500',
+  },
 
-    button: {
-        height: 64,
-        backgroundColor: '#FF4F8F',
-        borderRadius: 32,
-        marginTop: 38,
-        justifyContent: 'center',
-        alignItems: 'center',
-        flexDirection: 'row',
-    },
+  // SUBMIT BUTTON
 
-    buttonText: {
-        color: '#FFF',
-        fontSize: 20,
-        fontWeight: '700',
-    },
+  button: {
+    height: 64,
+    backgroundColor: '#FF4F8F',
+    borderRadius: 32,
+    marginTop: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
 
-    // MODAL
-
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.35)',
-        justifyContent: 'flex-end',
-    },
-
-    bottomSheet: {
-        backgroundColor: '#FFF',
-        padding: 24,
-        borderTopLeftRadius: 30,
-        borderTopRightRadius: 30,
-    },
-
-    sheetTitle: {
-        fontSize: 22,
-        fontWeight: '700',
-        color: '#111',
-        textAlign: 'center',
-        marginBottom: 24,
-    },
-
-    sheetButton: {
-        height: 58,
-        borderWidth: 1.5,
-        borderColor: '#FFD1E1',
-        borderRadius: 18,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-
-    sheetText: {
-        color: '#B7796C',
-        fontSize: 17,
-        fontWeight: '600',
-    },
-
-    galleryButton: {
-        height: 58,
-        backgroundColor: '#FF4F8F',
-        borderRadius: 18,
-        justifyContent: 'center',
-        alignItems: 'center',
-        flexDirection: 'row',
-        marginTop: 10,
-    },
-
-    galleryText: {
-        color: '#FFF',
-        fontSize: 18,
-        fontWeight: '700',
-        marginLeft: 10,
-    },
+  buttonText: {
+    color: '#FFF',
+    fontSize: 20,
+    fontWeight: '700',
+  },
 });
