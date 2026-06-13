@@ -99,6 +99,14 @@ const AppNavigator = () => {
         component={ArtistHomeScreen}
       />
         <Stack.Screen
+        name="ArtistRegistrationPending"
+        component={ArtistRegistrationPendingScreen}
+      />
+        <Stack.Screen
+        name="ArtistHome"
+        component={ArtistHomeScreen}
+      />
+        <Stack.Screen
           name="ForgotPassword"
           component={ForgotPasswordScreen}
         />
