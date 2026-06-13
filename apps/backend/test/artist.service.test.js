@@ -1,161 +1,119 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const Module = require('node:module');
-const path = require('node:path');
+import test from "node:test";
+import assert from "node:assert/strict";
+import sequelize from "../src/config/db.js";
+import {
+  registerArtist,
+  loginArtist,
+} from "../src/modules/artist/artistAuth.service.js";
+import {
+  getArtistProfile,
+  updateArtistProfile,
+} from "../src/modules/artist/artist.service.js";
 
-const servicePath = path.resolve(__dirname, '../src/services/artist.service.js');
-const modelPath = path.resolve(__dirname, '../src/models/artist.model.js');
+test.beforeEach(async () => {
+  // Sync all models to the in-memory SQLite database before each test
+  await sequelize.sync({ force: true });
+});
 
-function createArtistRecord(data) {
-  const record = {
-    id: data.id,
-    ...data,
-    async update(updates) {
-      Object.assign(record, updates);
-      return record;
-    },
-    toJSON() {
-      const { update, toJSON, ...json } = record;
-      return { ...json };
-    },
-  };
-
-  return record;
-}
-
-function createServiceHarness() {
-  const records = [];
-  let nextId = 1;
-
-  const Artist = {
-    async findOne({ where }) {
-      const [field, value] = Object.entries(where)[0];
-      return records.find((artist) => artist[field] === value) || null;
-    },
-    async findByPk(id) {
-      return records.find((artist) => artist.id === id) || null;
-    },
-    async create(data) {
-      const artist = createArtistRecord({ id: nextId++, ...data });
-      records.push(artist);
-      return artist;
-    },
-  };
-
-  const bcrypt = {
-    async hash(password, rounds) {
-      assert.equal(rounds, 10);
-      return `hashed:${password}`;
-    },
-    async compare(password, hash) {
-      return hash === `hashed:${password}`;
-    },
-  };
-
-  const jwt = {
-    sign(payload, secret, options) {
-      assert.equal(secret, 'test-secret');
-      assert.deepEqual(options, { expiresIn: '7d' });
-      return `token:${payload.id}`;
-    },
-  };
-
-  const originalLoad = Module._load;
-  Module._load = function mockLoad(request, parent, isMain) {
-    const resolved = Module._resolveFilename(request, parent, isMain);
-
-    if (resolved === modelPath) return Artist;
-    if (request === 'bcrypt') return bcrypt;
-    if (request === 'jsonwebtoken') return jwt;
-
-    return originalLoad.call(this, request, parent, isMain);
-  };
-
-  delete require.cache[servicePath];
-  process.env.JWT_SECRET = 'test-secret';
-  const service = require(servicePath);
-  Module._load = originalLoad;
-
-  return { service, records };
-}
-
-test('artist setup supports signup, login, profile, and profile update', async () => {
-  const { service, records } = createServiceHarness();
+test("artist setup supports signup, login, profile, and profile update", async () => {
   const signupData = {
-    name: 'Asha Artist',
-    email: 'asha@example.com',
-    phone: '9999999999',
-    password: 'top-secret',
-    experience_years: 5,
-    certifications: ['bridal', 'airbrush'],
-    portfolio_url: 'https://example.com/portfolio',
-    bio: 'Bridal and editorial makeup artist',
-    government_id_number: 'GOV12345',
+    name: "Asha Artist",
+    email: "asha@example.com",
+    phone: "9999999999",
+    password: "top-secret",
+    pricing: "5000",
+    experience: "5 years",
   };
 
-  const signup = await service.signup(signupData);
+  // 1. Sign up the artist
+  const signup = await registerArtist(signupData);
 
-  assert.equal(signup.token, 'token:1');
+  assert.ok(signup.token, "Should return a token on signup");
   assert.equal(signup.artist.email, signupData.email);
-  assert.deepEqual(signup.artist.certifications, signupData.certifications);
-  assert.equal(signup.artist.password_hash, undefined);
-  assert.equal(records[0].password_hash, 'hashed:top-secret');
-  assert.equal(records[0].certifications, JSON.stringify(signupData.certifications));
+  assert.equal(signup.artist.name, signupData.name);
+  assert.equal(signup.artist.password, undefined, "Password should not be returned");
 
-  const login = await service.login(signupData.email, signupData.password);
-  assert.equal(login.token, 'token:1');
-  assert.deepEqual(login.artist.certifications, signupData.certifications);
-  assert.equal(login.artist.password_hash, undefined);
-
-  const profile = await service.getProfile(1);
-  assert.equal(profile.name, signupData.name);
-  assert.deepEqual(profile.certifications, signupData.certifications);
-  assert.equal(profile.password_hash, undefined);
-
-  const updated = await service.updateProfile(1, {
-    bio: 'Luxury bridal specialist',
-    certifications: ['bridal', 'editorial'],
+  // 2. Login the artist
+  const login = await loginArtist({
+    email: signupData.email,
+    password: signupData.password,
   });
 
-  assert.equal(updated.bio, 'Luxury bridal specialist');
-  assert.deepEqual(updated.certifications, ['bridal', 'editorial']);
-  assert.equal(records[0].certifications, JSON.stringify(['bridal', 'editorial']));
-  assert.equal(updated.password_hash, undefined);
+  assert.ok(login.token, "Should return a token on login");
+  assert.equal(login.artist.email, signupData.email);
+  assert.equal(login.artist.password, undefined, "Password should not be returned");
+
+  // 3. Get the profile
+  const profile = await getArtistProfile(signup.artist.id);
+  assert.equal(profile.name, signupData.name);
+
+  // 4. Update the profile
+  const updated = await updateArtistProfile(signup.artist.id, {
+    bio: "Luxury bridal specialist",
+    specializations: ["bridal", "editorial"],
+  });
+
+  assert.equal(updated.profile.bio, "Luxury bridal specialist");
+  assert.equal(updated.specializations.length, 2);
+  assert.equal(updated.specializations[0].name, "bridal");
+  assert.equal(updated.specializations[1].name, "editorial");
+  assert.equal(updated.password, undefined);
 });
 
-test('artist setup rejects duplicate email and phone signup', async () => {
-  const { service } = createServiceHarness();
+test("artist setup rejects duplicate email and phone signup", async () => {
   const data = {
-    name: 'Asha Artist',
-    email: 'asha@example.com',
-    phone: '9999999999',
-    password: 'top-secret',
-    experience_years: 5,
-    certifications: ['bridal'],
-    government_id_number: 'GOV12345',
+    name: "Asha Artist",
+    email: "asha@example.com",
+    phone: "9999999999",
+    password: "top-secret",
   };
 
-  await service.signup(data);
-  await assert.rejects(() => service.signup({ ...data, phone: '8888888888' }), /Artist already exists/);
-  await assert.rejects(() => service.signup({ ...data, email: 'new@example.com' }), /Phone already in use/);
+  await registerArtist(data);
+
+  // Attempt duplicate email signup
+  await assert.rejects(
+    () => registerArtist({ ...data, phone: "8888888888" }),
+    /Artist already exists/
+  );
+
+  // Attempt duplicate phone signup
+  await assert.rejects(
+    () => registerArtist({ ...data, email: "new@example.com" }),
+    /Phone already in use/
+  );
 });
 
-test('artist setup rejects bad login and missing profiles', async () => {
-  const { service } = createServiceHarness();
+test("artist setup rejects bad login and missing profiles", async () => {
   const data = {
-    name: 'Asha Artist',
-    email: 'asha@example.com',
-    phone: '9999999999',
-    password: 'top-secret',
-    experience_years: 5,
-    certifications: ['bridal'],
-    government_id_number: 'GOV12345',
+    name: "Asha Artist",
+    email: "asha@example.com",
+    phone: "9999999999",
+    password: "top-secret",
   };
 
-  await service.signup(data);
+  await registerArtist(data);
 
-  await assert.rejects(() => service.login(data.email, 'wrong-password'), /Invalid email or password/);
-  await assert.rejects(() => service.login('missing@example.com', data.password), /Invalid email or password/);
-  await assert.rejects(() => service.getProfile(404), /Artist not found/);
-  await assert.rejects(() => service.updateProfile(404, { bio: 'Missing' }), /Artist not found/);
+  // Try wrong password
+  await assert.rejects(
+    () => loginArtist({ email: data.email, password: "wrong-password" }),
+    /Invalid email or password/
+  );
+
+  // Try non-existent email
+  await assert.rejects(
+    () => loginArtist({ email: "missing@example.com", password: data.password }),
+    /Invalid email or password/
+  );
+
+  // Try missing profile lookup
+  await assert.rejects(
+    () => getArtistProfile(404),
+    /Artist not found/
+  );
+
+  // Try update on missing profile
+  await assert.rejects(
+    () => updateArtistProfile(404, { bio: "Missing" }),
+    /Artist not found/
+  );
 });
