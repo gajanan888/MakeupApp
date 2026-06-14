@@ -4,15 +4,16 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   ScrollView,
   StatusBar,
   Platform,
   ActivityIndicator,
+  Image,
+  ImageBackground,
 } from 'react-native';
 
-import Icon from 'react-native-vector-icons/Feather';
+import Ionicons from '@react-native-vector-icons/ionicons';
 import { useArtistRegistration } from '../../context/ArtistRegistrationContext';
 import { getArtistProfile } from '../../api/auth';
 
@@ -73,28 +74,28 @@ const CompleteProfileScreen = ({navigation}) => {
     },
     {
       id: 2,
-      title: 'Basic Information',
+      title: 'Complete Profile',
       subtitle: 'Name, Bio, Gender, Location',
       completed: step2Completed,
       screen: 'ArtistRegister2',
     },
     {
       id: 3,
-      title: 'Specializations',
+      title: 'Select Specializations',
       subtitle: 'Makeup Categories Selected',
       completed: step3Completed,
       screen: 'ArtistRegister3',
     },
     {
       id: 4,
-      title: 'Services & Pricing',
+      title: 'Add Services',
       subtitle: 'Add your services and rates',
       completed: step4Completed,
       screen: 'ArtistRegister4',
     },
     {
       id: 5,
-      title: 'Portfolio Upload',
+      title: 'Add Portfolio',
       subtitle: 'Upload before & after images',
       completed: step5Completed,
       screen: 'ArtistRegister5',
@@ -136,9 +137,10 @@ const CompleteProfileScreen = ({navigation}) => {
   const remainingSteps = PROFILE_STEPS.filter(item => !item.completed).length;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.container}>
       <StatusBar
-        backgroundColor="#F7F7F7"
+        translucent
+        backgroundColor="transparent"
         barStyle="dark-content"
       />
 
@@ -150,282 +152,317 @@ const CompleteProfileScreen = ({navigation}) => {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
-            paddingBottom: 40,
+            paddingBottom: Platform.OS === 'ios' ? 40 : 25,
           }}>
-          {/* HEADER CARD */}
+          {/* HEADER IMAGE BACKGROUND */}
+          <View style={styles.headerContainer}>
+            <ImageBackground
+              source={{
+                uri: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=600',
+              }}
+              style={styles.headerBackground}
+              resizeMode="cover"
+            >
+              {/* Fade overlay at the bottom */}
+              <View style={styles.fadeContainer}>
+                {[...Array(10)].map((_, i) => (
+                  <View
+                    key={i}
+                    style={{
+                      height: 8,
+                      backgroundColor: '#F7F7F7',
+                      opacity: i / 9,
+                    }}
+                  />
+                ))}
+              </View>
+            </ImageBackground>
 
-          <View style={styles.headerCard}>
-            <Text style={styles.headerTitle}>
-              Complete Your Profile
-            </Text>
-
-            <Text style={styles.headerSubtitle}>
-              You're almost ready to start
-              receiving bookings
-            </Text>
-
-            <Text style={styles.percentText}>
-              {percentage}% Complete
-            </Text>
-
-            {/* PROGRESS BAR */}
-
-            <View style={styles.progressBg}>
-              <View
-                style={[
-                  styles.progressFill,
-                  {
-                    width: `${percentage}%`,
-                  },
-                ]}
-              />
-            </View>
+            {/* Floating Back Button */}
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+            >
+              <Ionicons name="chevron-back" size={24} color="#111" />
+            </TouchableOpacity>
           </View>
 
-          {/* STEPS */}
+          {/* AVATAR */}
+          <View style={styles.avatarContainer}>
+            <Image
+              source={
+                data.profile?.profileImage
+                  ? { uri: data.profile.profileImage }
+                  : {
+                      uri: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=500',
+                    }
+              }
+              style={styles.avatarImage}
+            />
+          </View>
 
-          {PROFILE_STEPS.map(step => (
-            <View
-              key={step.id}
-              style={styles.stepCard}>
-              <View style={styles.leftSection}>
-                {step.completed ? (
-                  <View
-                    style={styles.completedIcon}>
-                    <Icon
-                      name="check"
-                      size={18}
-                      color="#FFF"
+          {/* GREETING */}
+          <View style={styles.greetingContainer}>
+            <Text style={styles.welcomeText}>
+              Welcome, {data.basic?.name || 'Glam Artist'}! 👋
+            </Text>
+            <Text style={styles.subtitleText}>
+              Let's set up your profile and start getting booked.
+            </Text>
+          </View>
+
+          {/* STEPS CARD */}
+          <View style={styles.stepsCard}>
+            {PROFILE_STEPS.map((step, index) => {
+              const isLast = index === PROFILE_STEPS.length - 1;
+              return (
+                <View key={step.id}>
+                  <TouchableOpacity
+                    style={styles.stepRow}
+                    onPress={() => handleStepComplete(step.screen)}
+                    disabled={!step.screen}
+                  >
+                    <View style={styles.stepLeft}>
+                      {step.completed ? (
+                        <View style={styles.completedCircle}>
+                          <Ionicons name="checkmark" size={18} color="#FFF" />
+                        </View>
+                      ) : (
+                        <View style={styles.pendingCircle}>
+                          <Text style={styles.pendingNumber}>{step.id}</Text>
+                        </View>
+                      )}
+                      
+                      <View style={styles.textContainer}>
+                        <Text style={[
+                          styles.stepTitle,
+                          step.completed ? styles.completedTitle : styles.pendingTitle
+                        ]}>
+                          {step.title}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color={step.completed ? '#32C766' : '#B7A9A1'}
                     />
-                  </View>
-                ) : (
-                  <View
-                    style={styles.pendingIcon}>
-                    <Icon
-                      name="clock"
-                      size={16}
-                      color="#FF4F8F"
-                    />
-                  </View>
-                )}
-
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={styles.stepTitle}>
-                    {step.title}
-                  </Text>
-
-                  <Text
-                    style={
-                      styles.stepSubtitle
-                    }>
-                    {step.subtitle}
-                  </Text>
+                  </TouchableOpacity>
+                  {!isLast && <View style={styles.rowDivider} />}
                 </View>
-              </View>
-
-              {!step.completed && (
-                <TouchableOpacity
-                  style={
-                    styles.completeButton
-                  }
-                  onPress={() => handleStepComplete(step.screen)}>
-                  <Text
-                    style={
-                      styles.completeText
-                    }>
-                    Complete
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          ))}
-
-          {/* REMAINING */}
-
-          {remainingSteps > 0 && (
-            <View style={styles.infoCard}>
-              <Icon
-                name="alert-circle"
-                size={22}
-                color="#FF4F8F"
-              />
-
-              <Text style={styles.infoText}>
-                {remainingSteps} step{remainingSteps > 1 ? 's' : ''} remaining before you
-                can start accepting bookings.
-              </Text>
-            </View>
-          )}
+              );
+            })}
+          </View>
 
           {/* CONTINUE BUTTON */}
-
-          <TouchableOpacity onPress={handleContinue} 
-            style={styles.continueButton}>
+          <TouchableOpacity
+            onPress={handleContinue}
+            style={styles.continueButton}
+          >
             <Text style={styles.buttonText}>
-              {remainingSteps === 0 ? 'Review & Submit' : 'Continue Registration'}
+              {remainingSteps === 0 ? 'Get Started' : 'Continue Registration'}
             </Text>
-
-            <Icon
-              name="arrow-right"
-              size={22}
-              color="#FFF"
-            />
           </TouchableOpacity>
         </ScrollView>
       )}
-    </SafeAreaView>
+    </View>
   );
 };
 
 export default CompleteProfileScreen;
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
     backgroundColor: '#F7F7F7',
-    paddingHorizontal: 20,
-    paddingTop:
-      Platform.OS === 'android'
-        ? 20
-        : 10,
   },
 
-  headerCard: {
-    backgroundColor: '#FFE4ED',
-    borderRadius: 30,
-    padding: 25,
-    marginTop: 20,
+  headerContainer: {
+    position: 'relative',
+    width: '100%',
+    height: 220,
   },
 
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#111',
-  },
-
-  headerSubtitle: {
-    marginTop: 8,
-    color: '#6F625D',
-    fontSize: 15,
-    lineHeight: 22,
-  },
-
-  percentText: {
-    marginTop: 20,
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FF4F8F',
-  },
-
-  progressBg: {
-    height: 12,
-    backgroundColor: '#FFF',
-    borderRadius: 10,
-    marginTop: 12,
-    overflow: 'hidden',
-  },
-
-  progressFill: {
+  headerBackground: {
+    width: '100%',
     height: '100%',
-    backgroundColor: '#FF4F8F',
+    justifyContent: 'flex-end',
   },
 
-  stepCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 22,
-    padding: 18,
-    marginTop: 18,
-    borderWidth: 1,
-    borderColor: '#F3E1E8',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  fadeContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 80,
   },
 
-  leftSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-
-  completedIcon: {
+  backButton: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 0) + 10,
+    left: 20,
     width: 40,
     height: 40,
     borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+
+  avatarContainer: {
+    alignSelf: 'center',
+    marginTop: -60,
+    borderRadius: 65,
+    borderWidth: 4,
+    borderColor: '#FFF',
+    backgroundColor: '#FFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+
+  avatarImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+  },
+
+  greetingContainer: {
+    marginTop: 20,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+
+  welcomeText: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#111',
+    textAlign: 'center',
+    fontFamily: 'serif',
+  },
+
+  subtitleText: {
+    fontSize: 15,
+    color: '#6F625D',
+    textAlign: 'center',
+    lineHeight: 22,
+    fontFamily: 'serif',
+    marginTop: 8,
+  },
+
+  stepsCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 24,
+    marginHorizontal: 20,
+    marginTop: 28,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#FFD1E1',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+
+  stepRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+  },
+
+  stepLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+
+  completedCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#32C766',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
   },
 
-  pendingIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFE4ED',
+  pendingCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#CCCCCC',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    backgroundColor: '#FFF',
+  },
+
+  pendingNumber: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#777',
+    fontFamily: 'serif',
+  },
+
+  textContainer: {
+    marginLeft: 14,
+    flex: 1,
   },
 
   stepTitle: {
-    fontSize: 17,
+    fontSize: 16,
+    fontFamily: 'serif',
+  },
+
+  completedTitle: {
     fontWeight: '700',
     color: '#111',
   },
 
-  stepSubtitle: {
-    marginTop: 4,
-    fontSize: 13,
+  pendingTitle: {
+    fontWeight: '600',
     color: '#8A7D77',
   },
 
-  completeButton: {
-    backgroundColor: '#FF4F8F',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 14,
-  },
-
-  completeText: {
-    color: '#FFF',
-    fontWeight: '700',
-    fontSize: 13,
-  },
-
-  infoCard: {
-    marginTop: 24,
-    backgroundColor: '#FFF',
-    borderRadius: 22,
-    padding: 18,
-    flexDirection: 'row',
-    borderWidth: 1,
-    borderColor: '#F3E1E8',
-  },
-
-  infoText: {
-    flex: 1,
-    marginLeft: 12,
-    color: '#6F625D',
-    lineHeight: 22,
+  rowDivider: {
+    height: 1,
+    backgroundColor: '#FFE4ED',
+    marginHorizontal: 20,
   },
 
   continueButton: {
-    marginTop: 30,
-    height: 64,
     backgroundColor: '#FF4F8F',
-    borderRadius: 32,
+    height: 58,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    flexDirection: 'row',
+    marginHorizontal: 20,
+    marginTop: 32,
+    marginBottom: 30,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
 
   buttonText: {
     color: '#FFF',
     fontSize: 18,
     fontWeight: '700',
-    marginRight: 10,
+    fontFamily: 'serif',
   },
 
   loaderContainer: {

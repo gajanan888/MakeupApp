@@ -22,6 +22,7 @@ import ForgotPasswordScreen from '../screens/common/ForgotPasswordScreen';
 import OtpVerificationScreen from '../screens/common/OtpVerificationScreen';
 import CreateNewPasswordScreen from '../screens/common/CreateNewPasswordScreen';
 import SearchScreen from '../screens/client/SearchScreen';
+import ArtistMessageScreen from '../screens/artist/ArtistMessageScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -96,6 +97,10 @@ const AppNavigator = () => {
         <Stack.Screen
         name="ArtistHome"
         component={ArtistHomeScreen}
+      />
+        <Stack.Screen
+        name="ArtistMessage"
+        component={ArtistMessageScreen}
       />
         <Stack.Screen
           name="ForgotPassword"
