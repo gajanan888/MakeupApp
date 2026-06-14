@@ -1,6 +1,6 @@
 // ProfileSetupScreen.js
 import { PermissionsAndroid, Platform } from 'react-native';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -71,6 +71,54 @@ const ProfileSetupScreen = ({ navigation, route }) => {
   );
   const [bio, setBio] = useState(data.profile.bio || '');
   const [location, setLocation] = useState(data.profile.location || '');
+  const [selectedLocations, setSelectedLocations] = useState(
+    data.profile.location
+      ? data.profile.location
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean)
+      : [],
+  );
+  const [locationQuery, setLocationQuery] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      if (!locationQuery || locationQuery.trim().length < 3) {
+        setSuggestions([]);
+        return;
+      }
+      try {
+        setLoadingSuggestions(true);
+        const response = await fetch(
+          `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(
+            locationQuery,
+          )}&apiKey=60988df054524262b847818891916f3e`,
+        );
+        const result = await response.json();
+        if (result.features) {
+          setSuggestions(result.features);
+        } else {
+          setSuggestions([]);
+        }
+      } catch (err) {
+        console.error('Error fetching locations:', err);
+      } finally {
+        setLoadingSuggestions(false);
+      }
+    };
+
+    const delayDebounceFn = setTimeout(() => {
+      fetchSuggestions();
+    }, 400);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [locationQuery]);
+
+  useEffect(() => {
+    setLocation(selectedLocations.join(', '));
+  }, [selectedLocations]);
 
   const displayName = data.basic.name || 'Artist';
 
@@ -295,15 +343,77 @@ const ProfileSetupScreen = ({ navigation, route }) => {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Location</Text>
 
-            <TextInput
-              placeholder="Give service City/Area
-(Can choose more than one area)"
-              placeholderTextColor="#B7A9A1"
-              multiline
-              value={location}
-              onChangeText={setLocation}
-              style={[styles.input, styles.locationInput]}
-            />
+            <View style={styles.inputWithLoader}>
+              <TextInput
+                placeholder="Search & add service City/Area..."
+                placeholderTextColor="#B7A9A1"
+                value={locationQuery}
+                onChangeText={setLocationQuery}
+                style={styles.input}
+              />
+              {loadingSuggestions && (
+                <ActivityIndicator
+                  color="#FF4F8F"
+                  size="small"
+                  style={styles.loaderInsideInput}
+                />
+              )}
+            </View>
+
+            {suggestions.length > 0 && (
+              <View style={styles.suggestionsContainer}>
+                <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 200 }}>
+                  {suggestions.map((item, index) => {
+                    const name = item.properties.formatted;
+                    return (
+                      <TouchableOpacity
+                        key={index}
+                        style={styles.suggestionItem}
+                        onPress={() => {
+                          if (!selectedLocations.includes(name)) {
+                            setSelectedLocations([...selectedLocations, name]);
+                          }
+                          setLocationQuery('');
+                          setSuggestions([]);
+                        }}
+                      >
+                        <Ionicons
+                          name="location-outline"
+                          size={18}
+                          color="#FF4F8F"
+                          style={{ marginRight: 8 }}
+                        />
+                        <Text style={styles.suggestionText} numberOfLines={2}>
+                          {name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+
+            {selectedLocations.length > 0 && (
+              <View style={styles.chipsContainer}>
+                {selectedLocations.map((loc, idx) => (
+                  <View key={idx} style={styles.chip}>
+                    <Text style={styles.chipText} numberOfLines={1}>
+                      {loc}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setSelectedLocations(
+                          selectedLocations.filter(item => item !== loc),
+                        );
+                      }}
+                      style={styles.chipRemoveButton}
+                    >
+                      <Ionicons name="close" size={16} color="#FF4F8F" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
 
           {/* BUTTON */}
@@ -576,6 +686,78 @@ const styles = StyleSheet.create({
     height: 90,
     textAlignVertical: 'top',
     paddingTop: 18,
+  },
+
+  inputWithLoader: {
+    position: 'relative',
+    justifyContent: 'center',
+  },
+
+  loaderInsideInput: {
+    position: 'absolute',
+    right: 18,
+  },
+
+  chipsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 12,
+  },
+
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFE4ED',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#FFD1E1',
+  },
+
+  chipText: {
+    color: '#FF4F8F',
+    fontSize: 14,
+    fontFamily: 'serif',
+    marginRight: 4,
+    maxWidth: 200,
+  },
+
+  chipRemoveButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  suggestionsContainer: {
+    backgroundColor: '#FFF',
+    borderWidth: 1.5,
+    borderColor: '#FFD1E1',
+    borderRadius: 18,
+    marginTop: 6,
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#FFE4ED',
+  },
+
+  suggestionText: {
+    fontSize: 14,
+    color: '#111',
+    fontFamily: 'serif',
+    flex: 1,
   },
 
   button: {

@@ -33,7 +33,7 @@ export const sendOtp = async (phone) => {
   const templateName = OTP_TEMPLATE ? OTP_TEMPLATE.trim() : "";
   const template = templateName ? encodeURIComponent(templateName) : null;
   const url = template
-    ? `https://2factor.in/API/V1/${OTP_API_KEY}/SMS/${normalized}/${template}`
+    ? `https://2factor.in/API/V1/${OTP_API_KEY}/SMS/${normalized}/AUTOGEN/${template}`
     : `https://2factor.in/API/V1/${OTP_API_KEY}/SMS/${normalized}/AUTOGEN`;
 
   try {

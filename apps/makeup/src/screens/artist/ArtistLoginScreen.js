@@ -56,11 +56,10 @@ const ArtistLoginScreen = ({ navigation }) => {
 
             loadProfileData(profileData);
 
-            if (isComplete) {
-                navigation.navigate('ArtistHome');
-            } else {
-                navigation.navigate('ArtistRegistrationPending');
-            }
+            navigation.reset({
+                index: 0,
+                routes: [{ name: 'ArtistHome' }],
+            });
         } catch (error) {
             console.error('Login error:', error);
             const msg = error?.response?.data?.message || error?.message || 'Login failed';
