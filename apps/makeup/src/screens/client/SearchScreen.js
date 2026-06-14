@@ -798,13 +798,6 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
 
-    modalContainer: {
-        backgroundColor: '#FFF',
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        padding: 24,
-    },
-
     modalTitle: {
         fontSize: 22,
         fontWeight: '700',
@@ -821,21 +814,6 @@ const styles = StyleSheet.create({
 
     filterOption: {
         paddingVertical: 12,
-    },
-
-    applyButton: {
-        backgroundColor: '#FF4F87',
-        height: 54,
-        borderRadius: 16,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: 25,
-    },
-
-    applyButtonText: {
-        color: '#FFF',
-        fontWeight: '700',
-        fontSize: 16,
     },
 
     buttonRow: {
