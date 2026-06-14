@@ -9,112 +9,210 @@ import {
     StyleSheet,
     ScrollView,
     Image,
+    Modal,
 } from 'react-native';
 
 const SearchScreen = ({ navigation }) => {
 
     const [searchText, setSearchText] = useState('');
     const [favorites, setFavorites] = useState([]);
+    const [selectedCategory, setSelectedCategory] = useState('All');
+    const [showFilter, setShowFilter] = useState(false);
+    const [selectedRating, setSelectedRating] = useState(null);
+    const [selectedPrice, setSelectedPrice] = useState(null);
+    const [selectedLocation, setSelectedLocation] = useState(null);
+    const categories = [
+        'All',
+        'Bridal',
+        'Party',
+        'HD Makeup',
+        'Airbrush',
+        'Engagement',
+        'Celebrity',
+        'Reception',
+        'Photoshoot',
+        'Minimal',
+    ];
 
     const artists = [
         {
             id: 1,
             name: 'Sophia Makeup Studio',
+            category: 'Bridal',
             location: 'Pune',
             rating: 4.9,
             speciality: 'Bridal Specialist',
             price: '₹2,999',
             image: require('../../assets/images/artist1.jpeg'),
+
+            portfolio: [
+                require('../../assets/images/portfolio1.jpg'),
+                require('../../assets/images/portfolio2.jpg'),
+                require('../../assets/images/portfolio3.jpg'),
+                require('../../assets/images/portfolio4.jpg'),
+            ],
         },
 
         {
             id: 2,
             name: 'Ananya Beauty',
+            category: 'Party',
             location: 'Mumbai',
             rating: 4.8,
             speciality: 'Party Makeup',
             price: '₹1,999',
             image: require('../../assets/images/artist1.jpeg'),
+
+            portfolio: [
+                require('../../assets/images/portfolio1.jpg'),
+                require('../../assets/images/portfolio2.jpg'),
+                require('../../assets/images/portfolio3.jpg'),
+                require('../../assets/images/portfolio4.jpg'),
+            ],
         },
 
         {
             id: 3,
             name: 'Riya Makeovers',
+            category: 'HD Makeup',
             location: 'Delhi',
             rating: 4.7,
             speciality: 'HD Makeup Expert',
             price: '₹3,499',
             image: require('../../assets/images/artist1.jpeg'),
+
+            portfolio: [
+                require('../../assets/images/portfolio1.jpg'),
+                require('../../assets/images/portfolio2.jpg'),
+                require('../../assets/images/portfolio3.jpg'),
+                require('../../assets/images/portfolio4.jpg'),
+            ],
         },
 
         {
             id: 4,
             name: 'Glow By Mehak',
+            category: 'Airbrush',
             location: 'Pune',
             rating: 4.8,
             speciality: 'Airbrush Makeup',
             price: '₹4,299',
             image: require('../../assets/images/artist1.jpeg'),
+
+            portfolio: [
+                require('../../assets/images/portfolio1.jpg'),
+                require('../../assets/images/portfolio2.jpg'),
+                require('../../assets/images/portfolio3.jpg'),
+                require('../../assets/images/portfolio4.jpg'),
+            ],
         },
 
         {
             id: 5,
             name: 'Lavish Looks',
+            category: 'Engagement',
             location: 'Mumbai',
             rating: 4.6,
             speciality: 'Engagement Makeup',
             price: '₹2,499',
             image: require('../../assets/images/artist1.jpeg'),
+
+            portfolio: [
+                require('../../assets/images/portfolio1.jpg'),
+                require('../../assets/images/portfolio2.jpg'),
+                require('../../assets/images/portfolio3.jpg'),
+                require('../../assets/images/portfolio4.jpg'),
+            ],
         },
 
         {
             id: 6,
             name: 'Blush Studio',
+            category: 'Celebrity',
             location: 'Bangalore',
             rating: 4.9,
             speciality: 'Celebrity Makeup',
             price: '₹5,999',
             image: require('../../assets/images/artist1.jpeg'),
+
+            portfolio: [
+                require('../../assets/images/portfolio1.jpg'),
+                require('../../assets/images/portfolio2.jpg'),
+                require('../../assets/images/portfolio3.jpg'),
+                require('../../assets/images/portfolio4.jpg'),
+            ],
         },
 
         {
             id: 7,
             name: 'Makeup By Ayesha',
+            category: 'Reception',
             location: 'Hyderabad',
             rating: 4.7,
             speciality: 'Reception Makeup',
             price: '₹3,299',
             image: require('../../assets/images/artist1.jpeg'),
+
+            portfolio: [
+                require('../../assets/images/portfolio1.jpg'),
+                require('../../assets/images/portfolio2.jpg'),
+                require('../../assets/images/portfolio3.jpg'),
+                require('../../assets/images/portfolio4.jpg'),
+            ],
         },
 
         {
             id: 8,
             name: 'Elite Beauty Lounge',
+            category: 'Photoshoot',
             location: 'Pune',
             rating: 4.8,
             speciality: 'Photoshoot Makeup',
             price: '₹4,599',
             image: require('../../assets/images/artist1.jpeg'),
+
+            portfolio: [
+                require('../../assets/images/portfolio1.jpg'),
+                require('../../assets/images/portfolio2.jpg'),
+                require('../../assets/images/portfolio3.jpg'),
+                require('../../assets/images/portfolio4.jpg'),
+            ],
         },
 
         {
             id: 9,
             name: 'Noor Makeovers',
+            category: 'Bridal',
             location: 'Delhi',
             rating: 4.9,
             speciality: 'Traditional Bridal',
             price: '₹6,499',
             image: require('../../assets/images/artist1.jpeg'),
+
+            portfolio: [
+                require('../../assets/images/portfolio1.jpg'),
+                require('../../assets/images/portfolio2.jpg'),
+                require('../../assets/images/portfolio3.jpg'),
+                require('../../assets/images/portfolio4.jpg'),
+            ],
         },
 
         {
             id: 10,
             name: 'Beauty Canvas',
+            category: 'Minimal',
             location: 'Chennai',
             rating: 4.6,
             speciality: 'Minimal Makeup',
             price: '₹2,199',
             image: require('../../assets/images/artist1.jpeg'),
+
+            portfolio: [
+                require('../../assets/images/portfolio1.jpg'),
+                require('../../assets/images/portfolio2.jpg'),
+                require('../../assets/images/portfolio3.jpg'),
+                require('../../assets/images/portfolio4.jpg'),
+            ],
         },
     ];
 
@@ -129,6 +227,27 @@ const SearchScreen = ({ navigation }) => {
         }
 
     };
+
+    const filteredArtists = artists.filter(artist => {
+
+        const matchesCategory =
+            selectedCategory === 'All' ||
+            artist.category === selectedCategory;
+
+        const matchesLocation =
+            !selectedLocation ||
+            artist.location === selectedLocation;
+
+        const matchesRating =
+            !selectedRating ||
+            artist.rating >= selectedRating;
+
+        return (
+            matchesCategory &&
+            matchesLocation &&
+            matchesRating
+        );
+    });
 
     return (
         <View style={styles.container}>
@@ -174,7 +293,10 @@ const SearchScreen = ({ navigation }) => {
 
                 </View>
 
-                <TouchableOpacity style={styles.filterButton}>
+                <TouchableOpacity
+                    style={styles.filterButton}
+                    onPress={() => setShowFilter(true)}
+                >
 
                     <Ionicons
                         name="options-outline"
@@ -185,6 +307,270 @@ const SearchScreen = ({ navigation }) => {
                 </TouchableOpacity>
 
             </View>
+            <Modal
+                visible={showFilter}
+                animationType="slide"
+                transparent
+            >
+                <View style={styles.modalOverlay}>
+
+                    <View style={styles.modalContainer}>
+
+                        <View style={styles.modalHeader}>
+
+                            <Text style={styles.modalTitle}>
+                                Filters
+                            </Text>
+
+                            <TouchableOpacity
+                                onPress={() => setShowFilter(false)}
+                            >
+                                <Ionicons
+                                    name="close"
+                                    size={24}
+                                    color="#111"
+                                />
+                            </TouchableOpacity>
+
+                        </View>
+
+                        <Text style={styles.filterLabel}>
+                            Rating
+                        </Text>
+
+                        <View style={styles.filterRow}>
+
+                            <TouchableOpacity
+                                style={[
+                                    styles.filterChip,
+                                    selectedRating === 4.5 && styles.selectedChip,
+                                ]}
+                                onPress={() => setSelectedRating(4.5)}
+                            >
+                                <Text
+                                    style={[
+                                        styles.filterChipText,
+                                        selectedRating === 4.5 &&
+                                        styles.selectedChipText,
+                                    ]}
+                                >
+                                    4.5 ★ & Above
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[
+                                    styles.filterChip,
+                                    selectedRating === 4.0 && styles.selectedChip,
+                                ]}
+                                onPress={() => setSelectedRating(4.0)}
+                            >
+                                <Text
+                                    style={[
+                                        styles.filterChipText,
+                                        selectedRating === 4.0 &&
+                                        styles.selectedChipText,
+                                    ]}
+                                >
+                                    4.0 ★ & Above
+                                </Text>
+                            </TouchableOpacity>
+
+                        </View>
+
+                        <Text style={styles.filterLabel}>
+                            Price Range
+                        </Text>
+
+                        <View style={styles.filterRow}>
+
+                            <TouchableOpacity
+                                style={[
+                                    styles.filterChip,
+                                    selectedPrice === '0-2000' &&
+                                    styles.selectedChip,
+                                ]}
+                                onPress={() =>
+                                    setSelectedPrice('0-2000')
+                                }
+                            >
+                                <Text
+                                    style={[
+                                        styles.filterChipText,
+                                        selectedPrice === '0-2000' &&
+                                        styles.selectedChipText,
+                                    ]}
+                                >
+                                    ₹0 - ₹2000
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[
+                                    styles.filterChip,
+                                    selectedPrice === '2000-5000' &&
+                                    styles.selectedChip,
+                                ]}
+                                onPress={() =>
+                                    setSelectedPrice('2000-5000')
+                                }
+                            >
+                                <Text
+                                    style={[
+                                        styles.filterChipText,
+                                        selectedPrice === '2000-5000' &&
+                                        styles.selectedChipText,
+                                    ]}
+                                >
+                                    ₹2000 - ₹5000
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[
+                                    styles.filterChip,
+                                    selectedPrice === '5000+' &&
+                                    styles.selectedChip,
+                                ]}
+                                onPress={() =>
+                                    setSelectedPrice('5000+')
+                                }
+                            >
+                                <Text
+                                    style={[
+                                        styles.filterChipText,
+                                        selectedPrice === '5000+' &&
+                                        styles.selectedChipText,
+                                    ]}
+                                >
+                                    ₹5000+
+                                </Text>
+                            </TouchableOpacity>
+
+                        </View>
+
+                        <Text style={styles.filterLabel}>
+                            Location
+                        </Text>
+
+                        <View style={styles.filterRow}>
+
+                            <TouchableOpacity
+                                style={[
+                                    styles.filterChip,
+                                    selectedLocation === 'Pune' &&
+                                    styles.selectedChip,
+                                ]}
+                                onPress={() =>
+                                    setSelectedLocation('Pune')
+                                }
+                            >
+                                <Text
+                                    style={[
+                                        styles.filterChipText,
+                                        selectedLocation === 'Pune' &&
+                                        styles.selectedChipText,
+                                    ]}
+                                >
+                                    Pune
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[
+                                    styles.filterChip,
+                                    selectedLocation === 'Mumbai' &&
+                                    styles.selectedChip,
+                                ]}
+                                onPress={() =>
+                                    setSelectedLocation('Mumbai')
+                                }
+                            >
+                                <Text
+                                    style={[
+                                        styles.filterChipText,
+                                        selectedLocation === 'Mumbai' &&
+                                        styles.selectedChipText,
+                                    ]}
+                                >
+                                    Mumbai
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[
+                                    styles.filterChip,
+                                    selectedLocation === 'Delhi' &&
+                                    styles.selectedChip,
+                                ]}
+                                onPress={() =>
+                                    setSelectedLocation('Delhi')
+                                }
+                            >
+                                <Text
+                                    style={[
+                                        styles.filterChipText,
+                                        selectedLocation === 'Delhi' &&
+                                        styles.selectedChipText,
+                                    ]}
+                                >
+                                    Delhi
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[
+                                    styles.filterChip,
+                                    selectedLocation === 'Bangalore' &&
+                                    styles.selectedChip,
+                                ]}
+                                onPress={() =>
+                                    setSelectedLocation('Bangalore')
+                                }
+                            >
+                                <Text
+                                    style={[
+                                        styles.filterChipText,
+                                        selectedLocation === 'Bangalore' &&
+                                        styles.selectedChipText,
+                                    ]}
+                                >
+                                    Bangalore
+                                </Text>
+                            </TouchableOpacity>
+
+                        </View>
+                        <View style={styles.buttonRow}>
+
+                            <TouchableOpacity
+                                style={styles.clearButton}
+                                onPress={() => {
+                                    setSelectedCategory('All');
+                                    setSelectedRating(null);
+                                    setSelectedPrice(null);
+                                    setSelectedLocation(null);
+                                }}
+                            >
+                                <Text style={styles.clearButtonText}>
+                                    Clear
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.applyButton}
+                                onPress={() => setShowFilter(false)}
+                            >
+                                <Text style={styles.applyButtonText}>
+                                    Apply Filters
+                                </Text>
+                            </TouchableOpacity>
+
+                        </View>
+
+                    </View>
+
+                </View>
+            </Modal>
             <ScrollView
                 showsVerticalScrollIndicator={false}
             >
@@ -195,45 +581,47 @@ const SearchScreen = ({ navigation }) => {
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.filterContainer}
                 >
+                    {categories.map((category) => (
 
-                    <TouchableOpacity style={styles.activeChip}>
-                        <Text style={styles.activeChipText}>
-                            All
-                        </Text>
-                    </TouchableOpacity>
+                        <TouchableOpacity
+                            key={category}
+                            onPress={() =>
+                                setSelectedCategory(category)
+                            }
+                            style={
+                                selectedCategory === category
+                                    ? styles.activeChip
+                                    : styles.chip
+                            }
+                        >
+                            <Text
+                                style={{
+                                    color:
+                                        selectedCategory === category
+                                            ? '#FFF'
+                                            : '#444',
+                                    fontWeight: '600',
+                                }}
+                            >
+                                {category}
+                            </Text>
+                        </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.chip}>
-                        <Text style={styles.chipText}>
-                            Bridal
-                        </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.chip}>
-                        <Text style={styles.chipText}>
-                            Party
-                        </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.chip}>
-                        <Text style={styles.chipText}>
-                            HD Makeup
-                        </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.chip}>
-                        <Text style={styles.chipText}>
-                            Photoshoot
-                        </Text>
-                    </TouchableOpacity>
-
+                    ))}
                 </ScrollView>
                 <View style={styles.artistSection}>
 
-                    {artists.map((artist) => (
+                    {filteredArtists.map((artist) => (
 
                         <TouchableOpacity
                             key={artist.id}
                             style={styles.artistCard}
+                            onPress={() =>
+                                navigation.navigate(
+                                    'ArtistDetails',
+                                    { artist }
+                                )
+                            }
                         >
 
                             <Image
@@ -361,6 +749,11 @@ const styles = StyleSheet.create({
         borderColor: '#ECECEC',
     },
 
+    selectedFilter: {
+        backgroundColor: '#FFE4ED',
+        borderRadius: 12,
+    },
+
     searchContainer: {
         flex: 1,
         flexDirection: 'row',
@@ -397,6 +790,97 @@ const styles = StyleSheet.create({
         paddingLeft: 12,
         paddingRight: 10,
         marginTop: 22,
+    },
+
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.3)',
+        justifyContent: 'flex-end',
+    },
+
+    modalContainer: {
+        backgroundColor: '#FFF',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        padding: 24,
+    },
+
+    modalTitle: {
+        fontSize: 22,
+        fontWeight: '700',
+        color: '#111',
+        marginBottom: 20,
+    },
+
+    filterLabel: {
+        fontSize: 16,
+        fontWeight: '600',
+        marginTop: 15,
+        marginBottom: 10,
+    },
+
+    filterOption: {
+        paddingVertical: 12,
+    },
+
+    applyButton: {
+        backgroundColor: '#FF4F87',
+        height: 54,
+        borderRadius: 16,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 25,
+    },
+
+    applyButtonText: {
+        color: '#FFF',
+        fontWeight: '700',
+        fontSize: 16,
+    },
+
+    buttonRow: {
+        flexDirection: 'row',
+        marginTop: 25,
+    },
+
+    clearButton: {
+        flex: 1,
+        height: 54,
+
+        borderRadius: 16,
+
+        borderWidth: 1,
+        borderColor: '#FF4F87',
+
+        justifyContent: 'center',
+        alignItems: 'center',
+
+        marginRight: 10,
+    },
+
+    clearButtonText: {
+        color: '#FF4F87',
+        fontSize: 16,
+        fontWeight: '700',
+    },
+
+    applyButton: {
+        flex: 2,
+
+        backgroundColor: '#FF4F87',
+
+        height: 54,
+
+        borderRadius: 16,
+
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+
+    applyButtonText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '700',
     },
 
     activeChip: {
@@ -515,5 +999,60 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: '#111',
         marginTop: 6,
+    },
+
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+
+    filterRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+    },
+
+    filterChip: {
+        backgroundColor: '#F8F8F8',
+        borderWidth: 1,
+        borderColor: '#ECECEC',
+
+        paddingHorizontal: 16,
+        height: 42,
+
+        borderRadius: 21,
+
+        justifyContent: 'center',
+        alignItems: 'center',
+
+        marginRight: 10,
+        marginBottom: 10,
+    },
+
+    selectedChip: {
+        backgroundColor: '#FF4F87',
+        borderColor: '#FF4F87',
+    },
+
+    filterChipText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#444',
+    },
+
+    selectedChipText: {
+        color: '#FFF',
+    },
+
+    modalContainer: {
+        backgroundColor: '#FFF',
+
+        borderTopLeftRadius: 30,
+        borderTopRightRadius: 30,
+
+        paddingHorizontal: 24,
+        paddingTop: 24,
+        paddingBottom: 35,
     },
 });

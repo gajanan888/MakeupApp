@@ -13,19 +13,26 @@ app.use(express.json());
 
 app.use("/api", routes);
 
-sequelize
-  .authenticate()
-  .then(() => console.log("DB CONNECTED"))
-  .catch((err) => console.log(err));
+async function bootstrapDatabase() {
+  try {
+    await sequelize.authenticate();
+    console.log("DB CONNECTED");
 
-if (process.env.NODE_ENV === "production") {
-  console.log(
-    "Production mode: ensure migrations are run with `npm run migrate` before starting. Skipping sequelize.sync()",
-  );
-} else {
-  // In development it's convenient to keep sync, but migrations are preferred.
-  sequelize.sync();
+    if (process.env.NODE_ENV === "production") {
+      console.log(
+        "Production mode: ensure migrations are run with `npm run migrate` before starting. Skipping sequelize.sync()",
+      );
+      return;
+    }
+
+    // Keep development startup resilient when the database is unavailable.
+    await sequelize.sync();
+  } catch (err) {
+    console.error("Database connection failed:", err);
+  }
 }
+
+bootstrapDatabase();
 
 app.get("/", (req, res) => {
   res.send("Hello Wordl!");

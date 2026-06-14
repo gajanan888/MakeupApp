@@ -9,18 +9,25 @@ const envPath = path.resolve(__dirname, "../../.env");
 
 dotenv.config({ path: envPath });
 
-const sequelize = new Sequelize(
-  process.env.DB_NAME,
-  process.env.DB_USER,
-  process.env.DB_PASSWORD,
-  {
-    host: process.env.DB_HOST,
-    port: Number(process.env.DB_PORT || 5432),
-    dialect: "postgres",
-    dialectOptions: {
-      ssl: { require: true, rejectUnauthorized: false },
-    },
-  },
-);
+const databaseUrl = process.env.DATABASE_URL;
+const usePostgres =
+  Boolean(databaseUrl) && process.env.NODE_ENV !== "test";
+
+const storagePath = process.env.NODE_ENV === "test"
+  ? ":memory:"
+  : path.resolve(__dirname, "../../dev.sqlite");
+
+const sequelize = usePostgres
+  ? new Sequelize(databaseUrl, {
+      dialect: "postgres",
+      dialectOptions: {
+        ssl: { require: true, rejectUnauthorized: false },
+      },
+    })
+  : new Sequelize({
+      dialect: "sqlite",
+      storage: storagePath,
+      logging: false,
+    });
 
 export default sequelize;
