@@ -1,4 +1,10 @@
-import { getArtistProfile, updateArtistProfile } from "./artist.service.js";
+import {
+  getArtistProfile,
+  updateArtistProfile,
+  getArtistDashboardStats,
+  getArtistSchedule,
+  createArtistBlock,
+} from "./artist.service.js";
 
 export const getArtistProfileController = async (req, res) => {
   try {
@@ -29,6 +35,57 @@ export const updateArtistProfileController = async (req, res) => {
     res.status(400).json({
       success: false,
       message: error.message || "Profile update failed",
+      data: null,
+    });
+  }
+};
+
+export const getArtistDashboardStatsController = async (req, res) => {
+  try {
+    const stats = await getArtistDashboardStats(req.artist.id);
+    res.json({
+      success: true,
+      message: "Dashboard stats fetched",
+      data: stats,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch stats",
+      data: null,
+    });
+  }
+};
+
+export const getArtistScheduleController = async (req, res) => {
+  try {
+    const schedule = await getArtistSchedule(req.artist.id);
+    res.json({
+      success: true,
+      message: "Schedule fetched",
+      data: schedule,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch schedule",
+      data: null,
+    });
+  }
+};
+
+export const createArtistBlockController = async (req, res) => {
+  try {
+    const block = await createArtistBlock(req.artist.id, req.body);
+    res.status(201).json({
+      success: true,
+      message: "Unavailable block created",
+      data: block,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message || "Failed to create block",
       data: null,
     });
   }

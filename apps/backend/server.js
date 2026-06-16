@@ -26,7 +26,7 @@ async function bootstrapDatabase() {
     }
 
     // Keep development startup resilient when the database is unavailable.
-    await sequelize.sync();
+    await sequelize.sync({ alter: true });
   } catch (err) {
     console.error("Database connection failed:", err);
   }

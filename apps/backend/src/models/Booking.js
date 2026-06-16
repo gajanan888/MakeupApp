@@ -20,6 +20,15 @@ const Booking = sequelize.define("Booking", {
     type: DataTypes.STRING,
     allowNull: false,
   },
+  category: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  price: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: 0,
+  },
   status: {
     type: DataTypes.ENUM(
       "pending",

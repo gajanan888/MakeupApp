@@ -27,6 +27,8 @@ export const createBookingController = async (req, res) => {
       artistId: parsedArtistId,
       date: req.body.date,
       time: req.body.time,
+      category: req.body.category,
+      price: req.body.price,
     });
 
     res.status(201).json({

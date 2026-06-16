@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,24 +13,29 @@ import {
   Switch,
   Alert,
   KeyboardAvoidingView,
+  ActivityIndicator,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
+import { getArtistProfile, updateArtistProfile } from '../../api/auth';
 
 const ArtistProfileScreen = ({ onBack }) => {
   const navigation = useNavigation();
+  const [loading, setLoading] = useState(true);
 
   // Profile States
   const [profile, setProfile] = useState({
-    name: 'Glam by Priya',
-    email: 'priya@glamstudio.com',
-    phone: '+91 98765 43210',
-    location: 'Mumbai, India',
-    businessName: 'Glam Studio Mumbai',
-    businessHours: '09:00 AM - 08:00 PM',
-    bankName: 'State Bank of India',
-    accountNumber: '******7890',
-    ifscCode: 'SBIN0001234',
+    name: '',
+    email: '',
+    phone: '',
+    location: '',
+    experience: '',
+    bio: '',
+    businessName: '',
+    businessHours: '',
+    bankName: '',
+    accountNumber: '',
+    ifscCode: '',
   });
 
   // Notification States
@@ -44,60 +49,132 @@ const ArtistProfileScreen = ({ onBack }) => {
   const [activeModal, setActiveModal] = useState(null); // 'edit_profile' | 'business' | 'documents' | 'bank' | 'notifications' | 'password' | 'help' | null
 
   // Edit Forms States
-  const [editName, setEditName] = useState(profile.name);
-  const [editEmail, setEditEmail] = useState(profile.email);
-  const [editPhone, setEditPhone] = useState(profile.phone);
-  const [editLocation, setEditLocation] = useState(profile.location);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editLocation, setEditLocation] = useState('');
 
-  const [editBizName, setEditBizName] = useState(profile.businessName);
-  const [editBizHours, setEditBizHours] = useState(profile.businessHours);
+  const [editBizName, setEditBizName] = useState('');
+  const [editBizHours, setEditBizHours] = useState('');
 
-  const [editBankName, setEditBankName] = useState(profile.bankName);
-  const [editAccountNo, setEditAccountNo] = useState(profile.accountNumber);
-  const [editIfsc, setEditIfsc] = useState(profile.ifscCode);
+  const [editBankName, setEditBankName] = useState('');
+  const [editAccountNo, setEditAccountNo] = useState('');
+  const [editIfsc, setEditIfsc] = useState('');
 
   const [currPassword, setCurrPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
+  const loadProfile = async () => {
+    try {
+      setLoading(true);
+      const data = await getArtistProfile();
+      if (data) {
+        const mappedProfile = {
+          name: data.name || '',
+          email: data.email || '',
+          phone: data.phone || '',
+          location: data.profile?.location || 'Location not set',
+          experience: data.profile?.experience || 'Experience not set',
+          bio: data.profile?.bio || '',
+          businessName: data.profile?.businessName || data.name || '',
+          businessHours: data.profile?.businessHours || '09:00 AM - 08:00 PM',
+          bankName: data.payment?.bankName || '',
+          accountNumber: data.payment?.accountNumber || '',
+          ifscCode: data.payment?.ifscCode || '',
+          profileImage: data.profile?.profileImage || '',
+        };
+        setProfile(mappedProfile);
+
+        // Update edit states so they match the loaded data
+        setEditName(mappedProfile.name);
+        setEditEmail(mappedProfile.email);
+        setEditPhone(mappedProfile.phone);
+        setEditLocation(mappedProfile.location);
+        setEditBizName(mappedProfile.businessName);
+        setEditBizHours(mappedProfile.businessHours);
+        setEditBankName(mappedProfile.bankName);
+        setEditAccountNo(mappedProfile.accountNumber);
+        setEditIfsc(mappedProfile.ifscCode);
+      }
+    } catch (error) {
+      console.error('Failed to load profile', error);
+      Alert.alert('Error', 'Failed to load profile data.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
   // Handle Save profile changes
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     if (!editName.trim()) {
       Alert.alert('Error', 'Name cannot be empty.');
       return;
     }
-    setProfile(prev => ({
-      ...prev,
-      name: editName,
-      email: editEmail,
-      phone: editPhone,
-      location: editLocation,
-    }));
-    setActiveModal(null);
-    Alert.alert('Success', 'Profile updated successfully.');
+    try {
+      await updateArtistProfile({
+        name: editName,
+        email: editEmail,
+        phone: editPhone,
+        profile: {
+          location: editLocation,
+        }
+      });
+      Alert.alert('Success', 'Profile updated successfully.');
+      setActiveModal(null);
+      await loadProfile();
+    } catch (error) {
+      console.error('Failed to save profile details', error);
+      Alert.alert('Error', error.message || 'Failed to save profile details.');
+    }
   };
 
   // Handle Save business details
-  const handleSaveBusiness = () => {
-    setProfile(prev => ({
-      ...prev,
-      businessName: editBizName,
-      businessHours: editBizHours,
-    }));
-    setActiveModal(null);
-    Alert.alert('Success', 'Business information updated.');
+  const handleSaveBusiness = async () => {
+    try {
+      await updateArtistProfile({
+        profile: {
+          businessName: editBizName,
+          businessHours: editBizHours,
+        }
+      });
+      Alert.alert('Success', 'Business information updated.');
+      setActiveModal(null);
+      await loadProfile();
+    } catch (error) {
+      console.error('Failed to save business details', error);
+      Alert.alert('Error', error.message || 'Failed to save business details.');
+    }
   };
 
   // Handle Save bank details
-  const handleSaveBank = () => {
-    setProfile(prev => ({
-      ...prev,
-      bankName: editBankName,
-      accountNumber: editAccountNo,
-      ifscCode: editIfsc,
-    }));
-    setActiveModal(null);
-    Alert.alert('Success', 'Bank details updated.');
+  const handleSaveBank = async () => {
+    const bankUpdatePayload = {};
+    if (editBankName.trim()) {
+      bankUpdatePayload.bankName = editBankName;
+    }
+    if (editAccountNo.trim() && !editAccountNo.includes('*')) {
+      bankUpdatePayload.accountNumber = editAccountNo;
+    }
+    if (editIfsc.trim() && !editIfsc.includes('*')) {
+      bankUpdatePayload.ifscCode = editIfsc;
+    }
+
+    try {
+      await updateArtistProfile({
+        payment: bankUpdatePayload
+      });
+      Alert.alert('Success', 'Bank details updated.');
+      setActiveModal(null);
+      await loadProfile();
+    } catch (error) {
+      console.error('Failed to save bank details', error);
+      Alert.alert('Error', error.message || 'Failed to save bank details.');
+    }
   };
 
   // Handle Update Password
@@ -392,6 +469,14 @@ const ArtistProfileScreen = ({ onBack }) => {
     }
   };
 
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FCFCFC' }}>
+        <ActivityIndicator size="large" color="#FF4F8F" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {/* HEADER */}
@@ -442,7 +527,7 @@ const ArtistProfileScreen = ({ onBack }) => {
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statColumn}>
-            <Text style={styles.statValue}>2.5 Yrs</Text>
+            <Text style={styles.statValue}>{profile.experience || '0 Yrs'}</Text>
             <Text style={styles.statLabel}>Experience</Text>
           </View>
         </View>

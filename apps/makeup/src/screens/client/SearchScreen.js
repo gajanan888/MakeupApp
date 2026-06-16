@@ -800,9 +800,11 @@ const styles = StyleSheet.create({
 
     modalContainer: {
         backgroundColor: '#FFF',
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        padding: 24,
+        borderTopLeftRadius: 30,
+        borderTopRightRadius: 30,
+        paddingHorizontal: 24,
+        paddingTop: 24,
+        paddingBottom: 35,
     },
 
     modalTitle: {
@@ -821,21 +823,6 @@ const styles = StyleSheet.create({
 
     filterOption: {
         paddingVertical: 12,
-    },
-
-    applyButton: {
-        backgroundColor: '#FF4F87',
-        height: 54,
-        borderRadius: 16,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: 25,
-    },
-
-    applyButtonText: {
-        color: '#FFF',
-        fontWeight: '700',
-        fontSize: 16,
     },
 
     buttonRow: {
@@ -1043,16 +1030,5 @@ const styles = StyleSheet.create({
 
     selectedChipText: {
         color: '#FFF',
-    },
-
-    modalContainer: {
-        backgroundColor: '#FFF',
-
-        borderTopLeftRadius: 30,
-        borderTopRightRadius: 30,
-
-        paddingHorizontal: 24,
-        paddingTop: 24,
-        paddingBottom: 35,
     },
 });

@@ -9,6 +9,7 @@ import {
   BackHandler,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ArtistDashboardScreen from './ArtistDashboardScreen';
 import ArtistBookingScreen from './ArtistBookingScreen';
 import ArtistCalenderScreen from './ArtistCalenderScreen';
@@ -24,6 +25,7 @@ const PlaceholderScreen = ({ name }) => (
 );
 
 const ArtistHomeScreen = () => {
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState('Home');
 
   useEffect(() => {
@@ -46,7 +48,7 @@ const ArtistHomeScreen = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'Home':
-        return <ArtistDashboardScreen />;
+        return <ArtistDashboardScreen onNavigate={setActiveTab} />;
       case 'Bookings':
         return <ArtistBookingScreen onBack={() => setActiveTab('Home')} />;
       case 'Calendar':
@@ -77,7 +79,7 @@ const ArtistHomeScreen = () => {
         </View>
 
         {/* Bottom Tab Bar */}
-        <View style={styles.tabBar}>
+        <View style={[styles.tabBar, { paddingBottom: insets.bottom || 8, height: 56 + (insets.bottom || 8) }]}>
           {tabs.map(tab => {
             const isActive = activeTab === tab.id;
             return (
