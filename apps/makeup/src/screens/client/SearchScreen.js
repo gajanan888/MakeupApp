@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import BottomNavigation from '../../components/BottomNavigation';
 import {
@@ -10,7 +10,9 @@ import {
     ScrollView,
     Image,
     Modal,
+    ActivityIndicator,
 } from 'react-native';
+import { getArtists } from '../../api/auth';
 
 const SearchScreen = ({ navigation }) => {
 
@@ -21,6 +23,9 @@ const SearchScreen = ({ navigation }) => {
     const [selectedRating, setSelectedRating] = useState(null);
     const [selectedPrice, setSelectedPrice] = useState(null);
     const [selectedLocation, setSelectedLocation] = useState(null);
+    const [artists, setArtists] = useState([]);
+    const [loading, setLoading] = useState(true);
+
     const categories = [
         'All',
         'Bridal',
@@ -34,187 +39,22 @@ const SearchScreen = ({ navigation }) => {
         'Minimal',
     ];
 
-    const artists = [
-        {
-            id: 1,
-            name: 'Sophia Makeup Studio',
-            category: 'Bridal',
-            location: 'Pune',
-            rating: 4.9,
-            speciality: 'Bridal Specialist',
-            price: '₹2,999',
-            image: require('../../assets/images/artist1.jpeg'),
+    useEffect(() => {
+        const fetchArtists = async () => {
+            try {
+                setLoading(true);
+                const data = await getArtists();
+                const list = Array.isArray(data) ? data : [];
+                setArtists(list);
+            } catch (err) {
+                console.warn('Failed to fetch artists:', err?.message);
+            } finally {
+                setLoading(false);
+            }
+        };
 
-            portfolio: [
-                require('../../assets/images/portfolio1.jpg'),
-                require('../../assets/images/portfolio2.jpg'),
-                require('../../assets/images/portfolio3.jpg'),
-                require('../../assets/images/portfolio4.jpg'),
-            ],
-        },
-
-        {
-            id: 2,
-            name: 'Ananya Beauty',
-            category: 'Party',
-            location: 'Mumbai',
-            rating: 4.8,
-            speciality: 'Party Makeup',
-            price: '₹1,999',
-            image: require('../../assets/images/artist1.jpeg'),
-
-            portfolio: [
-                require('../../assets/images/portfolio1.jpg'),
-                require('../../assets/images/portfolio2.jpg'),
-                require('../../assets/images/portfolio3.jpg'),
-                require('../../assets/images/portfolio4.jpg'),
-            ],
-        },
-
-        {
-            id: 3,
-            name: 'Riya Makeovers',
-            category: 'HD Makeup',
-            location: 'Delhi',
-            rating: 4.7,
-            speciality: 'HD Makeup Expert',
-            price: '₹3,499',
-            image: require('../../assets/images/artist1.jpeg'),
-
-            portfolio: [
-                require('../../assets/images/portfolio1.jpg'),
-                require('../../assets/images/portfolio2.jpg'),
-                require('../../assets/images/portfolio3.jpg'),
-                require('../../assets/images/portfolio4.jpg'),
-            ],
-        },
-
-        {
-            id: 4,
-            name: 'Glow By Mehak',
-            category: 'Airbrush',
-            location: 'Pune',
-            rating: 4.8,
-            speciality: 'Airbrush Makeup',
-            price: '₹4,299',
-            image: require('../../assets/images/artist1.jpeg'),
-
-            portfolio: [
-                require('../../assets/images/portfolio1.jpg'),
-                require('../../assets/images/portfolio2.jpg'),
-                require('../../assets/images/portfolio3.jpg'),
-                require('../../assets/images/portfolio4.jpg'),
-            ],
-        },
-
-        {
-            id: 5,
-            name: 'Lavish Looks',
-            category: 'Engagement',
-            location: 'Mumbai',
-            rating: 4.6,
-            speciality: 'Engagement Makeup',
-            price: '₹2,499',
-            image: require('../../assets/images/artist1.jpeg'),
-
-            portfolio: [
-                require('../../assets/images/portfolio1.jpg'),
-                require('../../assets/images/portfolio2.jpg'),
-                require('../../assets/images/portfolio3.jpg'),
-                require('../../assets/images/portfolio4.jpg'),
-            ],
-        },
-
-        {
-            id: 6,
-            name: 'Blush Studio',
-            category: 'Celebrity',
-            location: 'Bangalore',
-            rating: 4.9,
-            speciality: 'Celebrity Makeup',
-            price: '₹5,999',
-            image: require('../../assets/images/artist1.jpeg'),
-
-            portfolio: [
-                require('../../assets/images/portfolio1.jpg'),
-                require('../../assets/images/portfolio2.jpg'),
-                require('../../assets/images/portfolio3.jpg'),
-                require('../../assets/images/portfolio4.jpg'),
-            ],
-        },
-
-        {
-            id: 7,
-            name: 'Makeup By Ayesha',
-            category: 'Reception',
-            location: 'Hyderabad',
-            rating: 4.7,
-            speciality: 'Reception Makeup',
-            price: '₹3,299',
-            image: require('../../assets/images/artist1.jpeg'),
-
-            portfolio: [
-                require('../../assets/images/portfolio1.jpg'),
-                require('../../assets/images/portfolio2.jpg'),
-                require('../../assets/images/portfolio3.jpg'),
-                require('../../assets/images/portfolio4.jpg'),
-            ],
-        },
-
-        {
-            id: 8,
-            name: 'Elite Beauty Lounge',
-            category: 'Photoshoot',
-            location: 'Pune',
-            rating: 4.8,
-            speciality: 'Photoshoot Makeup',
-            price: '₹4,599',
-            image: require('../../assets/images/artist1.jpeg'),
-
-            portfolio: [
-                require('../../assets/images/portfolio1.jpg'),
-                require('../../assets/images/portfolio2.jpg'),
-                require('../../assets/images/portfolio3.jpg'),
-                require('../../assets/images/portfolio4.jpg'),
-            ],
-        },
-
-        {
-            id: 9,
-            name: 'Noor Makeovers',
-            category: 'Bridal',
-            location: 'Delhi',
-            rating: 4.9,
-            speciality: 'Traditional Bridal',
-            price: '₹6,499',
-            image: require('../../assets/images/artist1.jpeg'),
-
-            portfolio: [
-                require('../../assets/images/portfolio1.jpg'),
-                require('../../assets/images/portfolio2.jpg'),
-                require('../../assets/images/portfolio3.jpg'),
-                require('../../assets/images/portfolio4.jpg'),
-            ],
-        },
-
-        {
-            id: 10,
-            name: 'Beauty Canvas',
-            category: 'Minimal',
-            location: 'Chennai',
-            rating: 4.6,
-            speciality: 'Minimal Makeup',
-            price: '₹2,199',
-            image: require('../../assets/images/artist1.jpeg'),
-
-            portfolio: [
-                require('../../assets/images/portfolio1.jpg'),
-                require('../../assets/images/portfolio2.jpg'),
-                require('../../assets/images/portfolio3.jpg'),
-                require('../../assets/images/portfolio4.jpg'),
-            ],
-        },
-    ];
+        fetchArtists();
+    }, []);
 
     const toggleFavorite = (artistId) => {
 
@@ -229,23 +69,30 @@ const SearchScreen = ({ navigation }) => {
     };
 
     const filteredArtists = artists.filter(artist => {
+        const artistSpecialization = artist.specializations?.[0]?.name?.toLowerCase() || '';
+        const artistLocation = artist.profile?.location?.toLowerCase() || '';
+        const artistName = artist.name?.toLowerCase() || '';
 
         const matchesCategory =
             selectedCategory === 'All' ||
-            artist.category === selectedCategory;
+            artistSpecialization.includes(selectedCategory.toLowerCase());
 
         const matchesLocation =
             !selectedLocation ||
-            artist.location === selectedLocation;
+            artistLocation.includes(selectedLocation.toLowerCase());
 
-        const matchesRating =
-            !selectedRating ||
-            artist.rating >= selectedRating;
+        const matchesRating = !selectedRating;
+
+        const matchesSearch =
+            !searchText.trim() ||
+            artistName.includes(searchText.toLowerCase()) ||
+            artistSpecialization.includes(searchText.toLowerCase());
 
         return (
             matchesCategory &&
             matchesLocation &&
-            matchesRating
+            matchesRating &&
+            matchesSearch
         );
     });
 
@@ -286,6 +133,7 @@ const SearchScreen = ({ navigation }) => {
 
                     <TextInput
                         placeholder="Search artists, services..."
+                        placeholderTextColor="#999"
                         value={searchText}
                         onChangeText={setSearchText}
                         style={styles.searchInput}
@@ -611,7 +459,17 @@ const SearchScreen = ({ navigation }) => {
                 </ScrollView>
                 <View style={styles.artistSection}>
 
-                    {filteredArtists.map((artist) => (
+                    {loading ? (
+                        <ActivityIndicator color="#FF4F87" size="large" style={{ marginVertical: 40 }} />
+                    ) : filteredArtists.length === 0 ? (
+                        <View style={{ alignItems: 'center', marginVertical: 40 }}>
+                            <Ionicons name="search-outline" size={48} color="#CCC" />
+                            <Text style={{ color: '#999', marginTop: 12, fontSize: 16 }}>
+                                No artists found
+                            </Text>
+                        </View>
+                    ) : (
+                        filteredArtists.map((artist) => (
 
                         <TouchableOpacity
                             key={artist.id}
@@ -624,10 +482,9 @@ const SearchScreen = ({ navigation }) => {
                             }
                         >
 
-                            <Image
-                                source={artist.image}
-                                style={styles.artistImage}
-                            />
+                            <View style={styles.artistImagePlaceholder}>
+                                <Ionicons name="person" size={40} color="#FF4F87" />
+                            </View>
 
                             <View style={styles.artistInfo}>
 
@@ -658,7 +515,7 @@ const SearchScreen = ({ navigation }) => {
                                 </View>
 
                                 <Text style={styles.artistSpeciality}>
-                                    {artist.speciality}
+                                    {artist.specializations?.[0]?.name || 'Makeup Artist'}
                                 </Text>
 
                                 <View style={styles.ratingRow}>
@@ -670,26 +527,24 @@ const SearchScreen = ({ navigation }) => {
                                     />
 
                                     <Text style={styles.ratingText}>
-                                        {artist.rating}
+                                        {artist.profile?.experience ? `${artist.profile.experience} yrs exp` : 'New'}
                                     </Text>
 
                                     <Text style={styles.distanceText}>
-                                        • 5 km
+                                        • {artist.profile?.location || 'India'}
                                     </Text>
 
                                 </View>
 
                                 <Text style={styles.artistPrice}>
-                                    From {artist.price}
+                                    {artist.services?.[0]?.priceRange || 'Price on Request'}
                                 </Text>
 
                             </View>
 
-
-
                         </TouchableOpacity>
 
-                    ))}
+                    )))}
 
                 </View>
             </ScrollView>
@@ -933,6 +788,15 @@ const styles = StyleSheet.create({
         height: 100,
 
         borderRadius: 16,
+    },
+
+    artistImagePlaceholder: {
+        width: 82,
+        height: 100,
+        borderRadius: 16,
+        backgroundColor: '#FFE6EF',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
 
     artistInfo: {

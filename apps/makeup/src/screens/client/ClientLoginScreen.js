@@ -6,7 +6,10 @@ import {
     TextInput,
     TouchableOpacity,
     StyleSheet,
+    ActivityIndicator,
+    Alert,
 } from 'react-native';
+import { loginClient } from '../../api/auth';
 
 const ClientLoginScreen = ({ navigation }) => {
     const [showPassword, setShowPassword] = useState(false);
@@ -14,30 +17,42 @@ const ClientLoginScreen = ({ navigation }) => {
     const [password, setPassword] = useState('');
     const [emailError, setEmailError] = useState('');
     const [passwordError, setPasswordError] = useState('');
-    const handleLogin = () => {
+    const [loading, setLoading] = useState(false);
+
+    const handleLogin = async () => {
+        let valid = true;
+        setEmailError('');
+        setPasswordError('');
+
         if (!email.trim()) {
             setEmailError('Email or phone number is required');
-            return;
-        }
-
-        const isEmail =
-            /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-
-        const isPhone =
-            /^\d{10}$/.test(email);
-
-        if (!isEmail && !isPhone) {
-            setEmailError(
-                'Enter a valid email address or 10-digit phone number'
-            );
-            return;
+            valid = false;
+        } else {
+            const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+            const isPhone = /^\d{10}$/.test(email);
+            if (!isEmail && !isPhone) {
+                setEmailError('Enter a valid email address or 10-digit phone number');
+                valid = false;
+            }
         }
 
         if (!password.trim()) {
             setPasswordError('Password is required');
-            return;
+            valid = false;
         }
-        navigation.replace('ClientHome');
+
+        if (!valid) return;
+
+        try {
+            setLoading(true);
+            await loginClient(email.trim(), password);
+            navigation.replace('ClientHome');
+        } catch (err) {
+            const msg = err?.response?.data?.message || err?.message || 'Login failed';
+            Alert.alert('Login Failed', msg);
+        } finally {
+            setLoading(false);
+        }
     };
     return (
         <View style={styles.container}>
@@ -65,6 +80,7 @@ const ClientLoginScreen = ({ navigation }) => {
 
                 <TextInput
                     placeholder="Email or Phone"
+                    placeholderTextColor="#999"
                     style={styles.input}
                     value={email}
                     onChangeText={(text) => {
@@ -85,6 +101,7 @@ const ClientLoginScreen = ({ navigation }) => {
 
                 <TextInput
                     placeholder="Password"
+                    placeholderTextColor="#999"
                     style={styles.input}
                     secureTextEntry={!showPassword}
                     value={password}
@@ -122,11 +139,14 @@ const ClientLoginScreen = ({ navigation }) => {
                 </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.signInButton}
-                onPress={handleLogin}>
-                <Text style={styles.signInText}>
-                    Sign In
-                </Text>
+            <TouchableOpacity style={[styles.signInButton, loading && { opacity: 0.7 }]}
+                onPress={handleLogin}
+                disabled={loading}>
+                {loading ? (
+                    <ActivityIndicator color="#FFF" />
+                ) : (
+                    <Text style={styles.signInText}>Sign In</Text>
+                )}
             </TouchableOpacity>
 
             <View style={styles.dividerContainer}>

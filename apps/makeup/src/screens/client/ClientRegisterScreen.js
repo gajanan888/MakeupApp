@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import Ionicons from '@react-native-vector-icons/ionicons';
-
 import {
     View,
     Text,
@@ -10,7 +9,10 @@ import {
     ScrollView,
     KeyboardAvoidingView,
     Platform,
+    ActivityIndicator,
+    Alert,
 } from 'react-native';
+import { registerClient } from '../../api/auth';
 
 const ClientRegisterScreen = ({ navigation }) => {
     const [fullName, setFullName] = useState('');
@@ -29,10 +31,10 @@ const ClientRegisterScreen = ({ navigation }) => {
     const [phoneError, setPhoneError] = useState('');
     const [passwordError, setPasswordError] = useState('');
     const [confirmPasswordError, setConfirmPasswordError] = useState('');
-
     const [termsError, setTermsError] = useState('');
+    const [loading, setLoading] = useState(false);
 
-    const handleRegister = () => {
+    const handleRegister = async () => {
 
         let valid = true;
 
@@ -94,7 +96,21 @@ const ClientRegisterScreen = ({ navigation }) => {
 
         if (!valid) return;
 
-        navigation.navigate('ClientHome');
+        try {
+            setLoading(true);
+            await registerClient({
+                name: fullName.trim(),
+                email: email.trim(),
+                phone: phone.trim(),
+                password,
+            });
+            navigation.replace('ClientHome');
+        } catch (err) {
+            const msg = err?.response?.data?.message || err?.message || 'Registration failed';
+            Alert.alert('Registration Failed', msg);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -139,6 +155,7 @@ const ClientRegisterScreen = ({ navigation }) => {
 
                         <TextInput
                             placeholder="Full Name"
+                            placeholderTextColor="#999"
                             value={fullName}
                             onChangeText={(text) => {
                                 setFullName(text);
@@ -167,6 +184,7 @@ const ClientRegisterScreen = ({ navigation }) => {
 
                         <TextInput
                             placeholder="Email Address"
+                            placeholderTextColor="#999"
                             value={email}
                             onChangeText={(text) => {
                                 setEmail(text);
@@ -193,6 +211,7 @@ const ClientRegisterScreen = ({ navigation }) => {
 
                         <TextInput
                             placeholder="Phone Number"
+                            placeholderTextColor="#999"
                             keyboardType="phone-pad"
                             value={phone}
                             maxLength={10}
@@ -221,6 +240,7 @@ const ClientRegisterScreen = ({ navigation }) => {
 
                         <TextInput
                             placeholder="Password"
+                            placeholderTextColor="#999"
                             value={password}
                             onChangeText={(text) => {
                                 setPassword(text);
@@ -261,6 +281,7 @@ const ClientRegisterScreen = ({ navigation }) => {
 
                         <TextInput
                             placeholder="Confirm Password"
+                            placeholderTextColor="#999"
                             value={confirmPassword}
                             onChangeText={(text) => {
                                 setConfirmPassword(text);
@@ -314,17 +335,18 @@ const ClientRegisterScreen = ({ navigation }) => {
                     {/* Register Button */}
 
                     <TouchableOpacity
-                        disabled={!isChecked}
+                        disabled={!isChecked || loading}
                         style={[
                             styles.registerButton,
-                            !isChecked && styles.disabledButton,
+                            (!isChecked || loading) && styles.disabledButton,
                         ]}
                         onPress={handleRegister}
-
                     >
-                        <Text style={styles.registerText}>
-                            Create Account
-                        </Text>
+                        {loading ? (
+                            <ActivityIndicator color="#FFF" />
+                        ) : (
+                            <Text style={styles.registerText}>Create Account</Text>
+                        )}
                     </TouchableOpacity>
 
                     {/* Footer */}

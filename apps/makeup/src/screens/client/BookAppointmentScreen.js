@@ -21,28 +21,33 @@ const BookAppointmentScreen = ({
     const [selectedService, setSelectedService] = useState('');
     const [selectedLocation, setSelectedLocation] = useState('');
 
-    const services = [
-        {
-            name: 'Bridal Makeup',
-            price: '₹250',
-        },
-        {
-            name: 'Engagement Makeup',
-            price: '₹180',
-        },
-        {
-            name: 'Party Makeup',
-            price: '₹150',
-        },
-        {
-            name: 'Photoshoot Makeup',
-            price: '₹200',
-        },
-        {
-            name: 'Airbrush Makeup',
-            price: '₹220',
-        },
-    ];
+    const services = artist.services && artist.services.length > 0
+        ? artist.services.map(s => ({
+            name: s.specialization,
+            price: s.priceRange,
+        }))
+        : [
+            {
+                name: 'Bridal Makeup',
+                price: '₹5,999',
+            },
+            {
+                name: 'Engagement Makeup',
+                price: '₹3,499',
+            },
+            {
+                name: 'Party Makeup',
+                price: '₹1,999',
+            },
+            {
+                name: 'Photoshoot Makeup',
+                price: '₹4,599',
+            },
+            {
+                name: 'Airbrush Makeup',
+                price: '₹4,299',
+            },
+        ];
 
     const handleNext = () => {
 
@@ -99,10 +104,16 @@ const BookAppointmentScreen = ({
 
             <View style={styles.artistCard}>
 
-                <Image
-                    source={artist.image}
-                    style={styles.artistImage}
-                />
+                {artist.image ? (
+                    <Image
+                        source={artist.image}
+                        style={styles.artistImage}
+                    />
+                ) : (
+                    <View style={[styles.artistImage, styles.artistImagePlaceholder]}>
+                        <Ionicons name="person" size={24} color="#FF4F87" />
+                    </View>
+                )}
 
                 <View style={styles.artistInfo}>
 
@@ -111,11 +122,11 @@ const BookAppointmentScreen = ({
                     </Text>
 
                     <Text style={styles.artistSpeciality}>
-                        {artist.speciality}
+                        {artist.speciality || artist.specializations?.[0]?.name || 'Makeup Artist'}
                     </Text>
 
                     <Text style={styles.artistPrice}>
-                        ₹150 - ₹300
+                        {artist.services?.[0]?.priceRange || 'Contact for Pricing'}
                     </Text>
 
                 </View>
@@ -307,6 +318,12 @@ const styles = StyleSheet.create({
         height: 55,
 
         borderRadius: 12,
+    },
+
+    artistImagePlaceholder: {
+        backgroundColor: '#FFE6EF',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
 
     artistInfo: {

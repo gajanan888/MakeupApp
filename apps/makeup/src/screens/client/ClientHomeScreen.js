@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import BottomNavigation from '../../components/BottomNavigation';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     View,
     Text,
@@ -9,59 +10,36 @@ import {
     TextInput,
     ScrollView,
     Image,
+    ActivityIndicator,
 } from 'react-native';
+import { getArtists } from '../../api/auth';
 
 const ClientHomeScreen = ({ navigation }) => {
-    const featuredArtists = [
-        {
-            id: 1,
-            name: 'Priya Makeup Studio',
-            role: 'Bridal Specialist',
-            rating: '4.9',
-            price: '₹2,999',
-            image: require('../../assets/images/artist1.jpeg'),
-        },
-        {
-            id: 2,
-            name: 'Ananya Beauty',
-            role: 'Party Makeup Artist',
-            rating: '4.8',
-            price: '₹2,499',
-            image: require('../../assets/images/artist1.jpeg'),
-        },
-        {
-            id: 3,
-            name: 'Riya Makeovers',
-            role: 'HD Makeup Expert',
-            rating: '4.9',
-            price: '₹3,499',
-            image: require('../../assets/images/artist1.jpeg'),
-        },
-    ];
+    const [customerName, setCustomerName] = useState('');
+    const [artists, setArtists] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    const popularArtists = [
-        {
-            id: 1,
-            name: 'Sophia Makeup Studio',
-            speciality: 'Bridal Specialist',
-            rating: '4.9',
-            price: '₹2,500',
-        },
-        {
-            id: 2,
-            name: 'Ananya Beauty',
-            speciality: 'Party Makeup',
-            rating: '4.8',
-            price: '₹1,999',
-        },
-        {
-            id: 3,
-            name: 'Riya Makeovers',
-            speciality: 'HD Makeup Expert',
-            rating: '4.9',
-            price: '₹3,000',
-        },
-    ];
+    useEffect(() => {
+        // Load customer name from storage
+        AsyncStorage.getItem('customerName').then(name => {
+            if (name) setCustomerName(name);
+        });
+
+        // Fetch artists from backend
+        const fetchArtists = async () => {
+            try {
+                const data = await getArtists();
+                const list = Array.isArray(data) ? data : [];
+                setArtists(list);
+            } catch (err) {
+                console.warn('Failed to fetch artists:', err?.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchArtists();
+    }, []);
     return (
         <View style={{ flex: 1 }}>
             <ScrollView
@@ -77,7 +55,7 @@ const ClientHomeScreen = ({ navigation }) => {
 
                         <View>
                             <Text style={styles.greeting}>
-                                Hello, Tanuja! 👋
+                                Hello, {customerName || 'there'} 👋
                             </Text>
 
                             <Text style={styles.subGreeting}>
@@ -210,116 +188,84 @@ const ClientHomeScreen = ({ navigation }) => {
                         </ScrollView>
                     </View>
 
-                    {/* Featured Artists */}
+                    {/* Trending Artists from Backend */}
                     <View style={styles.sectionHeader}>
                         <Text style={styles.sectionTitle}>
                             Trending Makeup Artists
                         </Text>
-
-                        <TouchableOpacity>
-                            <Text style={styles.seeAllText}>
-                                See All
-                            </Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('Search')}>
+                            <Text style={styles.seeAllText}>See All</Text>
                         </TouchableOpacity>
                     </View>
 
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                    >
-                        {featuredArtists.map((artist) => (
-                            <View
-                                key={artist.id}
-                                style={styles.artistCard}
-                            >
-                                <View>
-
-                                    <Image
-                                        source={artist.image}
-                                        style={styles.artistImage}
-                                    />
-
+                    {loading ? (
+                        <ActivityIndicator color="#FF4F87" size="large" style={{ marginVertical: 20 }} />
+                    ) : artists.length === 0 ? (
+                        <Text style={{ color: '#999', textAlign: 'center', marginVertical: 20 }}>
+                            No artists found yet.
+                        </Text>
+                    ) : (
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                            {artists.map((artist) => (
+                                <TouchableOpacity
+                                    key={artist.id}
+                                    style={styles.artistCard}
+                                    onPress={() => navigation.navigate('ArtistDetails', { artist })}
+                                >
+                                    <View style={styles.artistImagePlaceholder}>
+                                        <Ionicons name="person" size={40} color="#FF4F87" />
+                                    </View>
                                     <TouchableOpacity style={styles.favoriteButton}>
-                                        <Ionicons
-                                            name="heart-outline"
-                                            size={22}
-                                            color="#FF4F87"
-                                        />
+                                        <Ionicons name="heart-outline" size={22} color="#FF4F87" />
                                     </TouchableOpacity>
-
-                                </View>
-
-                                <View style={styles.artistInfo}>
-
-                                    <Text style={styles.artistName}>
-                                        {artist.name}
-                                    </Text>
-
-                                    <Text style={styles.artistLocation}>
-                                        Pune • {artist.rating} ★
-                                    </Text>
-
-                                    <Text style={styles.artistSpeciality}>
-                                        {artist.role}
-                                    </Text>
-
-                                    <Text style={styles.artistPrice}>
-                                        From {artist.price}
-                                    </Text>
-
-                                </View>
-
-                            </View>
-                        ))}
-                    </ScrollView>
+                                    <View style={styles.artistInfo}>
+                                        <Text style={styles.artistName}>{artist.name}</Text>
+                                        <Text style={styles.artistLocation}>
+                                            {artist.profile?.location || 'India'}
+                                        </Text>
+                                        <Text style={styles.artistSpeciality}>
+                                            {artist.specializations?.[0]?.name || 'Makeup Artist'}
+                                        </Text>
+                                        <Text style={styles.artistPrice}>
+                                            {artist.services?.[0]?.priceRange || `${artist.profile?.experience || ''}+ yrs exp`}
+                                        </Text>
+                                    </View>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    )}
 
                     {/* Popular Artists */}
                     <View style={styles.sectionHeader}>
                         <Text style={styles.sectionTitle}>
                             Popular Near You
                         </Text>
-
-                        <TouchableOpacity>
-                            <Text style={styles.seeAllText}>
-                                See All
-                            </Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('Search')}>
+                            <Text style={styles.seeAllText}>See All</Text>
                         </TouchableOpacity>
                     </View>
 
-                    {popularArtists.map((artist) => (
+                    {!loading && artists.slice(0, 5).map((artist) => (
                         <TouchableOpacity
                             key={artist.id}
                             style={styles.popularCard}
+                            onPress={() => navigation.navigate('ArtistDetails', { artist })}
                         >
-
                             <View style={styles.popularImage}>
-                                <Ionicons
-                                    name="person"
-                                    size={30}
-                                    color="#FF4F87"
-                                />
+                                <Ionicons name="person" size={30} color="#FF4F87" />
                             </View>
-
                             <View style={styles.popularInfo}>
-
-                                <Text style={styles.popularName}>
-                                    {artist.name}
-                                </Text>
-
+                                <Text style={styles.popularName}>{artist.name}</Text>
                                 <Text style={styles.popularSpeciality}>
-                                    {artist.speciality}
+                                    {artist.specializations?.[0]?.name || 'Makeup Artist'}
                                 </Text>
-
                                 <Text style={styles.popularRating}>
-                                    ⭐ {artist.rating}
+                                    ⭐ {artist.profile?.experience ? `${artist.profile.experience} yrs exp` : 'New'}
                                 </Text>
-
                             </View>
-
                             <Text style={styles.popularPrice}>
-                                {artist.price}
+                                {artist.services?.[0]?.priceRange || 'Contact'}
                             </Text>
-
                         </TouchableOpacity>
                     ))}
 

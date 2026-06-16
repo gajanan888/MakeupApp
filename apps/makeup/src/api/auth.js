@@ -11,6 +11,9 @@ export const loginClient = async (email, password) => {
   if (payload?.token) {
     await AsyncStorage.setItem('token', payload.token);
   }
+  if (payload?.name) {
+    await AsyncStorage.setItem('customerName', payload.name);
+  }
 
   return payload;
 };
@@ -21,6 +24,9 @@ export const registerClient = async data => {
   const payload = response?.data?.data;
   if (payload?.token) {
     await AsyncStorage.setItem('token', payload.token);
+  }
+  if (payload?.name) {
+    await AsyncStorage.setItem('customerName', payload.name);
   }
 
   return payload;
@@ -71,4 +77,9 @@ export const sendOtp = async phone => {
 export const verifyOtp = async (sessionId, otp) => {
   const response = await api.post('/api/otp/verify', { sessionId, otp });
   return response?.data;
+};
+
+export const getArtists = async (filters = {}) => {
+  const response = await api.get('/api/customer/artists', { params: filters });
+  return response?.data?.data ?? response?.data ?? [];
 };

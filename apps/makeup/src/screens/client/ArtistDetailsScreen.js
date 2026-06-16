@@ -30,10 +30,16 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
 
                 <View>
 
-                    <Image
-                        source={artist.image}
-                        style={styles.heroImage}
-                    />
+                    {artist.image ? (
+                        <Image
+                            source={artist.image}
+                            style={styles.heroImage}
+                        />
+                    ) : (
+                        <View style={[styles.heroImage, styles.heroImagePlaceholder]}>
+                            <Ionicons name="person" size={80} color="#FF4F87" />
+                        </View>
+                    )}
 
                     <TouchableOpacity
                         style={styles.backButton}
@@ -78,7 +84,7 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
                     </Text>
 
                     <Text style={styles.speciality}>
-                        {artist.speciality}
+                        {artist.speciality || artist.specializations?.[0]?.name || 'Makeup Artist'}
                     </Text>
 
                     <View style={styles.ratingRow}>
@@ -90,7 +96,7 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
                         />
 
                         <Text style={styles.ratingText}>
-                            {artist.rating}
+                            {artist.rating || '4.8'}
                         </Text>
 
                         <Text style={styles.separator}>
@@ -98,7 +104,7 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
                         </Text>
 
                         <Text style={styles.locationText}>
-                            5 km away
+                            {artist.profile?.location || 'India'}
                         </Text>
 
                     </View>
@@ -157,7 +163,7 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
                                     </Text>
 
                                     <Text style={styles.infoValue}>
-                                        8+ Years
+                                        {artist.profile?.experience ? `${artist.profile.experience}+ Years` : '8+ Years'}
                                     </Text>
                                 </View>
 
@@ -172,7 +178,7 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
                                     </Text>
 
                                     <Text style={styles.infoValue}>
-                                        ₹2000 - ₹6000
+                                        {artist.services?.[0]?.priceRange || 'Contact for pricing'}
                                     </Text>
                                 </View>
 
@@ -212,10 +218,7 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
                             </Text>
 
                             <Text style={styles.aboutText}>
-                                Passionate makeup artist specializing in
-                                bridal looks, party makeup, HD makeup and
-                                photoshoot styling. Dedicated to making
-                                every client feel confident and beautiful.
+                                {artist.profile?.bio || 'Passionate makeup artist specializing in bridal looks, party makeup, HD makeup and photoshoot styling. Dedicated to making every client feel confident and beautiful.'}
                             </Text>
                         </>
 
@@ -225,24 +228,29 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
 
                         <View style={styles.servicesContainer}>
 
-                            {[
-                                'Bridal Makeup',
-                                'Party Makeup',
-                                'HD Makeup',
-                                'Airbrush Makeup',
-                                'Reception Makeup',
-                            ].map(service => (
-
-                                <View
-                                    key={service}
-                                    style={styles.serviceChip}
-                                >
-                                    <Text style={styles.serviceText}>
-                                        {service}
-                                    </Text>
-                                </View>
-
-                            ))}
+                            {artist.services && artist.services.length > 0 ? (
+                                artist.services.map(service => (
+                                    <View
+                                        key={service.id || service.specialization}
+                                        style={styles.serviceChip}
+                                    >
+                                        <Text style={styles.serviceText}>
+                                            {service.specialization} ({service.priceRange})
+                                        </Text>
+                                    </View>
+                                ))
+                            ) : (
+                                (artist.specializations || []).map((spec, idx) => (
+                                    <View
+                                        key={spec.id || idx}
+                                        style={styles.serviceChip}
+                                    >
+                                        <Text style={styles.serviceText}>
+                                            {spec.name || spec}
+                                        </Text>
+                                    </View>
+                                ))
+                            )}
 
                         </View>
 
@@ -289,27 +297,33 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
                             showsHorizontalScrollIndicator={false}
                         >
 
-                            {artist.portfolio?.map((image, index) => (
+                            {artist.portfolio && artist.portfolio.length > 0 ? (
+                                artist.portfolio.map((image, index) => (
 
-                                <TouchableOpacity
-                                    key={index}
-                                    onPress={() => {
-                                        setSelectedImage(image);
-                                        setSelectedIndex(index);
-                                        setShowImageModal(true);
+                                    <TouchableOpacity
+                                        key={index}
+                                        onPress={() => {
+                                            setSelectedImage(image);
+                                            setSelectedIndex(index);
+                                            setShowImageModal(true);
 
-                                    }}
-                                >
+                                        }}
+                                    >
 
-                                    <Image
-                                        source={image}
-                                        style={styles.portfolioImage}
-                                    />
+                                        <Image
+                                            source={image}
+                                            style={styles.portfolioImage}
+                                        />
 
 
-                                </TouchableOpacity>
+                                    </TouchableOpacity>
 
-                            ))}
+                                ))
+                            ) : (
+                                <Text style={{ color: '#999', paddingVertical: 20 }}>
+                                    No portfolio images uploaded yet.
+                                </Text>
+                            )}
 
                         </ScrollView>
 
@@ -330,7 +344,7 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
                 <View style={styles.imageModalContainer}>
 
                     <Text style={styles.imageCounter}>
-                        {selectedIndex + 1} / {artist.portfolio.length}
+                        {selectedIndex + 1} / {artist.portfolio?.length || 0}
                     </Text>
 
                     <TouchableOpacity
@@ -388,6 +402,12 @@ const styles = StyleSheet.create({
     heroImage: {
         width: '100%',
         height: 300,
+    },
+
+    heroImagePlaceholder: {
+        backgroundColor: '#FFE6EF',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
 
     backButton: {
