@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,12 +8,134 @@ import {
   Image,
   Platform,
   StatusBar,
+  PermissionsAndroid,
+  ActivityIndicator,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
+import Geolocation from '@react-native-community/geolocation';
+import { getArtistDashboard } from '../../api/auth';
 
-const ArtistDashboardScreen = () => {
+const ArtistDashboardScreen = ({ onNavigate }) => {
   const navigation = useNavigation();
+  const [locationName, setLocationName] = useState('Detecting location...');
+  const [loadingLocation, setLoadingLocation] = useState(true);
+  const [dashboardData, setDashboardData] = useState({
+    stats: { totalBookings: 0, completedBookings: 0, cancelledBookings: 0, totalEarnings: 0, rating: 4.8 },
+    upcomingBookings: []
+  });
+  const [loadingDashboard, setLoadingDashboard] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    const fetchDashboardData = async () => {
+      try {
+        const data = await getArtistDashboard();
+        if (active && data) {
+          setDashboardData(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch dashboard stats', error);
+      } finally {
+        if (active) {
+          setLoadingDashboard(false);
+        }
+      }
+    };
+    fetchDashboardData();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const requestLocationPermission = async () => {
+      if (Platform.OS === 'ios') {
+        return true;
+      }
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          {
+            title: 'Location Permission',
+            message: 'App needs access to your location to show it on your dashboard.',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          }
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } catch (err) {
+        console.warn(err);
+        return false;
+      }
+    };
+
+    const fetchLocation = async () => {
+      const hasPermission = await requestLocationPermission();
+      if (!hasPermission) {
+        if (active) {
+          setLocationName('Permission Denied');
+          setLoadingLocation(false);
+        }
+        return;
+      }
+
+      Geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          try {
+            const response = await fetch(
+              `https://api.geoapify.com/v1/geocode/reverse?lat=${latitude}&lon=${longitude}&apiKey=60988df054524262b847818891916f3e`
+            );
+            const data = await response.json();
+            if (active) {
+              if (data && data.features && data.features.length > 0) {
+                const props = data.features[0].properties;
+                const city = props.city || props.county || props.state || '';
+                const suburb = props.suburb || props.district || props.neighbourhood || '';
+                let displayLoc = '';
+                if (suburb && city) {
+                  displayLoc = `${suburb}, ${city}`;
+                } else if (city) {
+                  displayLoc = city;
+                } else {
+                  displayLoc = props.formatted || 'Location detected';
+                }
+                setLocationName(displayLoc);
+              } else {
+                setLocationName(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+              }
+              setLoadingLocation(false);
+            }
+          } catch (error) {
+            console.error(error);
+            if (active) {
+              setLocationName(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+              setLoadingLocation(false);
+            }
+          }
+        },
+        (error) => {
+          console.error(error);
+          if (active) {
+            setLocationName('Unavailable');
+            setLoadingLocation(false);
+          }
+        },
+        { enableHighAccuracy: false, timeout: 15000, maximumAge: 10000 }
+      );
+    };
+
+    fetchLocation();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
@@ -25,7 +147,19 @@ const ArtistDashboardScreen = () => {
           <Ionicons name="menu-outline" size={26} color="#111" />
         </TouchableOpacity>
         
-        <Text style={styles.headerTitle}>Dashboard</Text>
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.headerTitle}>Dashboard</Text>
+          <View style={styles.locationContainer}>
+            {loadingLocation ? (
+              <ActivityIndicator size="small" color="#FF4F8F" style={{ marginRight: 4, transform: [{ scale: 0.7 }] }} />
+            ) : (
+              <Ionicons name="location-outline" size={12} color="#FF4F8F" style={{ marginRight: 2 }} />
+            )}
+            <Text style={styles.locationText} numberOfLines={1}>
+              {locationName}
+            </Text>
+          </View>
+        </View>
 
         <TouchableOpacity style={styles.headerButton}>
           <Ionicons name="notifications-outline" size={24} color="#111" />
@@ -43,10 +177,10 @@ const ArtistDashboardScreen = () => {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.earningsAmount}>$4,680</Text>
+        <Text style={styles.earningsAmount}>${dashboardData.stats.totalEarnings}</Text>
 
         <Text style={styles.earningsTrend}>
-          <Text style={styles.trendGreen}>+18.6% </Text>
+          <Text style={styles.trendGreen}>+0.0% </Text>
           vs last month
         </Text>
       </View>
@@ -56,31 +190,31 @@ const ArtistDashboardScreen = () => {
         {/* Bookings */}
         <View style={styles.statCard}>
           <Text style={styles.statLabel}>Bookings</Text>
-          <Text style={styles.statValue}>28</Text>
-          <Text style={styles.trendUp}>+12%</Text>
+          <Text style={styles.statValue}>{dashboardData.stats.totalBookings}</Text>
+          <Text style={styles.trendUp}>+0%</Text>
         </View>
 
         {/* Completed */}
         <View style={styles.statCard}>
           <Text style={styles.statLabel}>Completed</Text>
-          <Text style={styles.statValue}>24</Text>
-          <Text style={styles.trendUp}>+9%</Text>
+          <Text style={styles.statValue}>{dashboardData.stats.completedBookings}</Text>
+          <Text style={styles.trendUp}>+0%</Text>
         </View>
 
         {/* Cancelled */}
         <View style={styles.statCard}>
           <Text style={styles.statLabel}>Cancelled</Text>
-          <Text style={styles.statValue}>4</Text>
-          <Text style={styles.trendDown}>-2%</Text>
+          <Text style={styles.statValue}>{dashboardData.stats.cancelledBookings}</Text>
+          <Text style={styles.trendDown}>-0%</Text>
         </View>
 
         {/* Reviews */}
         <View style={styles.statCard}>
           <Text style={styles.statLabel}>Reviews</Text>
-          <Text style={styles.statValue}>4.8</Text>
+          <Text style={styles.statValue}>{dashboardData.stats.rating}</Text>
           <View style={styles.starsRow}>
-            <Ionicons name="star" size={10} color="#CCCCCC" />
-            <Ionicons name="star" size={10} color="#FFA000" style={{ marginLeft: 2 }} />
+            <Ionicons name="star" size={10} color="#FFA000" />
+            <Text style={{ fontSize: 9, color: '#8A7D77', marginLeft: 2 }}>rating</Text>
           </View>
         </View>
       </View>
@@ -88,44 +222,52 @@ const ArtistDashboardScreen = () => {
       {/* UPCOMING BOOKING */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Upcoming Booking</Text>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => onNavigate && onNavigate('Bookings')}>
           <Text style={styles.seeAllText}>See all</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.bookingCard}>
-        <Image
-          source={{
-            uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200',
-          }}
-          style={styles.clientAvatar}
-        />
+      {dashboardData.upcomingBookings.length > 0 ? (
+        dashboardData.upcomingBookings.map((booking) => (
+          <View key={booking.id} style={styles.bookingCard}>
+            <Image
+              source={{
+                uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200',
+              }}
+              style={styles.clientAvatar}
+            />
 
-        <View style={styles.bookingDetails}>
-          <View style={styles.clientNameRow}>
-            <Text style={styles.clientName}>Sophia Laurent</Text>
-            <Ionicons name="sparkles" size={12} color="#FFD700" style={{ marginLeft: 4 }} />
-          </View>
-          
-          <Text style={styles.bookingCategory}>Bridal Makeup</Text>
-          
-          <View style={styles.bookingMetaRow}>
-            <Ionicons name="calendar-outline" size={12} color="#777" />
-            <Text style={styles.bookingMetaText}>16 May 2024 • 10:00 AM</Text>
-          </View>
+            <View style={styles.bookingDetails}>
+              <View style={styles.clientNameRow}>
+                <Text style={styles.clientName}>{booking.customer?.name || 'Client'}</Text>
+                <Ionicons name="sparkles" size={12} color="#FFD700" style={{ marginLeft: 4 }} />
+              </View>
+              
+              <Text style={styles.bookingCategory}>{booking.category || 'Bridal Makeup'}</Text>
+              
+              <View style={styles.bookingMetaRow}>
+                <Ionicons name="calendar-outline" size={12} color="#777" />
+                <Text style={styles.bookingMetaText}>{booking.date} • {booking.time}</Text>
+              </View>
 
-          <View style={styles.bookingMetaRow}>
-            <Ionicons name="location-outline" size={12} color="#777" />
-            <Text style={styles.bookingMetaText}>At Client Location</Text>
+              <View style={styles.bookingMetaRow}>
+                <Ionicons name="logo-usd" size={12} color="#777" style={{ marginRight: 2 }} />
+                <Text style={styles.bookingMetaText}>${booking.price || 0}</Text>
+              </View>
+            </View>
+
+            <View style={styles.bookingBadgeContainer}>
+              <View style={styles.upcomingBadge}>
+                <Text style={styles.upcomingBadgeText}>{booking.status}</Text>
+              </View>
+            </View>
           </View>
+        ))
+      ) : (
+        <View style={[styles.bookingCard, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
+          <Text style={styles.bookingCategory}>No upcoming bookings</Text>
         </View>
-
-        <View style={styles.bookingBadgeContainer}>
-          <View style={styles.upcomingBadge}>
-            <Text style={styles.upcomingBadgeText}>Upcoming</Text>
-          </View>
-        </View>
-      </View>
+      )}
 
       {/* QUICK ACTIONS */}
       <View style={styles.sectionHeader}>
@@ -134,7 +276,7 @@ const ArtistDashboardScreen = () => {
 
       <View style={styles.actionsRow}>
         {/* Action 1 */}
-        <TouchableOpacity style={styles.actionItem}>
+        <TouchableOpacity style={styles.actionItem} onPress={() => onNavigate && onNavigate('Bookings')}>
           <View style={styles.actionCircle}>
             <Ionicons name="calendar-outline" size={22} color="#FF4F8F" />
           </View>
@@ -142,7 +284,7 @@ const ArtistDashboardScreen = () => {
         </TouchableOpacity>
 
         {/* Action 2 */}
-        <TouchableOpacity style={styles.actionItem}>
+        <TouchableOpacity style={styles.actionItem} onPress={() => onNavigate && onNavigate('Calendar')}>
           <View style={styles.actionCircle}>
             <Ionicons name="time-outline" size={22} color="#FF4F8F" />
           </View>
@@ -194,10 +336,28 @@ const styles = StyleSheet.create({
   },
 
   headerTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
     color: '#111',
     fontFamily: 'serif',
+  },
+
+  headerTitleContainer: {
+    alignItems: 'center',
+    flex: 1,
+  },
+
+  locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+
+  locationText: {
+    fontSize: 11,
+    color: '#8A7D77',
+    fontFamily: 'serif',
+    maxWidth: 160,
   },
 
   notificationBadge: {

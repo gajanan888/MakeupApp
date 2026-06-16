@@ -6,6 +6,9 @@ import ArtistPortfolio from "../../models/ArtistPortfolio.js";
 import ArtistPayment from "../../models/ArtistPayment.js";
 import ArtistCertificate from "../../models/ArtistCertificate.js";
 import ArtistSpecialization from "../../models/ArtistSpecialization.js";
+import Booking from "../../models/Booking.js";
+import Customer from "../../models/Customer.js";
+import ArtistBlock from "../../models/ArtistBlock.js";
 import {
   encryptSensitiveValue,
   maskAccountNumber,
@@ -249,4 +252,89 @@ export const updateArtistProfile = async (artistId, data) => {
   }
 
   return updated;
+};
+
+export const getArtistDashboardStats = async (artistId) => {
+  const bookings = await Booking.findAll({
+    where: { artistId },
+    include: [
+      {
+        model: Customer,
+        as: "customer",
+        attributes: ["id", "name", "email", "phone"],
+      },
+    ],
+  });
+
+  const totalBookings = bookings.length;
+  const completedBookings = bookings.filter((b) => b.status === "completed").length;
+  const cancelledBookings = bookings.filter((b) => b.status === "cancelled").length;
+  const totalEarnings = bookings
+    .filter((b) => b.status === "completed")
+    .reduce((sum, b) => sum + (b.price || 0), 0);
+
+  const upcomingBookings = await Booking.findAll({
+    where: {
+      artistId,
+      status: ["pending", "accepted"],
+    },
+    include: [
+      {
+        model: Customer,
+        as: "customer",
+        attributes: ["id", "name", "email", "phone"],
+      },
+    ],
+    order: [
+      ["date", "ASC"],
+      ["time", "ASC"],
+    ],
+    limit: 5,
+  });
+
+  return {
+    stats: {
+      totalBookings,
+      completedBookings,
+      cancelledBookings,
+      totalEarnings,
+      rating: 4.8,
+    },
+    upcomingBookings,
+  };
+};
+
+export const getArtistSchedule = async (artistId) => {
+  const bookings = await Booking.findAll({
+    where: {
+      artistId,
+      status: ["pending", "accepted", "completed"],
+    },
+    include: [
+      {
+        model: Customer,
+        as: "customer",
+        attributes: ["id", "name", "email", "phone"],
+      },
+    ],
+  });
+
+  const blocks = await ArtistBlock.findAll({
+    where: { artistId },
+  });
+
+  return { bookings, blocks };
+};
+
+export const createArtistBlock = async (artistId, { date, time, reason }) => {
+  if (!date || !time || !reason) {
+    throw new Error("Date, time, and reason are required");
+  }
+  const block = await ArtistBlock.create({
+    artistId,
+    date,
+    time,
+    reason,
+  });
+  return block;
 };

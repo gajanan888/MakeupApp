@@ -653,6 +653,14 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
 
+    modalContainer: {
+        backgroundColor: '#FFF',
+        borderTopLeftRadius: 30,
+        borderTopRightRadius: 30,
+        paddingHorizontal: 24,
+        paddingTop: 24,
+        paddingBottom: 35,
+    },
     modalTitle: {
         fontSize: 22,
         fontWeight: '700',
@@ -885,16 +893,5 @@ const styles = StyleSheet.create({
 
     selectedChipText: {
         color: '#FFF',
-    },
-
-    modalContainer: {
-        backgroundColor: '#FFF',
-
-        borderTopLeftRadius: 30,
-        borderTopRightRadius: 30,
-
-        paddingHorizontal: 24,
-        paddingTop: 24,
-        paddingBottom: 35,
     },
 });

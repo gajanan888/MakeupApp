@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,40 +11,86 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { getArtistSchedule, createArtistBlock } from '../../api/auth';
 
 const todayObj = new Date();
 const todayStr = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, '0')}-${String(todayObj.getDate()).padStart(2, '0')}`;
 
-const INITIAL_SCHEDULE = {
-  [todayStr]: [
-    { id: '1', time: '10:00 AM', title: 'Sophia Laurent', subtitle: 'Bridal Makeup', type: 'booking' },
-    { id: '2', time: '02:00 PM', title: 'Another Booking', subtitle: 'Party Makeup', type: 'booking' },
-  ],
-  '2024-05-16': [
-    { id: 'mock-1', time: '10:00 AM', title: 'Sophia Laurent', subtitle: 'Bridal Makeup', type: 'booking' },
-    { id: 'mock-2', time: '02:00 PM', title: 'Another Booking', subtitle: 'Party Makeup', type: 'booking' },
-  ],
-  '2024-05-04': [
-    { id: '3', time: '12:00 PM', title: 'Mia Makeup', subtitle: 'Photoshoot Makeup', type: 'booking' },
-  ],
-  '2024-05-11': [
-    { id: '4', time: '09:00 AM', title: 'Unavailable', subtitle: 'Doctor Appointment', type: 'unavailable' },
-  ],
-  '2024-05-13': [
-    { id: '5', time: '03:00 PM', title: 'Unavailable', subtitle: 'Personal Time', type: 'unavailable' },
-  ],
+const mapScheduleData = (bookings = [], blocks = []) => {
+  const scheduleMap = {};
+
+  bookings.forEach(b => {
+    const dateKey = b.date;
+    if (!scheduleMap[dateKey]) {
+      scheduleMap[dateKey] = [];
+    }
+    scheduleMap[dateKey].push({
+      id: `booking-${b.id}`,
+      time: b.time,
+      title: b.customer?.name || 'Client',
+      subtitle: b.category || 'Booking',
+      type: 'booking',
+      status: b.status,
+    });
+  });
+
+  blocks.forEach(bl => {
+    const dateKey = bl.date;
+    if (!scheduleMap[dateKey]) {
+      scheduleMap[dateKey] = [];
+    }
+    scheduleMap[dateKey].push({
+      id: `block-${bl.id}`,
+      time: bl.time,
+      title: 'Unavailable',
+      subtitle: bl.reason,
+      type: 'unavailable',
+    });
+  });
+
+  return scheduleMap;
 };
 
 const ArtistCalenderScreen = ({ onBack }) => {
   const [currentYear, setCurrentYear] = useState(todayObj.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(todayObj.getMonth());
   const [selectedDateStr, setSelectedDateStr] = useState(todayStr);
-  const [schedule, setSchedule] = useState(INITIAL_SCHEDULE);
+  const [schedule, setSchedule] = useState({});
+  const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [reason, setReason] = useState('');
   const [time, setTime] = useState('11:00 AM');
+
+  const fetchSchedule = async () => {
+    try {
+      setLoading(true);
+      const data = await getArtistSchedule();
+      if (data) {
+        const mapped = mapScheduleData(data.bookings, data.blocks);
+        setSchedule(mapped);
+      }
+    } catch (error) {
+      console.error('Failed to fetch schedule', error);
+      Alert.alert('Error', 'Failed to load schedule from server.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSchedule();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FCFCFC' }}>
+        <ActivityIndicator size="large" color="#FF4F8F" />
+      </View>
+    );
+  }
 
   // Month details helper
   const months = [
@@ -131,7 +177,7 @@ const ArtistCalenderScreen = ({ onBack }) => {
   const calendarDays = generateCalendarDays();
 
   // Add Unavailable Time
-  const handleAddUnavailable = () => {
+  const handleAddUnavailable = async () => {
     if (!reason.trim()) {
       Alert.alert('Error', 'Please enter a reason/title for the unavailable time.');
       return;
@@ -141,22 +187,23 @@ const ArtistCalenderScreen = ({ onBack }) => {
       return;
     }
 
-    const newItem = {
-      id: String(Date.now()),
-      time: time.trim(),
-      title: 'Unavailable',
-      subtitle: reason.trim(),
-      type: 'unavailable',
-    };
+    try {
+      await createArtistBlock({
+        date: selectedDateStr,
+        time: time.trim(),
+        reason: reason.trim()
+      });
 
-    const currentDaySchedule = schedule[selectedDateStr] || [];
-    setSchedule({
-      ...schedule,
-      [selectedDateStr]: [...currentDaySchedule, newItem],
-    });
-
-    setReason('');
-    setModalVisible(false);
+      Alert.alert('Success', 'Unavailable time block added successfully.');
+      setReason('');
+      setModalVisible(false);
+      
+      // Refresh list
+      await fetchSchedule();
+    } catch (error) {
+      console.error('Failed to save unavailable time', error);
+      Alert.alert('Error', 'Failed to save unavailable time on server.');
+    }
   };
 
   // Format Selected Date for display (e.g. "16 May 2024")
@@ -293,7 +340,9 @@ const ArtistCalenderScreen = ({ onBack }) => {
 
                   {/* Details */}
                   <View style={styles.eventInfo}>
-                    <Text style={styles.eventTitle}>{event.subtitle}</Text>
+                    <Text style={styles.eventTitle}>
+                      {isBooking ? `${event.title} - ${event.subtitle}` : event.subtitle}
+                    </Text>
                     <Text style={styles.eventSubtitle}>{isBooking ? 'Booking' : 'Unavailable Block'}</Text>
                   </View>
                 </View>

@@ -3,7 +3,7 @@ import Booking from "../../models/Booking.js";
 import Artist from "../../models/Artist.js";
 import Customer from "../../models/Customer.js";
 
-export const createBooking = async ({ customerId, artistId, date, time }) => {
+export const createBooking = async ({ customerId, artistId, date, time, category, price }) => {
   const artist = await Artist.findByPk(artistId);
   if (!artist) {
     throw new Error("Artist not found");
@@ -29,6 +29,8 @@ export const createBooking = async ({ customerId, artistId, date, time }) => {
     artistId,
     date,
     time,
+    category,
+    price,
     status: "pending",
   });
 

@@ -12,9 +12,16 @@ import {
   StatusBar,
   ScrollView,
   SafeAreaView,
+  PermissionsAndroid,
+  Modal,
+  Pressable,
+  Alert,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
+import { uploadFile } from '../../api/files';
 
 const CONTACTS_DATA = [
   {
@@ -81,13 +88,159 @@ const CONTACTS_DATA = [
   },
 ];
 
+const requestPermissions = async () => {
+  if (Platform.OS === 'android') {
+    try {
+      const cameraGranted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.CAMERA,
+      );
+
+      const storageGranted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES ||
+          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+      );
+
+      return (
+        cameraGranted === PermissionsAndroid.RESULTS.GRANTED &&
+        storageGranted === PermissionsAndroid.RESULTS.GRANTED
+      );
+    } catch (err) {
+      console.log(err);
+      return false;
+    }
+  }
+
+  return true;
+};
+
 const ArtistMessageScreen = () => {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const [contacts, setContacts] = useState(CONTACTS_DATA);
-  const [activeContactId, setActiveContactId] = useState('1');
+  const [activeContactId, setActiveContactId] = useState(null);
   const [inputText, setInputText] = useState('');
   
   const scrollViewRef = useRef();
+  const [imagePickerVisible, setImagePickerVisible] = useState(false);
+
+  const handleSendImage = (uri) => {
+    const newMsg = {
+      id: 'm_new_' + Date.now(),
+      image: uri,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      sender: 'artist',
+    };
+
+    setContacts(prevContacts =>
+      prevContacts.map(c => {
+        if (c.id === activeContactId) {
+          return {
+            ...c,
+            lastMsg: 'Sent a photo',
+            time: newMsg.time,
+            isTyping: false,
+            messages: [...c.messages, newMsg],
+          };
+        }
+        return c;
+      })
+    );
+
+    // Auto scroll to bottom
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+  };
+
+  const openCamera = async () => {
+    const granted = await requestPermissions();
+
+    if (!granted) {
+      Alert.alert('Permission Required', 'Camera and Storage permission is needed');
+      return;
+    }
+
+    setImagePickerVisible(false);
+
+    try {
+      const result = await launchCamera({
+        mediaType: 'photo',
+        quality: 0.8,
+        saveToPhotos: true,
+      });
+
+      if (result.didCancel) return;
+
+      if (result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const file = {
+          uri: asset.uri,
+          name: asset.fileName || `photo_${Date.now()}.jpg`,
+          type: asset.type || 'image/jpeg',
+        };
+
+        try {
+          const url = await uploadFile(file);
+          if (url) {
+            handleSendImage(url);
+          } else {
+            handleSendImage(asset.uri);
+          }
+        } catch (err) {
+          console.warn('Upload failed, sending local image', err);
+          handleSendImage(asset.uri);
+        }
+      }
+    } catch (error) {
+      console.warn('Camera error', error);
+      Alert.alert('Error', 'Could not open camera');
+    }
+  };
+
+  const openGallery = async () => {
+    const granted = await requestPermissions();
+
+    if (!granted) {
+      Alert.alert('Permission Required', 'Storage permission is needed');
+      return;
+    }
+
+    setImagePickerVisible(false);
+
+    try {
+      const result = await launchImageLibrary({
+        mediaType: 'photo',
+        quality: 0.8,
+        selectionLimit: 1,
+      });
+
+      if (result.didCancel) return;
+
+      if (result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const file = {
+          uri: asset.uri,
+          name: asset.fileName || `photo_${Date.now()}.jpg`,
+          type: asset.type || 'image/jpeg',
+        };
+
+        try {
+          const url = await uploadFile(file);
+          if (url) {
+            handleSendImage(url);
+          } else {
+            handleSendImage(asset.uri);
+          }
+        } catch (err) {
+          console.warn('Upload failed, sending local image', err);
+          handleSendImage(asset.uri);
+        }
+      }
+    } catch (error) {
+      console.warn('Gallery error', error);
+      Alert.alert('Error', 'Could not open gallery');
+    }
+  };
 
   const activeContact = contacts.find(c => c.id === activeContactId) || contacts[0];
 
@@ -159,122 +312,166 @@ const ArtistMessageScreen = () => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
       >
-        {/* LEFT COLUMN: CONVERSATION LIST */}
-        <View style={styles.leftColumn}>
-          {/* LEFT HEADER */}
-          <View style={styles.leftHeader}>
-            <TouchableOpacity style={styles.menuButton}>
-              <Ionicons name="menu-outline" size={24} color="#111" />
-            </TouchableOpacity>
-            <Text style={styles.leftTitle}>Messages</Text>
-          </View>
-
-          {/* CONTACTS LIST */}
-          <FlatList
-            data={contacts}
-            renderItem={renderContactItem}
-            keyExtractor={item => item.id}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.contactsList}
-          />
-        </View>
-
-        {/* RIGHT COLUMN: ACTIVE CHAT VIEW */}
-        <View style={styles.rightColumn}>
-          {/* CHAT HEADER */}
-          <View style={styles.chatHeader}>
-            <View style={styles.chatHeaderLeft}>
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => navigation.goBack()}
-              >
-                <Ionicons name="chevron-back-outline" size={24} color="#555" />
+        {activeContactId === null ? (
+          /* LEFT COLUMN: CONVERSATION LIST */
+          <View style={styles.leftColumn}>
+            {/* LEFT HEADER */}
+            <View style={styles.leftHeader}>
+              <TouchableOpacity style={styles.menuButton} onPress={() => navigation.goBack()}>
+                <Ionicons name="chevron-back-outline" size={24} color="#111" />
               </TouchableOpacity>
-              <Image source={{ uri: activeContact.avatar }} style={styles.chatAvatar} />
-              <View style={styles.chatUserMeta}>
-                <Text style={styles.chatUserName}>{activeContact.name}</Text>
-                <Text style={[styles.chatUserStatus, activeContact.isTyping && styles.typingStatusText]}>
-                  {activeContact.isTyping ? 'Typing...' : 'Online'}
-                </Text>
+              <Text style={styles.leftTitle}>Messages</Text>
+            </View>
+
+            {/* CONTACTS LIST */}
+            <FlatList
+              data={contacts}
+              renderItem={renderContactItem}
+              keyExtractor={item => item.id}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.contactsList}
+            />
+          </View>
+        ) : (
+          /* RIGHT COLUMN: ACTIVE CHAT VIEW */
+          <View style={styles.rightColumn}>
+            {/* CHAT HEADER */}
+            <View style={styles.chatHeader}>
+              <View style={styles.chatHeaderLeft}>
+                <TouchableOpacity
+                  style={styles.backButton}
+                  onPress={() => setActiveContactId(null)}
+                >
+                  <Ionicons name="chevron-back-outline" size={24} color="#555" />
+                </TouchableOpacity>
+                <Image source={{ uri: activeContact.avatar }} style={styles.chatAvatar} />
+                <View style={styles.chatUserMeta}>
+                  <Text style={styles.chatUserName}>{activeContact.name}</Text>
+                  <Text style={[styles.chatUserStatus, activeContact.isTyping && styles.typingStatusText]}>
+                    {activeContact.isTyping ? 'Typing...' : 'Online'}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.chatHeaderRight}>
+                <TouchableOpacity style={styles.headerIconBtn}>
+                  <Ionicons name="call-outline" size={22} color="#5E1735" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.headerIconBtn}>
+                  <Ionicons name="videocam-outline" size={22} color="#5E1735" />
+                </TouchableOpacity>
               </View>
             </View>
 
-            <View style={styles.chatHeaderRight}>
-              <TouchableOpacity style={styles.headerIconBtn}>
-                <Ionicons name="call-outline" size={22} color="#5E1735" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.headerIconBtn}>
-                <Ionicons name="videocam-outline" size={22} color="#5E1735" />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* MESSAGE FLOW */}
-          <ScrollView
-            ref={scrollViewRef}
-            contentContainerStyle={styles.messagesFlow}
-            showsVerticalScrollIndicator={false}
-            onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: false })}
-          >
-            {activeContact.messages.map((msg, index) => {
-              const isArtist = msg.sender === 'artist';
-              return (
-                <View
-                  key={msg.id || index}
-                  style={[
-                    styles.messageRow,
-                    isArtist ? styles.messageRowArtist : styles.messageRowClient,
-                  ]}
-                >
+            {/* MESSAGE FLOW */}
+            <ScrollView
+              ref={scrollViewRef}
+              contentContainerStyle={styles.messagesFlow}
+              showsVerticalScrollIndicator={false}
+              onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: false })}
+            >
+              {activeContact.messages.map((msg, index) => {
+                const isArtist = msg.sender === 'artist';
+                return (
                   <View
+                    key={msg.id || index}
                     style={[
-                      styles.messageBubble,
-                      isArtist ? styles.bubbleArtist : styles.bubbleClient,
+                      styles.messageRow,
+                      isArtist ? styles.messageRowArtist : styles.messageRowClient,
                     ]}
                   >
-                    <Text
+                    <View
                       style={[
-                        styles.messageText,
-                        isArtist ? styles.textArtist : styles.textClient,
+                        styles.messageBubble,
+                        isArtist ? styles.bubbleArtist : styles.bubbleClient,
+                        msg.image && { padding: 4 }
                       ]}
                     >
-                      {msg.text}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.messageTime,
-                        isArtist ? styles.timeArtist : styles.timeClient,
-                      ]}
-                    >
-                      {msg.time}
-                    </Text>
+                      {msg.image ? (
+                        <Image source={{ uri: msg.image }} style={styles.messageImage} />
+                      ) : (
+                        <Text
+                          style={[
+                            styles.messageText,
+                            isArtist ? styles.textArtist : styles.textClient,
+                          ]}
+                        >
+                          {msg.text}
+                        </Text>
+                      )}
+                      <Text
+                        style={[
+                          styles.messageTime,
+                          isArtist ? styles.timeArtist : styles.timeClient,
+                        ]}
+                      >
+                        {msg.time}
+                      </Text>
+                    </View>
                   </View>
-                </View>
-              );
-            })}
-          </ScrollView>
+                );
+              })}
+            </ScrollView>
 
-          {/* INPUT BAR */}
-          <View style={styles.inputBarContainer}>
-            <TouchableOpacity style={styles.attachBtn}>
-              <Ionicons name="add-circle-outline" size={24} color="#8A7D77" />
-            </TouchableOpacity>
-            <View style={styles.inputWrapper}>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Type a message..."
-                placeholderTextColor="#A39691"
-                value={inputText}
-                onChangeText={setInputText}
-                onSubmitEditing={handleSend}
-              />
-              <TouchableOpacity style={styles.sendBtn} onPress={handleSend}>
-                <Ionicons name="send" size={16} color="#FFF" />
+            {/* INPUT BAR */}
+            <View style={[styles.inputBarContainer, { paddingBottom: insets.bottom || 12 }]}>
+              <TouchableOpacity style={styles.attachBtn} onPress={() => setImagePickerVisible(true)}>
+                <Ionicons name="add-circle-outline" size={24} color="#8A7D77" />
               </TouchableOpacity>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Type a message..."
+                  placeholderTextColor="#A39691"
+                  value={inputText}
+                  onChangeText={setInputText}
+                  onSubmitEditing={handleSend}
+                />
+                <TouchableOpacity style={styles.sendBtn} onPress={handleSend}>
+                  <Ionicons name="send" size={16} color="#FFF" />
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
+        )}
       </KeyboardAvoidingView>
+
+      {/* IMAGE PICKER MODAL */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={imagePickerVisible}
+        onRequestClose={() => setImagePickerVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setImagePickerVisible(false)}
+        >
+          <View style={styles.bottomSheet}>
+            <Text style={styles.sheetTitle}>Choose Option</Text>
+
+            {/* CAMERA */}
+            <TouchableOpacity style={styles.sheetButton} onPress={openCamera}>
+              <Ionicons name="camera" size={22} color="#FF4F8F" />
+              <Text style={styles.sheetButtonText}>Open Camera</Text>
+            </TouchableOpacity>
+
+            {/* GALLERY */}
+            <TouchableOpacity style={styles.sheetButton} onPress={openGallery}>
+              <Ionicons name="image" size={22} color="#FF4F8F" />
+              <Text style={styles.sheetButtonText}>Choose from Gallery</Text>
+            </TouchableOpacity>
+
+            {/* CANCEL */}
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setImagePickerVisible(false)}
+            >
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -295,9 +492,7 @@ const styles = StyleSheet.create({
 
   // LEFT COLUMN
   leftColumn: {
-    width: '38%',
-    borderRightWidth: 1,
-    borderRightColor: '#F3ECF0',
+    flex: 1,
     backgroundColor: '#FCFCFC',
   },
 
@@ -558,5 +753,62 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 6,
+  },
+
+  messageImage: {
+    width: 200,
+    height: 150,
+    borderRadius: 12,
+    marginBottom: 4,
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'flex-end',
+  },
+
+  bottomSheet: {
+    backgroundColor: '#FFF',
+    padding: 25,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+  },
+
+  sheetTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111',
+    marginBottom: 20,
+    textAlign: 'center',
+    fontFamily: 'serif',
+  },
+
+  sheetButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#FFE4ED',
+  },
+
+  sheetButtonText: {
+    fontSize: 16,
+    color: '#111',
+    marginLeft: 15,
+    fontFamily: 'serif',
+  },
+
+  cancelButton: {
+    marginTop: 15,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+
+  cancelText: {
+    fontSize: 16,
+    color: '#FF4F8F',
+    fontWeight: '700',
+    fontFamily: 'serif',
   },
 });

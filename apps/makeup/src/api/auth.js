@@ -74,12 +74,27 @@ export const sendOtp = async phone => {
   return response?.data;
 };
 
+export const getArtists = async (filters = {}) => {
+  const response = await api.get('/api/customer/artists', { params: filters });
+  return response?.data?.data ?? response?.data ?? [];
+};
+
 export const verifyOtp = async (sessionId, otp) => {
   const response = await api.post('/api/otp/verify', { sessionId, otp });
   return response?.data;
 };
 
-export const getArtists = async (filters = {}) => {
-  const response = await api.get('/api/customer/artists', { params: filters });
-  return response?.data?.data ?? response?.data ?? [];
+export const getArtistDashboard = async () => {
+  const response = await api.get('/api/artist/dashboard');
+  return response?.data?.data;
+};
+
+export const getArtistSchedule = async () => {
+  const response = await api.get('/api/artist/schedule');
+  return response?.data?.data;
+};
+
+export const createArtistBlock = async data => {
+  const response = await api.post('/api/artist/block', data);
+  return response?.data?.data;
 };
