@@ -24,19 +24,22 @@ const ClientLoginScreen = ({ navigation }) => {
         setEmailError('');
         setPasswordError('');
 
-        if (!email.trim()) {
+        const emailVal = email.trim();
+        const passVal  = password.trim();
+
+        if (!emailVal) {
             setEmailError('Email or phone number is required');
             valid = false;
         } else {
-            const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-            const isPhone = /^\d{10}$/.test(email);
+            const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal);
+            const isPhone = /^\+?[\d\s\-]{7,15}$/.test(emailVal);
             if (!isEmail && !isPhone) {
-                setEmailError('Enter a valid email address or 10-digit phone number');
+                setEmailError('Enter a valid email or phone number');
                 valid = false;
             }
         }
 
-        if (!password.trim()) {
+        if (!passVal) {
             setPasswordError('Password is required');
             valid = false;
         }
@@ -45,10 +48,16 @@ const ClientLoginScreen = ({ navigation }) => {
 
         try {
             setLoading(true);
-            await loginClient(email.trim(), password);
+            const result = await loginClient(emailVal, passVal);
+            if (!result?.token) {
+                Alert.alert('Login Failed', 'Could not complete login. Please try again.');
+                return;
+            }
             navigation.replace('ClientHome');
         } catch (err) {
-            const msg = err?.response?.data?.message || err?.message || 'Login failed';
+            // Show the exact server message (email not found / wrong password / network)
+            const serverMsg = err?.response?.data?.message;
+            const msg = serverMsg || err?.message || 'Unable to connect. Check your internet and try again.';
             Alert.alert('Login Failed', msg);
         } finally {
             setLoading(false);

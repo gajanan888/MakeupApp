@@ -1,54 +1,73 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_BASE_URLS = ['http://10.145.106.212:5000','http://172.19.20.153:5000','http://172.19.16.171:5000'];
+// Wishlist API helpers
+export const addArtistToWishlist = async (artistId) => api.post('/wishlist/add', { artistId });
+export const removeArtistFromWishlist = async (artistId) => api.post('/wishlist/remove', { artistId });
+export const fetchWishlist = async () => api.get('/wishlist');
 
-const API_BASE_URL = API_BASE_URLS[0];
-  
+/**
+ * API_BASE_URLS — ordered by priority.
+ * The app tries each one in sequence on network failure.
+ *
+ * HOW TO UPDATE THE IP:
+ *   On Windows, run: ipconfig
+ *   Find the "Wireless LAN adapter Wi-Fi" IPv4 address (e.g. 10.x.x.x or 192.168.x.x)
+ *   Replace the first entry below with that IP.
+ *
+ * Current machine WiFi IP: 172.19.20.153
+ */
+const API_BASE_URLS = [
+  'http://172.19.20.153:5000', // ← Your computer's WiFi IP (physical Android device)
+  'http://10.0.2.2:5000',       // Android Emulator loopback
+  'http://localhost:5000',       // iOS Simulator / browser
+  'http://192.168.56.1:5000',   // VirtualBox host-only adapter
+];
+
 const api = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 15000,
+  baseURL: API_BASE_URLS[0],
+  timeout: 10000,
 });
 
-api.interceptors.request.use(async config => {
-  const token = await AsyncStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+// ── Attach JWT token to every request ────────────────────────────────────────
+api.interceptors.request.use(async (config) => {
+  try {
+    const token = await AsyncStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  } catch (_) {
+    // ignore storage errors
   }
-
   return config;
 });
 
+// ── Retry with next IP on network errors ─────────────────────────────────────
 api.interceptors.response.use(
-  response => response,
-  async error => {
+  (response) => response,
+  async (error) => {
     const originalRequest = error?.config;
 
-    if (!originalRequest || originalRequest.__retriedForNetworkError) {
-      throw error;
-    }
+    // Already exhausted all URLs — throw immediately
+    if (!originalRequest) throw error;
+    const retryIndex = (originalRequest.__retryIndex ?? -1) + 1;
+    if (retryIndex >= API_BASE_URLS.length) throw error;
 
+    // Only retry on network / timeout errors (not 4xx / 5xx)
     const isNetworkError =
       error?.message === 'Network Error' ||
-      !error?.response ||
-      error?.code === 'ECONNABORTED';
+      error?.code === 'ECONNABORTED' ||
+      error?.code === 'ECONNREFUSED' ||
+      !error?.response;
 
-    if (!isNetworkError) {
-      throw error;
-    }
+    if (!isNetworkError) throw error;
 
-    const currentBaseURL = originalRequest.baseURL || api.defaults.baseURL;
-    const fallbackBaseURL = API_BASE_URLS.find(url => url !== currentBaseURL);
+    originalRequest.__retryIndex = retryIndex;
+    originalRequest.baseURL = API_BASE_URLS[retryIndex];
 
-    if (!fallbackBaseURL) {
-      throw error;
-    }
-
-    originalRequest.__retriedForNetworkError = true;
-    originalRequest.baseURL = fallbackBaseURL;
-
+    console.log(`[API] Retrying with: ${API_BASE_URLS[retryIndex]}`);
     return api.request(originalRequest);
-  },
+  }
 );
 
 export default api;

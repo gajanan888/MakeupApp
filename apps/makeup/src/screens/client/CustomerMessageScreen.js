@@ -24,7 +24,8 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { uploadFile } from '../../api/files';
-import { getArtistConversations, sendArtistMessage } from '../../api/auth';
+import { getCustomerConversations, sendCustomerMessage } from '../../api/auth';
+import BottomNavigation from '../../components/BottomNavigation';
 
 const requestPermissions = async () => {
   if (Platform.OS === 'android') {
@@ -47,35 +48,34 @@ const requestPermissions = async () => {
       return false;
     }
   }
-
   return true;
 };
 
-const ArtistMessageScreen = () => {
+const CustomerMessageScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
-  const [contacts, setContacts] = useState([]);
-  const [activeContactId, setActiveContactId] = useState(null);
+  const [conversations, setConversations] = useState([]);
+  const [activeArtistId, setActiveArtistId] = useState(null);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(true);
-  
+
   const scrollViewRef = useRef();
   const [imagePickerVisible, setImagePickerVisible] = useState(false);
 
   useEffect(() => {
-    if (route.params && route.params.customerId) {
-      setActiveContactId(String(route.params.customerId));
+    if (route.params && route.params.artistId) {
+      setActiveArtistId(String(route.params.artistId));
     }
   }, [route.params]);
 
   const fetchConversations = async (showLoading = false) => {
     try {
       if (showLoading) setLoading(true);
-      const data = await getArtistConversations();
-      setContacts(data);
+      const data = await getCustomerConversations();
+      setConversations(data);
     } catch (error) {
-      console.warn('Failed to fetch conversations:', error);
+      console.warn('Failed to fetch customer conversations:', error);
     } finally {
       if (showLoading) setLoading(false);
     }
@@ -93,8 +93,8 @@ const ArtistMessageScreen = () => {
 
   useEffect(() => {
     const backAction = () => {
-      if (activeContactId !== null) {
-        setActiveContactId(null);
+      if (activeArtistId !== null) {
+        setActiveArtistId(null);
         return true;
       }
       return false;
@@ -106,30 +106,30 @@ const ArtistMessageScreen = () => {
     );
 
     return () => backHandler.remove();
-  }, [activeContactId]);
+  }, [activeArtistId]);
 
   useEffect(() => {
     navigation.setOptions({
-      gestureEnabled: activeContactId === null,
+      gestureEnabled: activeArtistId === null,
     });
-  }, [navigation, activeContactId]);
+  }, [navigation, activeArtistId]);
 
   const handleSendImage = async (uri) => {
-    if (!activeContactId) return;
+    if (!activeArtistId) return;
 
-    // Optimistically update the UI
+    // Optimistically update the UI locally
     const localTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const tempMsgId = 'm_new_' + Date.now();
     const optimisticMsg = {
       id: tempMsgId,
       image: uri,
       time: localTime,
-      sender: 'artist',
+      sender: 'client',
     };
 
-    setContacts(prevContacts =>
-      prevContacts.map(c => {
-        if (c.id === activeContactId) {
+    setConversations(prevConvs =>
+      prevConvs.map(c => {
+        if (c.id === activeArtistId) {
           return {
             ...c,
             lastMsg: 'Sent a photo',
@@ -142,14 +142,13 @@ const ArtistMessageScreen = () => {
       })
     );
 
-    // Auto scroll to bottom
     setTimeout(() => {
       scrollViewRef.current?.scrollToEnd({ animated: true });
     }, 50);
 
     try {
-      await sendArtistMessage({
-        customerId: parseInt(activeContactId),
+      await sendCustomerMessage({
+        artistId: parseInt(activeArtistId, 10),
         image: uri,
       });
       fetchConversations(false);
@@ -161,12 +160,10 @@ const ArtistMessageScreen = () => {
 
   const openCamera = async () => {
     const granted = await requestPermissions();
-
     if (!granted) {
       Alert.alert('Permission Required', 'Camera and Storage permission is needed');
       return;
     }
-
     setImagePickerVisible(false);
 
     try {
@@ -206,12 +203,10 @@ const ArtistMessageScreen = () => {
 
   const openGallery = async () => {
     const granted = await requestPermissions();
-
     if (!granted) {
       Alert.alert('Permission Required', 'Storage permission is needed');
       return;
     }
-
     setImagePickerVisible(false);
 
     try {
@@ -249,27 +244,24 @@ const ArtistMessageScreen = () => {
     }
   };
 
-  const activeContact = contacts.find(c => c.id === activeContactId);
-
   const handleSend = async () => {
-    if (!inputText.trim() || !activeContactId) return;
+    if (!inputText.trim() || !activeArtistId) return;
 
     const textToSend = inputText.trim();
     setInputText('');
 
-    // Optimistically update the UI
     const localTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const tempMsgId = 'm_new_' + Date.now();
     const optimisticMsg = {
       id: tempMsgId,
       text: textToSend,
       time: localTime,
-      sender: 'artist',
+      sender: 'client',
     };
 
-    setContacts(prevContacts =>
-      prevContacts.map(c => {
-        if (c.id === activeContactId) {
+    setConversations(prevConvs =>
+      prevConvs.map(c => {
+        if (c.id === activeArtistId) {
           return {
             ...c,
             lastMsg: textToSend,
@@ -282,14 +274,13 @@ const ArtistMessageScreen = () => {
       })
     );
 
-    // Auto scroll to bottom
     setTimeout(() => {
       scrollViewRef.current?.scrollToEnd({ animated: true });
     }, 50);
 
     try {
-      await sendArtistMessage({
-        customerId: parseInt(activeContactId),
+      await sendCustomerMessage({
+        artistId: parseInt(activeArtistId, 10),
         text: textToSend,
       });
       fetchConversations(false);
@@ -299,12 +290,13 @@ const ArtistMessageScreen = () => {
     }
   };
 
+  const activeContact = conversations.find(c => c.id === activeArtistId);
+
   const renderContactItem = ({ item }) => {
-    const isActive = item.id === activeContactId;
     return (
       <TouchableOpacity
-        style={[styles.contactItem, isActive && styles.activeContactItem]}
-        onPress={() => setActiveContactId(item.id)}
+        style={styles.contactItem}
+        onPress={() => setActiveArtistId(item.id)}
       >
         <Image source={{ uri: item.avatar }} style={styles.contactAvatar} />
         <View style={styles.contactInfo}>
@@ -314,14 +306,8 @@ const ArtistMessageScreen = () => {
             </Text>
             <Text style={styles.contactTime}>{item.time}</Text>
           </View>
-          <Text
-            style={[
-              styles.contactLastMsg,
-              item.isTyping && styles.typingText,
-            ]}
-            numberOfLines={1}
-          >
-            {item.lastMsg}
+          <Text style={styles.contactLastMsg} numberOfLines={1}>
+            {item.lastMsg || 'No messages yet'}
           </Text>
         </View>
       </TouchableOpacity>
@@ -334,75 +320,65 @@ const ArtistMessageScreen = () => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
       >
-        {activeContactId === null ? (
-          /* LEFT COLUMN: CONVERSATION LIST */
-          <View style={styles.leftColumn}>
-            {/* LEFT HEADER */}
-            <View style={styles.leftHeader}>
-              <TouchableOpacity style={styles.menuButton} onPress={() => navigation.goBack()}>
-                <Ionicons name="chevron-back-outline" size={24} color="#111" />
-              </TouchableOpacity>
-              <Text style={styles.leftTitle}>Messages</Text>
+        {activeArtistId === null ? (
+          /* CONVERSATION LIST VIEW */
+          <View style={styles.listContainer}>
+            <View style={styles.header}>
+              <Text style={styles.headerTitle}>Messages</Text>
             </View>
 
-            {/* CONTACTS LIST */}
-            {loading && contacts.length === 0 ? (
+            {loading && conversations.length === 0 ? (
               <View style={styles.centered}>
-                <ActivityIndicator size="large" color="#FF4F8F" />
+                <ActivityIndicator size="large" color="#FF4F87" />
               </View>
             ) : (
               <FlatList
-                data={contacts}
+                data={conversations}
                 renderItem={renderContactItem}
                 keyExtractor={item => item.id}
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.contactsList}
+                contentContainerStyle={styles.listContent}
                 ListEmptyComponent={
                   <View style={styles.emptyContainer}>
-                    <Ionicons name="chatbubble-ellipses-outline" size={48} color="#FFCDDF" />
-                    <Text style={styles.emptyText}>No messages yet</Text>
+                    <Ionicons name="chatbubble-ellipses-outline" size={60} color="#FFCDDF" />
+                    <Text style={styles.emptyText}>No conversations yet</Text>
+                    <Text style={styles.emptySubtext}>Find a makeup artist and start a chat!</Text>
                   </View>
                 }
               />
             )}
+
+            <BottomNavigation navigation={navigation} activeTab="Chat" />
           </View>
         ) : !activeContact ? (
-          /* ACTIVE CONTACT NOT FOUND YET / LOADING */
-          <View style={[styles.rightColumn, styles.centered]}>
-            <ActivityIndicator size="large" color="#FF4F8F" />
+          /* PRE-RESOLVING DOCK OVERLAY */
+          <View style={[styles.chatRoomContainer, styles.centered]}>
+            <ActivityIndicator size="large" color="#FF4F87" />
           </View>
         ) : (
-          /* RIGHT COLUMN: ACTIVE CHAT VIEW */
-          <View style={styles.rightColumn}>
-            {/* CHAT HEADER */}
+          /* ACTIVE CHAT VIEW */
+          <View style={styles.chatRoomContainer}>
+            {/* Chat Header */}
             <View style={styles.chatHeader}>
               <View style={styles.chatHeaderLeft}>
                 <TouchableOpacity
-                  style={styles.backButton}
-                  onPress={() => setActiveContactId(null)}
+                  style={styles.backBtn}
+                  onPress={() => setActiveArtistId(null)}
                 >
-                  <Ionicons name="chevron-back-outline" size={24} color="#555" />
+                  <Ionicons name="chevron-back" size={24} color="#333" />
                 </TouchableOpacity>
-                <Image source={{ uri: activeContact.avatar }} style={styles.chatAvatar} />
-                <View style={styles.chatUserMeta}>
-                  <Text style={styles.chatUserName}>{activeContact.name}</Text>
-                  <Text style={[styles.chatUserStatus, activeContact.isTyping && styles.typingStatusText]}>
-                    {activeContact.isTyping ? 'Typing...' : 'Online'}
-                  </Text>
+                <Image source={{ uri: activeContact.avatar }} style={styles.chatAvatarHeader} />
+                <View style={styles.chatHeaderMeta}>
+                  <Text style={styles.chatHeaderName} numberOfLines={1}>{activeContact.name}</Text>
+                  <Text style={styles.chatHeaderStatus}>Online</Text>
                 </View>
               </View>
-
-              <View style={styles.chatHeaderRight}>
-                <TouchableOpacity style={styles.headerIconBtn}>
-                  <Ionicons name="call-outline" size={22} color="#5E1735" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.headerIconBtn}>
-                  <Ionicons name="videocam-outline" size={22} color="#5E1735" />
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity style={styles.moreBtn}>
+                <Ionicons name="ellipsis-vertical" size={22} color="#333" />
+              </TouchableOpacity>
             </View>
 
-            {/* MESSAGE FLOW */}
+            {/* Messages Flow Scroll */}
             <ScrollView
               ref={scrollViewRef}
               contentContainerStyle={styles.messagesFlow}
@@ -410,58 +386,93 @@ const ArtistMessageScreen = () => {
               onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: false })}
             >
               {(activeContact.messages || []).map((msg, index) => {
-                const isArtist = msg.sender === 'artist';
+                const isClient = msg.sender === 'client';
+                const hasText = !!msg.text;
+                const hasImage = !!msg.image;
+                const images = msg.image ? msg.image.split(',') : [];
+
                 return (
                   <View
                     key={msg.id || index}
                     style={[
                       styles.messageRow,
-                      isArtist ? styles.messageRowArtist : styles.messageRowClient,
+                      isClient ? styles.messageRowClient : styles.messageRowArtist,
                     ]}
                   >
-                    <View
-                      style={[
-                        styles.messageBubble,
-                        isArtist ? styles.bubbleArtist : styles.bubbleClient,
-                        msg.image && { padding: 4 }
-                      ]}
-                    >
-                      {msg.image ? (
-                        <Image source={{ uri: msg.image }} style={styles.messageImage} />
-                      ) : (
-                        <Text
+                    {/* Render Artist Avatar next to their bubble */}
+                    {!isClient && (
+                      <Image
+                        source={{ uri: activeContact.avatar }}
+                        style={styles.messageAvatar}
+                      />
+                    )}
+
+                    <View style={[styles.messageContentCol, isClient ? styles.contentAlignRight : styles.contentAlignLeft]}>
+                      {/* Text Bubble */}
+                      {hasText && (
+                        <View
                           style={[
-                            styles.messageText,
-                            isArtist ? styles.textArtist : styles.textClient,
+                            styles.messageBubble,
+                            isClient ? styles.bubbleClient : styles.bubbleArtist,
                           ]}
                         >
-                          {msg.text}
-                        </Text>
+                          <Text
+                            style={[
+                              styles.messageText,
+                              isClient ? styles.textClient : styles.textArtist,
+                            ]}
+                          >
+                            {msg.text}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.messageTime,
+                              isClient ? styles.timeClient : styles.timeArtist,
+                            ]}
+                          >
+                            {msg.time}
+                          </Text>
+                        </View>
                       )}
-                      <Text
-                        style={[
-                          styles.messageTime,
-                          isArtist ? styles.timeArtist : styles.timeClient,
-                        ]}
-                      >
-                        {msg.time}
-                      </Text>
+
+                      {/* Image Attachments */}
+                      {hasImage && (
+                        <View style={[styles.imageContainerRow, isClient ? styles.imagesAlignRight : styles.imagesAlignLeft]}>
+                          {images.map((imgUri, imgIdx) => {
+                            const isMultiple = images.length > 1;
+                            return (
+                              <Image
+                                key={imgIdx}
+                                source={{ uri: imgUri.trim() }}
+                                style={[
+                                  styles.messageImage,
+                                  isMultiple ? styles.messageImageMultiple : styles.messageImageSingle,
+                                  imgIdx > 0 && { marginLeft: 8 }
+                                ]}
+                              />
+                            );
+                          })}
+                        </View>
+                      )}
                     </View>
                   </View>
                 );
               })}
             </ScrollView>
 
-            {/* INPUT BAR */}
-            <View style={[styles.inputBarContainer, { paddingBottom: insets.bottom || 12 }]}>
-              <TouchableOpacity style={styles.attachBtn} onPress={() => setImagePickerVisible(true)}>
-                <Ionicons name="add-circle-outline" size={24} color="#8A7D77" />
+            {/* Input Bar */}
+            <View style={[styles.inputBar, { paddingBottom: insets.bottom || 12 }]}>
+              <TouchableOpacity
+                style={styles.attachBtn}
+                onPress={() => setImagePickerVisible(true)}
+              >
+                <Ionicons name="add" size={26} color="#8E8E93" />
               </TouchableOpacity>
               <View style={styles.inputWrapper}>
                 <TextInput
                   style={styles.textInput}
                   placeholder="Type a message..."
-                  placeholderTextColor="#A39691"
+                  placeholderTextColor="#999"
                   value={inputText}
                   onChangeText={setInputText}
                   onSubmitEditing={handleSend}
@@ -475,7 +486,7 @@ const ArtistMessageScreen = () => {
         )}
       </KeyboardAvoidingView>
 
-      {/* IMAGE PICKER MODAL */}
+      {/* Image Picker BottomSheet Modal */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -487,23 +498,20 @@ const ArtistMessageScreen = () => {
           onPress={() => setImagePickerVisible(false)}
         >
           <View style={styles.bottomSheet}>
-            <Text style={styles.sheetTitle}>Choose Option</Text>
+            <Text style={styles.sheetTitle}>Send Attachment</Text>
 
-            {/* CAMERA */}
-            <TouchableOpacity style={styles.sheetButton} onPress={openCamera}>
-              <Ionicons name="camera" size={22} color="#FF4F8F" />
-              <Text style={styles.sheetButtonText}>Open Camera</Text>
+            <TouchableOpacity style={styles.sheetBtn} onPress={openCamera}>
+              <Ionicons name="camera-outline" size={22} color="#FF4F87" />
+              <Text style={styles.sheetBtnText}>Take Photo</Text>
             </TouchableOpacity>
 
-            {/* GALLERY */}
-            <TouchableOpacity style={styles.sheetButton} onPress={openGallery}>
-              <Ionicons name="image" size={22} color="#FF4F8F" />
-              <Text style={styles.sheetButtonText}>Choose from Gallery</Text>
+            <TouchableOpacity style={styles.sheetBtn} onPress={openGallery}>
+              <Ionicons name="image-outline" size={22} color="#FF4F87" />
+              <Text style={styles.sheetBtnText}>Choose from Gallery</Text>
             </TouchableOpacity>
 
-            {/* CANCEL */}
             <TouchableOpacity
-              style={styles.cancelButton}
+              style={styles.cancelBtn}
               onPress={() => setImagePickerVisible(false)}
             >
               <Text style={styles.cancelText}>Cancel</Text>
@@ -515,357 +523,325 @@ const ArtistMessageScreen = () => {
   );
 };
 
-export default ArtistMessageScreen;
+export default CustomerMessageScreen;
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FCFCFC',
+    backgroundColor: '#FAFAFA',
     paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0,
   },
-
   container: {
     flex: 1,
-    flexDirection: 'row',
   },
-
-  // LEFT COLUMN
-  leftColumn: {
+  listContainer: {
     flex: 1,
-    backgroundColor: '#FCFCFC',
   },
-
-  leftHeader: {
+  header: {
+    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    justifyContent: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#F3ECF0',
+    borderBottomColor: '#F1F1F1',
+    backgroundColor: '#FFF',
   },
-
-  menuButton: {
-    marginRight: 10,
-  },
-
-  leftTitle: {
+  headerTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: '#111',
-    fontFamily: 'serif',
-  },
-
-  contactsList: {
-    paddingVertical: 8,
-  },
-
-  contactItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#FCFCFC',
-  },
-
-  activeContactItem: {
-    backgroundColor: '#FFF0F5',
-  },
-
-  contactAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FFE4ED',
-  },
-
-  contactInfo: {
-    flex: 1,
-    marginLeft: 10,
-  },
-
-  contactMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-
-  contactName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#111',
-    fontFamily: 'serif',
-    flex: 1,
-    marginRight: 4,
-  },
-
-  contactTime: {
-    fontSize: 10,
-    color: '#8A7D77',
-    fontFamily: 'serif',
-  },
-
-  contactLastMsg: {
-    fontSize: 11,
-    color: '#8A7D77',
-    fontFamily: 'serif',
-    marginTop: 2,
-  },
-
-  typingText: {
-    color: '#FF4F8F',
-    fontWeight: '600',
-  },
-
-  // RIGHT COLUMN
-  rightColumn: {
-    flex: 1,
-    backgroundColor: '#FFF',
-  },
-
-  chatHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3ECF0',
-    backgroundColor: '#FFF',
-  },
-
-  chatHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  backButton: {
-    marginRight: 6,
-    padding: 2,
-  },
-
-  chatAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFE4ED',
-  },
-
-  chatUserMeta: {
-    marginLeft: 10,
-  },
-
-  chatUserName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#111',
-    fontFamily: 'serif',
-  },
-
-  chatUserStatus: {
-    fontSize: 11,
-    color: '#389E0D',
-    fontWeight: '600',
-    fontFamily: 'serif',
-    marginTop: 1,
-  },
-
-  typingStatusText: {
-    color: '#FF4F8F',
-  },
-
-  chatHeaderRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  headerIconBtn: {
-    marginLeft: 14,
-    padding: 4,
-  },
-
-  messagesFlow: {
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-  },
-
-  messageRow: {
-    flexDirection: 'row',
-    marginBottom: 16,
-    width: '100%',
-  },
-
-  messageRowClient: {
-    justifyContent: 'flex-start',
-  },
-
-  messageRowArtist: {
-    justifyContent: 'flex-end',
-  },
-
-  messageBubble: {
-    maxWidth: '85%',
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-
-  bubbleClient: {
-    backgroundColor: '#F3F4F6',
-    borderTopLeftRadius: 4,
-  },
-
-  bubbleArtist: {
-    backgroundColor: '#FF4F8F',
-    borderTopRightRadius: 4,
-  },
-
-  messageText: {
-    fontSize: 13,
-    lineHeight: 18,
-    fontFamily: 'serif',
-  },
-
-  textClient: {
-    color: '#111',
-  },
-
-  textArtist: {
-    color: '#FFF',
-  },
-
-  messageTime: {
-    fontSize: 9,
-    alignSelf: 'flex-end',
-    marginTop: 4,
-    fontFamily: 'serif',
-  },
-
-  timeClient: {
-    color: '#8A7D77',
-  },
-
-  timeArtist: {
-    color: '#FFE4ED',
-  },
-
-  inputBarContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F3ECF0',
-    backgroundColor: '#FFF',
-  },
-
-  attachBtn: {
-    padding: 6,
-    marginRight: 6,
-  },
-
-  inputWrapper: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FCFCFC',
-    borderWidth: 1,
-    borderColor: '#F3ECF0',
-    borderRadius: 24,
-    paddingHorizontal: 14,
-    height: 44,
-  },
-
-  textInput: {
-    flex: 1,
-    fontSize: 13,
-    color: '#111',
-    fontFamily: 'serif',
-    paddingVertical: 0,
-  },
-
-  sendBtn: {
-    backgroundColor: '#FF4F8F',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 6,
-  },
-
-  messageImage: {
-    width: 200,
-    height: 150,
-    borderRadius: 12,
-    marginBottom: 4,
-  },
-
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    justifyContent: 'flex-end',
-  },
-
-  bottomSheet: {
-    backgroundColor: '#FFF',
-    padding: 25,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-  },
-
-  sheetTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#111',
-    marginBottom: 20,
-    textAlign: 'center',
-    fontFamily: 'serif',
-  },
-
-  sheetButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#FFE4ED',
-  },
-
-  sheetButtonText: {
-    fontSize: 16,
-    color: '#111',
-    marginLeft: 15,
-    fontFamily: 'serif',
-  },
-
-  cancelButton: {
-    marginTop: 15,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-
-  cancelText: {
-    fontSize: 16,
-    color: '#FF4F8F',
-    fontWeight: '700',
-    fontFamily: 'serif',
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  listContent: {
+    paddingVertical: 10,
+    paddingBottom: 110,
+  },
+  contactItem: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 60,
+    backgroundColor: '#FFF',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F7F7F7',
+  },
+  contactAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#FFE6EF',
+  },
+  contactInfo: {
+    flex: 1,
+    marginLeft: 14,
+  },
+  contactMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  contactName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111',
+    flex: 1,
+    marginRight: 8,
+  },
+  contactTime: {
+    fontSize: 12,
+    color: '#999',
+  },
+  contactLastMsg: {
+    fontSize: 13,
+    color: '#777',
+    marginTop: 4,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 120,
   },
   emptyText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111',
+    marginTop: 20,
+  },
+  emptySubtext: {
     fontSize: 14,
-    color: '#8A7D77',
-    fontFamily: 'serif',
-    marginTop: 10,
+    color: '#777',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+
+  /* CHAT ROOM VIEW */
+  chatRoomContainer: {
+    flex: 1,
+    backgroundColor: '#FFF',
+  },
+  chatHeader: {
+    height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5F5F7',
+    backgroundColor: '#FFF',
+    paddingHorizontal: 12,
+  },
+  chatHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  moreBtn: {
+    padding: 4,
+  },
+  backBtn: {
+    padding: 4,
+    marginRight: 6,
+  },
+  chatAvatarHeader: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFE6EF',
+  },
+  chatHeaderMeta: {
+    marginLeft: 10,
+    flex: 1,
+  },
+  chatHeaderName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111',
+  },
+  chatHeaderStatus: {
+    fontSize: 11,
+    color: '#8E8E93',
     fontWeight: '500',
+    marginTop: 2,
+  },
+  messagesFlow: {
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+  },
+  messageRow: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    width: '100%',
+    alignItems: 'flex-start',
+  },
+  messageRowClient: {
+    justifyContent: 'flex-end',
+  },
+  messageRowArtist: {
+    justifyContent: 'flex-start',
+  },
+  messageAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#FFE6EF',
+    marginRight: 8,
+    alignSelf: 'flex-start',
+  },
+  messageContentCol: {
+    maxWidth: '80%',
+  },
+  contentAlignLeft: {
+    alignItems: 'flex-start',
+  },
+  contentAlignRight: {
+    alignItems: 'flex-end',
+  },
+  messageBubble: {
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  bubbleClient: {
+    backgroundColor: '#FFEBF0',
+    borderTopRightRadius: 16,
+  },
+  bubbleArtist: {
+    backgroundColor: '#F4F5F7',
+    borderTopLeftRadius: 16,
+  },
+  messageText: {
+    fontSize: 14,
+    lineHeight: 19,
+  },
+  textClient: {
+    color: '#222',
+  },
+  textArtist: {
+    color: '#222',
+  },
+  messageTime: {
+    fontSize: 10,
+    alignSelf: 'flex-end',
+    marginTop: 4,
+  },
+  timeClient: {
+    color: '#8E8E93',
+  },
+  timeArtist: {
+    color: '#999',
+  },
+  imageContainerRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 4,
+  },
+  imagesAlignLeft: {
+    justifyContent: 'flex-start',
+  },
+  imagesAlignRight: {
+    justifyContent: 'flex-end',
+  },
+  messageImage: {
+    borderRadius: 12,
+  },
+  messageImageSingle: {
+    width: 200,
+    height: 150,
+  },
+  messageImageMultiple: {
+    width: 110,
+    height: 110,
+  },
+
+  /* INPUT BAR */
+  inputBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F5F5F7',
+    backgroundColor: '#FFF',
+  },
+  attachBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#F0F0F2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  inputWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F2F3F5',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    height: 40,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#222',
+    paddingVertical: 0,
+  },
+  sendBtn: {
+    backgroundColor: '#FF4F87',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 10,
+  },
+
+  /* BOTTOM SHEET MODAL */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  bottomSheet: {
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 24,
+  },
+  sheetTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  sheetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F7F7F7',
+  },
+  sheetBtnText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#333',
+    marginLeft: 14,
+  },
+  cancelBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F5F5F5',
+    borderRadius: 14,
+    height: 48,
+    marginTop: 18,
+  },
+  cancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#666',
   },
 });

@@ -6,6 +6,8 @@ import {
   listCustomerBookingsController,
   listArtistBookingsController,
   rejectBookingController,
+  startBookingController,
+  completeBookingController,
 } from "./booking.controller.js";
 import { protectCustomer } from "../../middleware/authMiddleware.js";
 import { protectArtist } from "../../middleware/artistAuth.js";
@@ -19,5 +21,7 @@ router.patch("/:id/cancel", protectCustomer, cancelBookingController);
 router.get("/artist", protectArtist, listArtistBookingsController);
 router.patch("/:id/accept", protectArtist, acceptBookingController);
 router.patch("/:id/reject", protectArtist, rejectBookingController);
+router.patch("/:id/start", protectArtist, startBookingController);
+router.patch("/:id/complete", protectArtist, completeBookingController);
 
 export default router;

@@ -1,3 +1,4 @@
+import bcrypt from "bcrypt";
 import sequelize from "../../config/db.js";
 import Artist from "../../models/Artist.js";
 import ArtistProfile from "../../models/ArtistProfile.js";
@@ -330,6 +331,19 @@ export const createArtistBlock = async (artistId, { date, time, reason }) => {
   if (!date || !time || !reason) {
     throw new Error("Date, time, and reason are required");
   }
+
+  const existingBlock = await ArtistBlock.findOne({
+    where: {
+      artistId,
+      date,
+      time,
+    },
+  });
+
+  if (existingBlock) {
+    throw new Error("You have already blocked this time slot.");
+  }
+
   const block = await ArtistBlock.create({
     artistId,
     date,
@@ -337,4 +351,26 @@ export const createArtistBlock = async (artistId, { date, time, reason }) => {
     reason,
   });
   return block;
+};
+
+export const changeArtistPassword = async (artistId, { currentPassword, newPassword }) => {
+  if (!currentPassword || !newPassword) {
+    throw new Error("Current password and new password are required");
+  }
+
+  const artist = await Artist.findByPk(artistId);
+  if (!artist) {
+    throw new Error("Artist not found");
+  }
+
+  const isMatch = await bcrypt.compare(currentPassword, artist.password);
+  if (!isMatch) {
+    throw new Error("Incorrect current password");
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+  artist.password = hashedPassword;
+  await artist.save();
+
+  return true;
 };

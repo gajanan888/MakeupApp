@@ -9,6 +9,8 @@ import adminAuthRoutes from "../modules/admin/auth.routes.js";
 import adminRoutes from "../modules/admin/admin.routes.js";
 import otpRoutes from "../modules/otp/otp.routes.js";
 import uploadRoutes from "../modules/upload/upload.routes.js";
+import messageRoutes from "../modules/message/message.routes.js";
+import wishlistRoutes from "../modules/customer/wishlist.routes.js";
 
 const router = express.Router();
 
@@ -21,5 +23,7 @@ router.use("/admin/auth", adminAuthRoutes);
 router.use("/admin", adminRoutes);
 router.use("/otp", otpRoutes);
 router.use("/upload", uploadRoutes);
+router.use("/messages", messageRoutes);
+router.use("/wishlist", wishlistRoutes);
 
 export default router;

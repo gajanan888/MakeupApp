@@ -11,13 +11,106 @@ import {
     ScrollView,
     Image,
     ActivityIndicator,
+    Platform,
+    PermissionsAndroid,
 } from 'react-native';
+import Geolocation from '@react-native-community/geolocation';
 import { getArtists } from '../../api/auth';
 
 const ClientHomeScreen = ({ navigation }) => {
     const [customerName, setCustomerName] = useState('');
     const [artists, setArtists] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [locationName, setLocationName] = useState('Detecting location...');
+    const [loadingLocation, setLoadingLocation] = useState(true);
+
+    useEffect(() => {
+        let active = true;
+
+        const requestLocationPermission = async () => {
+            if (Platform.OS === 'ios') {
+                return true;
+            }
+            try {
+                const granted = await PermissionsAndroid.request(
+                    PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+                    {
+                        title: 'Location Permission',
+                        message: 'App needs access to your location to show it on your dashboard.',
+                        buttonNeutral: 'Ask Me Later',
+                        buttonNegative: 'Cancel',
+                        buttonPositive: 'OK',
+                    }
+                );
+                return granted === PermissionsAndroid.RESULTS.GRANTED;
+            } catch (err) {
+                console.warn(err);
+                return false;
+            }
+        };
+
+        const fetchLocation = async () => {
+            const hasPermission = await requestLocationPermission();
+            if (!hasPermission) {
+                if (active) {
+                    setLocationName('Permission Denied');
+                    setLoadingLocation(false);
+                }
+                return;
+            }
+
+            Geolocation.getCurrentPosition(
+                async (position) => {
+                    const { latitude, longitude } = position.coords;
+                    try {
+                        const response = await fetch(
+                            `https://api.geoapify.com/v1/geocode/reverse?lat=${latitude}&lon=${longitude}&apiKey=60988df054524262b847818891916f3e`
+                        );
+                        const data = await response.json();
+                        if (active) {
+                            if (data && data.features && data.features.length > 0) {
+                                const props = data.features[0].properties;
+                                const city = props.city || props.county || props.state || '';
+                                const suburb = props.suburb || props.district || props.neighbourhood || '';
+                                let displayLoc = '';
+                                if (suburb && city) {
+                                    displayLoc = `${suburb}, ${city}`;
+                                } else if (city) {
+                                    displayLoc = city;
+                                } else {
+                                    displayLoc = props.formatted || 'Location detected';
+                                }
+                                setLocationName(displayLoc);
+                            } else {
+                                setLocationName(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+                            }
+                            setLoadingLocation(false);
+                        }
+                    } catch (error) {
+                        console.error(error);
+                        if (active) {
+                            setLocationName(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+                            setLoadingLocation(false);
+                        }
+                    }
+                },
+                (error) => {
+                    console.error(error);
+                    if (active) {
+                        setLocationName('Unavailable');
+                        setLoadingLocation(false);
+                    }
+                },
+                { enableHighAccuracy: false, timeout: 15000, maximumAge: 10000 }
+            );
+        };
+
+        fetchLocation();
+
+        return () => {
+            active = false;
+        };
+    }, []);
 
     useEffect(() => {
         // Load customer name from storage
@@ -58,9 +151,16 @@ const ClientHomeScreen = ({ navigation }) => {
                                 Hello, {customerName || 'there'} 👋
                             </Text>
 
-                            <Text style={styles.subGreeting}>
-                                What are we doing today?
-                            </Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                                {loadingLocation ? (
+                                    <ActivityIndicator size="small" color="#FF4F87" style={{ marginRight: 4, transform: [{ scale: 0.7 }] }} />
+                                ) : (
+                                    <Ionicons name="location-outline" size={14} color="#FF4F87" style={{ marginRight: 2 }} />
+                                )}
+                                <Text style={styles.subGreeting}>
+                                    {locationName}
+                                </Text>
+                            </View>
                         </View>
 
                         <TouchableOpacity style={styles.notificationButton}>
@@ -110,11 +210,15 @@ const ClientHomeScreen = ({ navigation }) => {
                                 Find your perfect makeup artist with AI recommendations
                             </Text>
 
-                            <TouchableOpacity style={styles.tryNowButton}>
+                            <TouchableOpacity
+                                style={styles.tryNowButton}
+                                onPress={() => navigation.navigate('AIMatch')}
+                            >
                                 <Text style={styles.tryNowText}>
                                     Try Now
                                 </Text>
                             </TouchableOpacity>
+
 
                         </View>
 
@@ -213,22 +317,45 @@ const ClientHomeScreen = ({ navigation }) => {
                                     onPress={() => navigation.navigate('ArtistDetails', { artist })}
                                 >
                                     <View style={styles.artistImagePlaceholder}>
-                                        <Ionicons name="person" size={40} color="#FF4F87" />
+                                        {artist.profile?.profileImage ? (
+                                            <Image
+                                                source={{ uri: artist.profile.profileImage }}
+                                                style={styles.artistProfileImage}
+                                            />
+                                        ) : (
+                                            <View style={styles.artistInitialsCircle}>
+                                                <Text style={styles.artistInitialsText}>
+                                                    {artist.name?.charAt(0)?.toUpperCase() || 'A'}
+                                                </Text>
+                                            </View>
+                                        )}
+                                        {/* Gradient overlay */}
+                                        <View style={styles.imageGradientOverlay} />
                                     </View>
+                                    {/* Rating badge */}
+                                    <View style={styles.ratingBadge}>
+                                        <Ionicons name="star" size={12} color="#FFB800" />
+                                        <Text style={styles.ratingBadgeText}>
+                                            {artist.profile?.experience ? `${artist.profile.experience}` : '4.5'}
+                                        </Text>
+                                    </View>
+                                    {/* Heart button */}
                                     <TouchableOpacity style={styles.favoriteButton}>
-                                        <Ionicons name="heart-outline" size={22} color="#FF4F87" />
+                                        <Ionicons name="heart-outline" size={20} color="#FF4F87" />
                                     </TouchableOpacity>
                                     <View style={styles.artistInfo}>
-                                        <Text style={styles.artistName}>{artist.name}</Text>
-                                        <Text style={styles.artistLocation}>
-                                            {artist.profile?.location || 'India'}
-                                        </Text>
-                                        <Text style={styles.artistSpeciality}>
-                                            {artist.specializations?.[0]?.name || 'Makeup Artist'}
-                                        </Text>
-                                        <Text style={styles.artistPrice}>
-                                            {artist.services?.[0]?.priceRange || `${artist.profile?.experience || ''}+ yrs exp`}
-                                        </Text>
+                                        <Text style={styles.artistName} numberOfLines={1}>{artist.name}</Text>
+                                        <View style={styles.locationRow}>
+                                            <Ionicons name="location-outline" size={13} color="#999" />
+                                            <Text style={styles.artistLocation} numberOfLines={1}>
+                                                {artist.profile?.location || 'India'}
+                                            </Text>
+                                        </View>
+                                        <View style={styles.specialistChip}>
+                                            <Text style={styles.specialistChipText}>
+                                                {artist.specializations?.[0]?.name || 'Makeup Artist'}
+                                            </Text>
+                                        </View>
                                     </View>
                                 </TouchableOpacity>
                             ))}
@@ -252,20 +379,39 @@ const ClientHomeScreen = ({ navigation }) => {
                             onPress={() => navigation.navigate('ArtistDetails', { artist })}
                         >
                             <View style={styles.popularImage}>
-                                <Ionicons name="person" size={30} color="#FF4F87" />
+                                {artist.profile?.profileImage ? (
+                                    <Image
+                                        source={{ uri: artist.profile.profileImage }}
+                                        style={styles.popularProfileImage}
+                                    />
+                                ) : (
+                                    <Text style={styles.popularInitials}>
+                                        {artist.name?.charAt(0)?.toUpperCase() || 'A'}
+                                    </Text>
+                                )}
                             </View>
                             <View style={styles.popularInfo}>
-                                <Text style={styles.popularName}>{artist.name}</Text>
-                                <Text style={styles.popularSpeciality}>
-                                    {artist.specializations?.[0]?.name || 'Makeup Artist'}
-                                </Text>
-                                <Text style={styles.popularRating}>
-                                    ⭐ {artist.profile?.experience ? `${artist.profile.experience} yrs exp` : 'New'}
+                                <Text style={styles.popularName} numberOfLines={1}>{artist.name}</Text>
+                                <View style={styles.popularSpecChipRow}>
+                                    <View style={styles.popularSpecChip}>
+                                        <Text style={styles.popularSpecChipText}>
+                                            {artist.specializations?.[0]?.name || 'Makeup Artist'}
+                                        </Text>
+                                    </View>
+                                </View>
+                                <View style={styles.popularMetaRow}>
+                                    <Ionicons name="location-outline" size={12} color="#999" />
+                                    <Text style={styles.popularLocationText} numberOfLines={1}>
+                                        {artist.profile?.location || 'India'}
+                                    </Text>
+                                </View>
+                            </View>
+                            <View style={styles.popularRatingBox}>
+                                <Ionicons name="star" size={14} color="#FFB800" />
+                                <Text style={styles.popularRatingText}>
+                                    {artist.profile?.experience || '4.5'}
                                 </Text>
                             </View>
-                            <Text style={styles.popularPrice}>
-                                {artist.services?.[0]?.priceRange || 'Contact'}
-                            </Text>
                         </TouchableOpacity>
                     ))}
 
@@ -306,9 +452,9 @@ const styles = StyleSheet.create({
     },
 
     subGreeting: {
-        fontSize: 15,
+        fontSize: 14,
         color: '#777',
-        marginTop: 4,
+        fontWeight: '500',
     },
 
     notificationButton: {
@@ -441,19 +587,122 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
         borderRadius: 20,
         overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: '#F2F2F2',
         marginBottom: 20,
-        elevation: 2,
-        width: 260,
+        elevation: 4,
+        shadowColor: '#FF4F87',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.10,
+        shadowRadius: 12,
+        width: 220,
         marginRight: 16,
     },
 
     artistImagePlaceholder: {
-        height: 180,
+        height: 200,
         backgroundColor: '#F5F5F5',
         justifyContent: 'center',
         alignItems: 'center',
+        overflow: 'hidden',
+    },
+
+    artistProfileImage: {
+        width: '100%',
+        height: '100%',
+        resizeMode: 'cover',
+    },
+
+    artistInitialsCircle: {
+        width: 70,
+        height: 70,
+        borderRadius: 35,
+        backgroundColor: '#FFE6EF',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+
+    artistInitialsText: {
+        fontSize: 28,
+        fontWeight: '700',
+        color: '#FF4F87',
+    },
+
+    imageGradientOverlay: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: 60,
+        backgroundColor: 'rgba(0,0,0,0.08)',
+    },
+
+    ratingBadge: {
+        position: 'absolute',
+        top: 12,
+        left: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.92)',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 10,
+        gap: 3,
+    },
+
+    ratingBadgeText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#333',
+    },
+
+    favoriteButton: {
+        position: 'absolute',
+        top: 12,
+        right: 12,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: 'rgba(255,255,255,0.92)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        elevation: 2,
+    },
+
+    artistInfo: {
+        padding: 14,
+    },
+
+    artistName: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#111',
+    },
+
+    locationRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 4,
+        gap: 2,
+    },
+
+    artistLocation: {
+        fontSize: 12,
+        color: '#999',
+        marginLeft: 2,
+    },
+
+    specialistChip: {
+        alignSelf: 'flex-start',
+        backgroundColor: '#FFF0F5',
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 8,
+        marginTop: 8,
+    },
+
+    specialistChipText: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: '#FF4F87',
     },
 
     placeholderText: {
@@ -464,45 +713,6 @@ const styles = StyleSheet.create({
         width: '100%',
         height: 220,
         resizeMode: 'cover',
-    },
-
-    favoriteButton: {
-        position: 'absolute',
-        top: 12,
-        right: 12,
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#FFFFFF',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-
-    artistInfo: {
-        padding: 16,
-    },
-
-    artistName: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#111',
-    },
-
-    artistPrice: {
-        marginTop: 8,
-        color: '#FF4F87',
-        fontWeight: '700',
-        fontSize: 16,
-    },
-
-    artistLocation: {
-        marginTop: 6,
-        color: '#666',
-    },
-
-    artistSpeciality: {
-        marginTop: 8,
-        color: '#888',
     },
 
     popularCard: {
@@ -518,12 +728,26 @@ const styles = StyleSheet.create({
     },
 
     popularImage: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
+        width: 56,
+        height: 56,
+        borderRadius: 16,
         backgroundColor: '#FFE6EF',
         justifyContent: 'center',
         alignItems: 'center',
+        overflow: 'hidden',
+    },
+
+    popularProfileImage: {
+        width: 56,
+        height: 56,
+        borderRadius: 16,
+        resizeMode: 'cover',
+    },
+
+    popularInitials: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#FF4F87',
     },
 
     popularInfo: {
@@ -532,24 +756,56 @@ const styles = StyleSheet.create({
     },
 
     popularName: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '700',
         color: '#111',
     },
 
-    popularSpeciality: {
+    popularSpecChipRow: {
+        flexDirection: 'row',
         marginTop: 4,
-        color: '#777',
     },
 
-    popularRating: {
-        marginTop: 6,
-        color: '#666',
+    popularSpecChip: {
+        backgroundColor: '#FFF0F5',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 6,
     },
 
-    popularPrice: {
+    popularSpecChipText: {
+        fontSize: 11,
+        fontWeight: '600',
         color: '#FF4F87',
+    },
+
+    popularMetaRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 4,
+        gap: 2,
+    },
+
+    popularLocationText: {
+        fontSize: 12,
+        color: '#999',
+        marginLeft: 2,
+    },
+
+    popularRatingBox: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFBF0',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+        gap: 3,
+    },
+
+    popularRatingText: {
+        fontSize: 13,
         fontWeight: '700',
+        color: '#333',
     },
 
     bottomNav: {

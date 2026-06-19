@@ -24,7 +24,16 @@ import CreateNewPasswordScreen from '../screens/common/CreateNewPasswordScreen';
 import SearchScreen from '../screens/client/SearchScreen';
 import ArtistDetailsScreen from '../screens/client/ArtistDetailsScreen';
 import BookAppointmentScreen from '../screens/client/BookAppointmentScreen';
+import CustomerBookingsScreen from '../screens/client/CustomerBookingsScreen';
 import ArtistMessageScreen from '../screens/artist/ArtistMessageScreen';
+import CustomerMessageScreen from '../screens/client/CustomerMessageScreen';
+import ProfileScreen from '../screens/client/ProfileScreen';
+import AIMatchScreen from '../screens/client/AIMatchScreen';
+import SelectDateTimeScreen from '../screens/client/SelectDateTimeScreen';
+import AddOnsScreen from '../screens/client/AddOnsScreen';
+import BookingConfirmationScreen from '../screens/client/BookingConfirmationScreen';
+import PaymentScreen from '../screens/client/PaymentScreen';
+import BookingSuccessScreen from '../screens/client/BookingSuccessScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -145,6 +154,43 @@ const AppNavigator = () => {
         <Stack.Screen
           name="BookAppointment"
           component={BookAppointmentScreen}
+        />
+
+        <Stack.Screen
+          name="CustomerBookings"
+          component={CustomerBookingsScreen}
+        />
+        <Stack.Screen
+          name="CustomerMessage"
+          component={CustomerMessageScreen}
+        />
+        <Stack.Screen
+          name="CustomerProfile"
+          component={ProfileScreen}
+        />
+        <Stack.Screen
+          name="AIMatch"
+          component={AIMatchScreen}
+        />
+        <Stack.Screen
+          name="SelectDateTime"
+          component={SelectDateTimeScreen}
+        />
+        <Stack.Screen
+          name="AddOns"
+          component={AddOnsScreen}
+        />
+        <Stack.Screen
+          name="BookingConfirmation"
+          component={BookingConfirmationScreen}
+        />
+        <Stack.Screen
+          name="Payment"
+          component={PaymentScreen}
+        />
+        <Stack.Screen
+          name="BookingSuccess"
+          component={BookingSuccessScreen}
         />
       </Stack.Navigator>
     </NavigationContainer>

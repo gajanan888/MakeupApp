@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,78 +8,174 @@ import {
   Image,
   Platform,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
-
-const BOOKINGS_DATA = [
-  {
-    id: '1',
-    name: 'Sophia Laurent',
-    category: 'Bridal Makeup',
-    date: '16 May 2024 • 10:00 AM',
-    location: 'At Client Location',
-    price: '$320',
-    status: 'Upcoming',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=200',
-  },
-  {
-    id: '2',
-    name: 'Anastasia Beverly',
-    category: 'Party Makeup',
-    date: '18 May 2024 • 02:00 PM',
-    location: 'At Artist Studio',
-    price: '$150',
-    status: 'Upcoming',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200',
-  },
-  {
-    id: '3',
-    name: 'Mia Makeup',
-    category: 'Photoshoot Makeup',
-    date: '20 May 2024 • 11:00 AM',
-    location: 'At Client Location',
-    price: '$200',
-    status: 'Upcoming',
-    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200',
-  },
-  {
-    id: '4',
-    name: 'Daniela Rose',
-    category: 'Engagement Makeup',
-    date: '10 May 2024 • 04:00 PM',
-    location: 'At Artist Studio',
-    price: '$250',
-    status: 'Completed',
-    avatar: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?q=80&w=200',
-  },
-];
+import { useNavigation } from '@react-navigation/native';
+import {
+  getArtistBookings,
+  acceptArtistBooking,
+  rejectArtistBooking,
+  startArtistBooking,
+  completeArtistBooking,
+} from '../../api/auth';
+import ArtistBookingDetailModal from './ArtistBookingDetailModal';
 
 const ArtistBookingScreen = ({ onBack }) => {
+  const navigation = useNavigation();
   const [activeSubTab, setActiveSubTab] = useState('Upcoming');
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedBooking, setSelectedBooking] = useState(null);
 
-  const filteredBookings = BOOKINGS_DATA.filter(booking => booking.status === activeSubTab);
+  const fetchBookings = async () => {
+    try {
+      setLoading(true);
+      const data = await getArtistBookings();
+      
+      const mapped = data.map(b => {
+        let mappedStatus = 'Upcoming';
+        if (b.status === 'completed') {
+          mappedStatus = 'Completed';
+        } else if (b.status === 'cancelled' || b.status === 'rejected') {
+          mappedStatus = 'Cancelled';
+        }
 
-  const getStatusStyle = (status) => {
+        const avatars = [
+          'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=200',
+          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200',
+          'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200',
+          'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?q=80&w=200',
+        ];
+        const avatar = avatars[Number(b.customerId) % avatars.length];
+
+        let dateText = '';
+        if (b.date) {
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          const parts = b.date.split('-');
+          if (parts.length === 3) {
+            const year = parts[0];
+            const month = months[parseInt(parts[1], 10) - 1] || 'Jan';
+            const day = parseInt(parts[2], 10);
+            dateText = `${day} ${month} ${year}`;
+          } else {
+            dateText = b.date;
+          }
+        }
+        const formattedDate = b.time ? `${dateText} • ${b.time}` : dateText;
+
+        return {
+          id: String(b.id),
+          customerId: b.customerId,
+          name: b.customer?.name || 'Client',
+          category: b.category || 'Makeup Service',
+          date: formattedDate,
+          location: 'At Client Location',
+          price: `$${b.price || 0}`,
+          status: mappedStatus,
+          rawStatus: b.status,
+          phone: b.customer?.phone || '',
+          address: b.customer?.profile?.location || 'At Client Location',
+          avatar,
+        };
+      });
+
+      setBookings(mapped);
+    } catch (error) {
+      console.warn('Failed to fetch bookings:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBookings();
+  }, []);
+
+  const handleAccept = async (bookingId) => {
+    try {
+      await acceptArtistBooking(bookingId);
+      await fetchBookings();
+    } catch (error) {
+      console.warn('Failed to accept booking:', error);
+    }
+  };
+
+  const handleReject = async (bookingId) => {
+    try {
+      await rejectArtistBooking(bookingId);
+      await fetchBookings();
+    } catch (error) {
+      console.warn('Failed to reject booking:', error);
+    }
+  };
+
+  const handleStart = async (bookingId) => {
+    try {
+      await startArtistBooking(bookingId);
+      await fetchBookings();
+    } catch (error) {
+      console.warn('Failed to start booking:', error);
+    }
+  };
+
+  const handleComplete = async (bookingId) => {
+    try {
+      await completeArtistBooking(bookingId);
+      await fetchBookings();
+    } catch (error) {
+      console.warn('Failed to complete booking:', error);
+    }
+  };
+
+  const filteredBookings = bookings.filter(booking => booking.status === activeSubTab);
+
+  const getStatusStyle = (status, rawStatus) => {
+    if (rawStatus === 'in_progress') {
+      return {
+        bg: '#FFF7E6',
+        text: '#D46B08',
+        label: 'In Progress',
+      };
+    }
+    if (rawStatus === 'accepted') {
+      return {
+        bg: '#E6F7FF',
+        text: '#0050B3',
+        label: 'Confirmed',
+      };
+    }
+    if (rawStatus === 'pending') {
+      return {
+        bg: '#F9F0FF',
+        text: '#531DAB',
+        label: 'Pending',
+      };
+    }
     switch (status) {
       case 'Upcoming':
         return {
           bg: '#E6F4FF',
           text: '#0958D9',
+          label: 'Upcoming',
         };
       case 'Completed':
         return {
           bg: '#F6FFED',
           text: '#389E0D',
+          label: 'Completed',
         };
       case 'Cancelled':
         return {
           bg: '#FFF1F0',
           text: '#CF1322',
+          label: 'Cancelled',
         };
       default:
         return {
           bg: '#F5F5F5',
           text: '#555555',
+          label: status,
         };
     }
   };
@@ -118,55 +214,106 @@ const ArtistBookingScreen = ({ onBack }) => {
       </View>
 
       {/* BOOKINGS LIST */}
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContainer}
-      >
-        {filteredBookings.length > 0 ? (
-          filteredBookings.map(booking => {
-            const badgeColors = getStatusStyle(booking.status);
-            return (
-              <View key={booking.id} style={styles.bookingCard}>
-                <Image
-                  source={{ uri: booking.avatar }}
-                  style={styles.clientAvatar}
-                />
+      {loading ? (
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color="#FF4F8F" />
+        </View>
+      ) : (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContainer}
+        >
+          {filteredBookings.length > 0 ? (
+            filteredBookings.map(booking => {
+              const badgeColors = getStatusStyle(booking.status, booking.rawStatus);
+              return (
+                <TouchableOpacity key={booking.id} style={styles.bookingCard} onPress={() => setSelectedBooking(booking)}>
+                  <Image
+                    source={{ uri: booking.avatar }}
+                    style={styles.clientAvatar}
+                  />
 
-                <View style={styles.bookingDetails}>
-                  <Text style={styles.clientName}>{booking.name}</Text>
-                  <Text style={styles.bookingCategory}>{booking.category}</Text>
-                  
-                  <View style={styles.bookingMetaRow}>
-                    <Ionicons name="calendar-outline" size={12} color="#777" />
-                    <Text style={styles.bookingMetaText}>{booking.date}</Text>
+                  <View style={styles.bookingDetails}>
+                    <Text style={styles.clientName}>{booking.name}</Text>
+                    <Text style={styles.bookingCategory}>{booking.category}</Text>
+                    
+                    <View style={styles.bookingMetaRow}>
+                      <Ionicons name="calendar-outline" size={12} color="#777" />
+                      <Text style={styles.bookingMetaText}>{booking.date}</Text>
+                    </View>
+
+                    <View style={styles.bookingMetaRow}>
+                      <Ionicons name="location-outline" size={12} color="#777" />
+                      <Text style={styles.bookingMetaText}>{booking.location}</Text>
+                    </View>
+
+                    <Text style={styles.bookingPrice}>{booking.price}</Text>
+
+                    {booking.status === 'Upcoming' && (
+                      <View style={styles.cardActionsContainer}>
+                        {booking.rawStatus === 'pending' && (
+                          <>
+                            <TouchableOpacity
+                              style={[styles.actionBtn, styles.acceptBtn]}
+                              onPress={() => handleAccept(booking.id)}
+                            >
+                              <Text style={styles.actionBtnText}>Accept</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={[styles.actionBtn, styles.rejectBtn]}
+                              onPress={() => handleReject(booking.id)}
+                            >
+                              <Text style={[styles.actionBtnText, styles.rejectBtnText]}>Reject</Text>
+                            </TouchableOpacity>
+                          </>
+                        )}
+                        {booking.rawStatus === 'accepted' && (
+                          <TouchableOpacity
+                            style={[styles.actionBtn, styles.startBtn]}
+                            onPress={() => handleStart(booking.id)}
+                          >
+                            <Text style={styles.actionBtnText}>Start Service</Text>
+                          </TouchableOpacity>
+                        )}
+                        {booking.rawStatus === 'in_progress' && (
+                          <TouchableOpacity
+                            style={[styles.actionBtn, styles.completeBtn]}
+                            onPress={() => handleComplete(booking.id)}
+                          >
+                            <Text style={styles.actionBtnText}>Complete Service</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    )}
                   </View>
 
-                  <View style={styles.bookingMetaRow}>
-                    <Ionicons name="location-outline" size={12} color="#777" />
-                    <Text style={styles.bookingMetaText}>{booking.location}</Text>
+                  <View style={styles.bookingBadgeContainer}>
+                    <View style={[styles.statusBadge, { backgroundColor: badgeColors.bg }]}>
+                      <Text style={[styles.statusBadgeText, { color: badgeColors.text }]}>
+                        {badgeColors.label}
+                      </Text>
+                    </View>
                   </View>
+                </TouchableOpacity>
+              );
+            })
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="calendar-clear-outline" size={56} color="#CCCCCC" />
+              <Text style={styles.emptyTitle}>No {activeSubTab} Bookings</Text>
+              <Text style={styles.emptySubtitle}>You don't have any bookings listed as {activeSubTab.toLowerCase()} yet.</Text>
+            </View>
+          )}
+        </ScrollView>
+      )}
 
-                  <Text style={styles.bookingPrice}>{booking.price}</Text>
-                </View>
-
-                <View style={styles.bookingBadgeContainer}>
-                  <View style={[styles.statusBadge, { backgroundColor: badgeColors.bg }]}>
-                    <Text style={[styles.statusBadgeText, { color: badgeColors.text }]}>
-                      {booking.status}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            );
-          })
-        ) : (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="calendar-clear-outline" size={56} color="#CCCCCC" />
-            <Text style={styles.emptyTitle}>No {activeSubTab} Bookings</Text>
-            <Text style={styles.emptySubtitle}>You don't have any bookings listed as {activeSubTab.toLowerCase()} yet.</Text>
-          </View>
-        )}
-      </ScrollView>
+      <ArtistBookingDetailModal 
+        visible={selectedBooking !== null} 
+        onClose={() => setSelectedBooking(null)} 
+        booking={selectedBooking} 
+        onStatusUpdate={fetchBookings} 
+        onChatPress={(b) => navigation.navigate('ArtistMessage', { customerId: b.customerId })} 
+      />
     </View>
   );
 };
@@ -341,6 +488,48 @@ const styles = StyleSheet.create({
     marginTop: 8,
     lineHeight: 20,
     fontFamily: 'serif',
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardActionsContainer: {
+    flexDirection: 'row',
+    marginTop: 8,
+  },
+  actionBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  actionBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFF',
+    fontFamily: 'serif',
+  },
+  acceptBtn: {
+    backgroundColor: '#389E0D',
+  },
+  rejectBtn: {
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: '#CF1322',
+  },
+  rejectBtnText: {
+    color: '#CF1322',
+  },
+  startBtn: {
+    backgroundColor: '#FF4F8F',
+    flex: 1,
+  },
+  completeBtn: {
+    backgroundColor: '#389E0D',
+    flex: 1,
   },
 });
 

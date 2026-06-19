@@ -4,6 +4,7 @@ import {
   getArtistDashboardStats,
   getArtistSchedule,
   createArtistBlock,
+  changeArtistPassword,
 } from "./artist.service.js";
 
 export const getArtistProfileController = async (req, res) => {
@@ -86,6 +87,27 @@ export const createArtistBlockController = async (req, res) => {
     res.status(400).json({
       success: false,
       message: error.message || "Failed to create block",
+      data: null,
+    });
+  }
+};
+
+export const changeArtistPasswordController = async (req, res) => {
+  try {
+    const artistId = req.artist.id;
+    const { currentPassword, newPassword } = req.body;
+
+    await changeArtistPassword(artistId, { currentPassword, newPassword });
+
+    res.json({
+      success: true,
+      message: "Password updated successfully",
+      data: null,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message || "Failed to update password",
       data: null,
     });
   }

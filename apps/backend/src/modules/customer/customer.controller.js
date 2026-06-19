@@ -14,7 +14,11 @@ export const getProfile = async (req, res) => {
 export const updateProfile = async (req, res) => {
   try {
     const customer = req.customer;
-    const { name, email, phone } = req.body;
+    const { name, email, phone, profileImage } = req.body;
+
+    if (profileImage !== undefined) {
+      customer.profileImage = profileImage;
+    }
 
     if (name !== undefined) {
       const trimmedName = String(name).trim();

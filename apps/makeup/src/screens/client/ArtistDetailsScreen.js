@@ -2,685 +2,547 @@ import React, { useState } from 'react';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import {
-    View,
-    Text,
-    Image,
-    ScrollView,
-    TouchableOpacity,
-    StyleSheet,
-    Modal,
+  View,
+  Text,
+  Image,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  Modal,
 } from 'react-native';
 
 const ArtistDetailsScreen = ({ route, navigation }) => {
-
-    const [showImageModal, setShowImageModal] = useState(false);
-    const [selectedImage, setSelectedImage] = useState(null);
-    const [selectedIndex, setSelectedIndex] = useState(0);
-    const [liked, setLiked] = useState(false);
-    const { artist } = route.params;
-    const [activeTab, setActiveTab] = useState('About');
-
-
-    return (
-        <View style={styles.container}>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-
-                {/* Hero Image */}
-
-                <View>
-
-                    {artist.image ? (
-                        <Image
-                            source={artist.image}
-                            style={styles.heroImage}
-                        />
-                    ) : (
-                        <View style={[styles.heroImage, styles.heroImagePlaceholder]}>
-                            <Ionicons name="person" size={80} color="#FF4F87" />
-                        </View>
-                    )}
-
-                    <TouchableOpacity
-                        style={styles.backButton}
-                        onPress={() => navigation.goBack()}
-                    >
-                        <Ionicons
-                            name="chevron-back"
-                            size={24}
-                            color="#111"
-                        />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={styles.favoriteButton}
-                        onPress={() => setLiked(!liked)}
-                    >
-
-                        <Ionicons
-                            name={
-                                liked
-                                    ? 'heart'
-                                    : 'heart-outline'
-                            }
-                            size={24}
-                            color={
-                                liked
-                                    ? '#FF4F87'
-                                    : '#999'
-                            }
-                        />
-
-                    </TouchableOpacity>
-
-                </View>
-
-                {/* Content Card */}
-
-                <View style={styles.contentContainer}>
-
-                    <Text style={styles.artistName}>
-                        {artist.name}
-                    </Text>
-
-                    <Text style={styles.speciality}>
-                        {artist.speciality || artist.specializations?.[0]?.name || 'Makeup Artist'}
-                    </Text>
-
-                    <View style={styles.ratingRow}>
-
-                        <Ionicons
-                            name="star"
-                            size={14}
-                            color="#F5B301"
-                        />
-
-                        <Text style={styles.ratingText}>
-                            {artist.rating || '4.8'}
-                        </Text>
-
-                        <Text style={styles.separator}>
-                            •
-                        </Text>
-
-                        <Text style={styles.locationText}>
-                            {artist.profile?.location || 'India'}
-                        </Text>
-
-                    </View>
-
-                    {/* Tabs */}
-
-                    <View style={styles.tabsContainer}>
-
-                        {['About', 'Services', 'Reviews', 'Portfolio'].map(tab => (
-
-                            <TouchableOpacity
-                                key={tab}
-                                onPress={() => setActiveTab(tab)}
-                                style={styles.tabButton}
-                            >
-
-                                <Text
-                                    style={[
-                                        styles.tabText,
-                                        activeTab === tab &&
-                                        styles.activeTabText,
-                                    ]}
-                                >
-                                    {tab}
-                                </Text>
-
-                                {activeTab === tab && (
-                                    <View style={styles.activeLine} />
-                                )}
-
-                            </TouchableOpacity>
-
-                        ))}
-
-                    </View>
-
-
-                    {/* Dynamic Content */}
-
-                    {activeTab === 'About' && (
-
-
-
-                        <>
-
-                            <View style={styles.infoSection}>
-
-                                <View style={styles.infoRow}>
-                                    <Ionicons
-                                        name="briefcase-outline"
-                                        size={18}
-                                        color="#666"
-                                    />
-                                    <Text style={styles.infoLabel}>
-                                        Experience
-                                    </Text>
-
-                                    <Text style={styles.infoValue}>
-                                        {artist.profile?.experience ? `${artist.profile.experience}+ Years` : '8+ Years'}
-                                    </Text>
-                                </View>
-
-                                <View style={styles.infoRow}>
-                                    <Ionicons
-                                        name="cash-outline"
-                                        size={18}
-                                        color="#666"
-                                    />
-                                    <Text style={styles.infoLabel}>
-                                        Price Range
-                                    </Text>
-
-                                    <Text style={styles.infoValue}>
-                                        {artist.services?.[0]?.priceRange || 'Contact for pricing'}
-                                    </Text>
-                                </View>
-
-                                <View style={styles.infoRow}>
-                                    <Ionicons
-                                        name="time-outline"
-                                        size={18}
-                                        color="#666"
-                                    />
-                                    <Text style={styles.infoLabel}>
-                                        Response Time
-                                    </Text>
-
-                                    <Text style={styles.infoValue}>
-                                        10 mins
-                                    </Text>
-                                </View>
-
-                                <View style={styles.infoRow}>
-                                    <Ionicons
-                                        name="language-outline"
-                                        size={18}
-                                        color="#666"
-                                    />
-                                    <Text style={styles.infoLabel}>
-                                        Languages
-                                    </Text>
-
-                                    <Text style={styles.infoValue}>
-                                        English, Hindi
-                                    </Text>
-                                </View>
-
-                            </View>
-                            <Text style={styles.sectionTitle}>
-                                About Me
-                            </Text>
-
-                            <Text style={styles.aboutText}>
-                                {artist.profile?.bio || 'Passionate makeup artist specializing in bridal looks, party makeup, HD makeup and photoshoot styling. Dedicated to making every client feel confident and beautiful.'}
-                            </Text>
-                        </>
-
-                    )}
-
-                    {activeTab === 'Services' && (
-
-                        <View style={styles.servicesContainer}>
-
-                            {artist.services && artist.services.length > 0 ? (
-                                artist.services.map(service => (
-                                    <View
-                                        key={service.id || service.specialization}
-                                        style={styles.serviceChip}
-                                    >
-                                        <Text style={styles.serviceText}>
-                                            {service.specialization} ({service.priceRange})
-                                        </Text>
-                                    </View>
-                                ))
-                            ) : (
-                                (artist.specializations || []).map((spec, idx) => (
-                                    <View
-                                        key={spec.id || idx}
-                                        style={styles.serviceChip}
-                                    >
-                                        <Text style={styles.serviceText}>
-                                            {spec.name || spec}
-                                        </Text>
-                                    </View>
-                                ))
-                            )}
-
-                        </View>
-
-                    )}
-
-                    {activeTab === 'Reviews' && (
-
-                        <>
-                            <View style={styles.reviewCard}>
-                                <Text style={styles.reviewName}>
-                                    Priya Sharma
-                                </Text>
-
-                                <Text>
-                                    ⭐⭐⭐⭐⭐
-                                </Text>
-
-                                <Text style={styles.reviewText}>
-                                    Amazing bridal makeup and very professional.
-                                </Text>
-                            </View>
-
-                            <View style={styles.reviewCard}>
-                                <Text style={styles.reviewName}>
-                                    Sneha Patil
-                                </Text>
-
-                                <Text>
-                                    ⭐⭐⭐⭐⭐
-                                </Text>
-
-                                <Text style={styles.reviewText}>
-                                    Excellent service and beautiful finishing.
-                                </Text>
-                            </View>
-                        </>
-
-                    )}
-
-                    {activeTab === 'Portfolio' && (
-
-                        <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                        >
-
-                            {artist.portfolio && artist.portfolio.length > 0 ? (
-                                artist.portfolio.map((image, index) => (
-
-                                    <TouchableOpacity
-                                        key={index}
-                                        onPress={() => {
-                                            setSelectedImage(image);
-                                            setSelectedIndex(index);
-                                            setShowImageModal(true);
-
-                                        }}
-                                    >
-
-                                        <Image
-                                            source={image}
-                                            style={styles.portfolioImage}
-                                        />
-
-
-                                    </TouchableOpacity>
-
-                                ))
-                            ) : (
-                                <Text style={{ color: '#999', paddingVertical: 20 }}>
-                                    No portfolio images uploaded yet.
-                                </Text>
-                            )}
-
-                        </ScrollView>
-
-                    )}
-
-
-
-                </View>
-
-            </ScrollView>
-
-            <Modal
-                visible={showImageModal}
-                transparent={false}
-                animationType="fade"
-            >
-
-                <View style={styles.imageModalContainer}>
-
-                    <Text style={styles.imageCounter}>
-                        {selectedIndex + 1} / {artist.portfolio?.length || 0}
-                    </Text>
-
-                    <TouchableOpacity
-                        style={styles.closeButton}
-                        onPress={() => setShowImageModal(false)}
-                    >
-                        <Ionicons
-                            name="close"
-                            size={30}
-                            color="#FFF"
-                        />
-                    </TouchableOpacity>
-
-                    <Image
-                        source={selectedImage}
-                        style={styles.fullScreenImage}
-                        resizeMode="contain"
-                    />
-
-                </View>
-
-            </Modal>
-
-            <View style={styles.bottomContainer}>
-
-                <TouchableOpacity
-                    style={styles.bookButton}
-                    onPress={() =>
-                        navigation.navigate(
-                            'BookAppointment',
-                            { artist }
-                        )
-                    }
-                >
-                    <Text style={styles.bookButtonText}>
-                        Book Now
-                    </Text>
-                </TouchableOpacity>
-
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [liked, setLiked] = useState(false);
+  const { artist } = route.params;
+  const [activeTab, setActiveTab] = useState('About');
+  const heroImageUri =
+    artist.profile?.profileImage ||
+    (typeof artist.image === 'string' ? artist.image : artist.image?.uri);
+
+  return (
+    <View style={styles.container}>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Hero Image */}
+
+        <View>
+          {heroImageUri ? (
+            <Image source={{ uri: heroImageUri }} style={styles.heroImage} />
+          ) : (
+            <View style={[styles.heroImage, styles.heroImagePlaceholder]}>
+              <Ionicons name="person" size={80} color="#FF4F87" />
             </View>
+          )}
 
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="chevron-back" size={24} color="#111" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.favoriteButton}
+            onPress={() => setLiked(!liked)}
+          >
+            <Ionicons
+              name={liked ? 'heart' : 'heart-outline'}
+              size={24}
+              color={liked ? '#FF4F87' : '#999'}
+            />
+          </TouchableOpacity>
         </View>
-    );
+
+        {/* Content Card */}
+
+        <View style={styles.contentContainer}>
+          <Text style={styles.artistName}>{artist.name}</Text>
+
+          <Text style={styles.speciality}>
+            {artist.speciality ||
+              artist.specializations?.[0]?.name ||
+              'Makeup Artist'}
+          </Text>
+
+          <View style={styles.ratingRow}>
+            <Ionicons name="star" size={14} color="#F5B301" />
+
+            <Text style={styles.ratingText}>{artist.rating || '4.8'}</Text>
+
+            <Text style={styles.separator}>•</Text>
+
+            <Text style={styles.locationText}>
+              {artist.profile?.location || 'India'}
+            </Text>
+          </View>
+
+          {/* Tabs */}
+
+          <View style={styles.tabsContainer}>
+            {['About', 'Services', 'Reviews', 'Portfolio'].map(tab => (
+              <TouchableOpacity
+                key={tab}
+                onPress={() => setActiveTab(tab)}
+                style={styles.tabButton}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    activeTab === tab && styles.activeTabText,
+                  ]}
+                >
+                  {tab}
+                </Text>
+
+                {activeTab === tab && <View style={styles.activeLine} />}
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Dynamic Content */}
+
+          {activeTab === 'About' && (
+            <>
+              <View style={styles.infoSection}>
+                <View style={styles.infoRow}>
+                  <Ionicons name="briefcase-outline" size={18} color="#666" />
+                  <Text style={styles.infoLabel}>Experience</Text>
+
+                  <Text style={styles.infoValue}>
+                    {artist.profile?.experience
+                      ? `${artist.profile.experience}+ Years`
+                      : '8+ Years'}
+                  </Text>
+                </View>
+
+                <View style={styles.infoRow}>
+                  <Ionicons name="cash-outline" size={18} color="#666" />
+                  <Text style={styles.infoLabel}>Price Range</Text>
+
+                  <Text style={styles.infoValue}>
+                    {artist.services?.[0]?.priceRange || 'Contact for pricing'}
+                  </Text>
+                </View>
+
+                <View style={styles.infoRow}>
+                  <Ionicons name="time-outline" size={18} color="#666" />
+                  <Text style={styles.infoLabel}>Response Time</Text>
+
+                  <Text style={styles.infoValue}>10 mins</Text>
+                </View>
+
+                <View style={styles.infoRow}>
+                  <Ionicons name="language-outline" size={18} color="#666" />
+                  <Text style={styles.infoLabel}>Languages</Text>
+
+                  <Text style={styles.infoValue}>English, Hindi</Text>
+                </View>
+              </View>
+              <Text style={styles.sectionTitle}>About Me</Text>
+
+              <Text style={styles.aboutText}>
+                {artist.profile?.bio ||
+                  'Passionate makeup artist specializing in bridal looks, party makeup, HD makeup and photoshoot styling. Dedicated to making every client feel confident and beautiful.'}
+              </Text>
+            </>
+          )}
+
+          {activeTab === 'Services' && (
+            <View style={styles.servicesContainer}>
+              {artist.services && artist.services.length > 0
+                ? artist.services.map(service => (
+                    <View
+                      key={service.id || service.specialization}
+                      style={styles.serviceChip}
+                    >
+                      <Text style={styles.serviceText}>
+                        {service.specialization} ({service.priceRange})
+                      </Text>
+                    </View>
+                  ))
+                : (artist.specializations || []).map((spec, idx) => (
+                    <View key={spec.id || idx} style={styles.serviceChip}>
+                      <Text style={styles.serviceText}>
+                        {spec.name || spec}
+                      </Text>
+                    </View>
+                  ))}
+            </View>
+          )}
+
+          {activeTab === 'Reviews' && (
+            <>
+              <View style={styles.reviewCard}>
+                <Text style={styles.reviewName}>Priya Sharma</Text>
+
+                <Text>⭐⭐⭐⭐⭐</Text>
+
+                <Text style={styles.reviewText}>
+                  Amazing bridal makeup and very professional.
+                </Text>
+              </View>
+
+              <View style={styles.reviewCard}>
+                <Text style={styles.reviewName}>Sneha Patil</Text>
+
+                <Text>⭐⭐⭐⭐⭐</Text>
+
+                <Text style={styles.reviewText}>
+                  Excellent service and beautiful finishing.
+                </Text>
+              </View>
+            </>
+          )}
+
+          {activeTab === 'Portfolio' && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {artist.portfolio && artist.portfolio.length > 0 ? (
+                artist.portfolio.map((image, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    onPress={() => {
+                      setSelectedImage(image);
+                      setSelectedIndex(index);
+                      setShowImageModal(true);
+                    }}
+                  >
+                    <Image source={image} style={styles.portfolioImage} />
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <Text style={{ color: '#999', paddingVertical: 20 }}>
+                  No portfolio images uploaded yet.
+                </Text>
+              )}
+            </ScrollView>
+          )}
+        </View>
+      </ScrollView>
+
+      <Modal visible={showImageModal} transparent={false} animationType="fade">
+        <View style={styles.imageModalContainer}>
+          <Text style={styles.imageCounter}>
+            {selectedIndex + 1} / {artist.portfolio?.length || 0}
+          </Text>
+
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => setShowImageModal(false)}
+          >
+            <Ionicons name="close" size={30} color="#FFF" />
+          </TouchableOpacity>
+
+          <Image
+            source={selectedImage}
+            style={styles.fullScreenImage}
+            resizeMode="contain"
+          />
+        </View>
+      </Modal>
+
+      <View style={styles.bottomContainer}>
+        <TouchableOpacity
+          style={styles.bookButton}
+          onPress={() => navigation.navigate('BookAppointment', { artist })}
+        >
+          <Text style={styles.bookButtonText}>Book Now</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 };
 
 export default ArtistDetailsScreen;
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F7F7F7',
+  },
+
+  heroImage: {
+    width: '100%',
+    height: 300,
+  },
+
+  heroImagePlaceholder: {
+    backgroundColor: '#FFE6EF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  backButton: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+
+    width: 42,
+    height: 42,
+
+    borderRadius: 21,
+    backgroundColor: '#FFFFFF',
+
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  favoriteButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+
+    width: 42,
+    height: 42,
+
+    borderRadius: 21,
+    backgroundColor: '#FFFFFF',
+
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  contentContainer: {
+    backgroundColor: '#FFFFFF',
+
+    marginTop: -30,
+
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 120,
+  },
+
+  artistName: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#111',
+  },
+
+  speciality: {
+    fontSize: 15,
+    color: '#777',
+    marginTop: 4,
+  },
+
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 24,
+  },
+
+  ratingText: {
+    marginLeft: 5,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111',
+  },
+
+  separator: {
+    marginHorizontal: 8,
+    color: '#999',
+  },
+
+  locationText: {
+    color: '#777',
+    fontSize: 14,
+  },
+
+  tabsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+
+  tabButton: {
+    alignItems: 'center',
+  },
 
-    container: {
-        flex: 1,
-        backgroundColor: '#F7F7F7',
-    },
-
-    heroImage: {
-        width: '100%',
-        height: 300,
-    },
-
-    heroImagePlaceholder: {
-        backgroundColor: '#FFE6EF',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-
-    backButton: {
-        position: 'absolute',
-        top: 50,
-        left: 20,
-
-        width: 42,
-        height: 42,
-
-        borderRadius: 21,
-        backgroundColor: '#FFFFFF',
-
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-
-    favoriteButton: {
-        position: 'absolute',
-        top: 50,
-        right: 20,
-
-        width: 42,
-        height: 42,
-
-        borderRadius: 21,
-        backgroundColor: '#FFFFFF',
-
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-
-    contentContainer: {
-        backgroundColor: '#FFFFFF',
-
-        marginTop: -30,
+  tabText: {
+    fontSize: 14,
+    color: '#888',
+    fontWeight: '600',
+  },
 
-        borderTopLeftRadius: 30,
-        borderTopRightRadius: 30,
+  activeTabText: {
+    color: '#FF4F87',
+    fontWeight: '700',
+  },
 
-        paddingHorizontal: 24,
-        paddingTop: 24,
-        paddingBottom: 120,
-    },
-
-    artistName: {
-        fontSize: 28,
-        fontWeight: '800',
-        color: '#111',
-    },
-
-    speciality: {
-        fontSize: 15,
-        color: '#777',
-        marginTop: 4,
-    },
-
-    ratingRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: 10,
-        marginBottom: 24,
-    },
-
-    ratingText: {
-        marginLeft: 5,
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#111',
-    },
-
-    separator: {
-        marginHorizontal: 8,
-        color: '#999',
-    },
-
-    locationText: {
-        color: '#777',
-        fontSize: 14,
-    },
-
-    tabsContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 24,
-    },
+  activeLine: {
+    width: 24,
+    height: 3,
 
-    tabButton: {
-        alignItems: 'center',
-    },
+    borderRadius: 2,
 
-    tabText: {
-        fontSize: 14,
-        color: '#888',
-        fontWeight: '600',
-    },
+    backgroundColor: '#FF4F87',
 
-    activeTabText: {
-        color: '#FF4F87',
-        fontWeight: '700',
-    },
+    marginTop: 6,
+  },
 
-    activeLine: {
-        width: 24,
-        height: 3,
+  infoSection: {
+    backgroundColor: '#FAFAFA',
 
-        borderRadius: 2,
+    borderRadius: 20,
 
-        backgroundColor: '#FF4F87',
+    padding: 18,
 
-        marginTop: 6,
-    },
+    marginBottom: 24,
+  },
 
-    infoSection: {
-        backgroundColor: '#FAFAFA',
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
 
-        borderRadius: 20,
+    marginBottom: 16,
+  },
 
-        padding: 18,
+  infoLabel: {
+    flex: 1,
 
-        marginBottom: 24,
-    },
-
-    infoRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
+    marginLeft: 12,
 
-        marginBottom: 16,
-    },
+    fontSize: 14,
+    color: '#666',
+  },
 
-    infoLabel: {
-        flex: 1,
+  infoValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111',
+  },
 
-        marginLeft: 12,
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111',
+    marginBottom: 12,
+  },
 
-        fontSize: 14,
-        color: '#666',
-    },
+  aboutText: {
+    fontSize: 15,
+    color: '#666',
+    lineHeight: 24,
+  },
 
-    infoValue: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#111',
-    },
+  servicesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
 
-    sectionTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#111',
-        marginBottom: 12,
-    },
+  serviceChip: {
+    backgroundColor: '#FFF1F6',
 
-    aboutText: {
-        fontSize: 15,
-        color: '#666',
-        lineHeight: 24,
-    },
+    paddingHorizontal: 14,
+    paddingVertical: 10,
 
-    servicesContainer: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-    },
+    borderRadius: 20,
 
-    serviceChip: {
-        backgroundColor: '#FFF1F6',
+    marginRight: 10,
+    marginBottom: 10,
+  },
 
-        paddingHorizontal: 14,
-        paddingVertical: 10,
+  serviceText: {
+    color: '#FF4F87',
+    fontWeight: '600',
+    fontSize: 14,
+  },
 
-        borderRadius: 20,
+  reviewCard: {
+    backgroundColor: '#FAFAFA',
 
-        marginRight: 10,
-        marginBottom: 10,
-    },
+    borderRadius: 18,
 
-    serviceText: {
-        color: '#FF4F87',
-        fontWeight: '600',
-        fontSize: 14,
-    },
+    padding: 16,
 
-    reviewCard: {
-        backgroundColor: '#FAFAFA',
+    marginBottom: 14,
+  },
 
-        borderRadius: 18,
+  reviewName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111',
+    marginBottom: 6,
+  },
 
-        padding: 16,
+  reviewText: {
+    color: '#666',
+    lineHeight: 22,
+    marginTop: 8,
+  },
 
-        marginBottom: 14,
-    },
+  portfolioImage: {
+    width: 240,
+    height: 320,
+    borderRadius: 20,
+    marginRight: 16,
+  },
 
-    reviewName: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: '#111',
-        marginBottom: 6,
-    },
+  imageModalContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 
-    reviewText: {
-        color: '#666',
-        lineHeight: 22,
-        marginTop: 8,
-    },
+  imageCounter: {
+    position: 'absolute',
+    top: 60,
+    left: 20,
 
-    portfolioImage: {
-        width: 240,
-        height: 320,
-        borderRadius: 20,
-        marginRight: 16,
-    },
+    color: '#FFF',
 
-    imageModalContainer: {
-        flex: 1,
-        backgroundColor: '#000',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
+    fontSize: 16,
+    fontWeight: '700',
 
-    imageCounter: {
-        position: 'absolute',
-        top: 60,
-        left: 20,
+    zIndex: 100,
+  },
 
-        color: '#FFF',
+  fullScreenImage: {
+    width: '100%',
+    height: '100%',
+  },
 
-        fontSize: 16,
-        fontWeight: '700',
+  closeButton: {
+    position: 'absolute',
+    top: 60,
+    right: 25,
+    zIndex: 10,
+  },
 
-        zIndex: 100,
-    },
+  bottomContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
 
-    fullScreenImage: {
-        width: '100%',
-        height: '100%',
-    },
+    backgroundColor: '#FFFFFF',
 
-    closeButton: {
-        position: 'absolute',
-        top: 60,
-        right: 25,
-        zIndex: 10,
-    },
+    paddingHorizontal: 20,
+    paddingVertical: 16,
 
-    bottomContainer: {
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        bottom: 0,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F1F1',
+  },
 
-        backgroundColor: '#FFFFFF',
+  bookButton: {
+    height: 58,
 
-        paddingHorizontal: 20,
-        paddingVertical: 16,
+    backgroundColor: '#FF4F87',
 
-        borderTopWidth: 1,
-        borderTopColor: '#F1F1F1',
-    },
+    borderRadius: 18,
 
-    bookButton: {
-        height: 58,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 
-        backgroundColor: '#FF4F87',
-
-        borderRadius: 18,
-
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-
-    bookButtonText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: '700',
-    },
-
+  bookButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
 });

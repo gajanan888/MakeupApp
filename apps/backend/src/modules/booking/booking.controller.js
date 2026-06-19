@@ -5,6 +5,8 @@ import {
   listArtistBookings,
   listCustomerBookings,
   rejectBooking,
+  startBooking,
+  completeBooking,
 } from "./booking.service.js";
 import {
   getPagination,
@@ -29,6 +31,9 @@ export const createBookingController = async (req, res) => {
       time: req.body.time,
       category: req.body.category,
       price: req.body.price,
+      location: req.body.location,
+      addOns: req.body.addOns,
+      totalPaid: req.body.totalPaid,
     });
 
     res.status(201).json({
@@ -192,6 +197,66 @@ export const rejectBookingController = async (req, res) => {
     res.status(400).json({
       success: false,
       message: error.message || "Failed to reject booking",
+      data: null,
+    });
+  }
+};
+
+export const startBookingController = async (req, res) => {
+  try {
+    const bookingId = Number(req.params.id);
+    if (!Number.isInteger(bookingId) || bookingId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid booking id",
+        data: null,
+      });
+    }
+
+    const booking = await startBooking({
+      bookingId,
+      artistId: req.artist.id,
+    });
+
+    res.json({
+      success: true,
+      message: "Booking started",
+      data: booking,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message || "Failed to start booking",
+      data: null,
+    });
+  }
+};
+
+export const completeBookingController = async (req, res) => {
+  try {
+    const bookingId = Number(req.params.id);
+    if (!Number.isInteger(bookingId) || bookingId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid booking id",
+        data: null,
+      });
+    }
+
+    const booking = await completeBooking({
+      bookingId,
+      artistId: req.artist.id,
+    });
+
+    res.json({
+      success: true,
+      message: "Booking completed",
+      data: booking,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message || "Failed to complete booking",
       data: null,
     });
   }

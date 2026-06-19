@@ -30,15 +30,22 @@ const Booking = sequelize.define("Booking", {
     defaultValue: 0,
   },
   status: {
-    type: DataTypes.ENUM(
-      "pending",
-      "accepted",
-      "rejected",
-      "completed",
-      "cancelled",
-    ),
+    type: DataTypes.STRING,
     allowNull: false,
     defaultValue: "pending",
+  },
+  location: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  addOns: {
+    type: DataTypes.JSON,
+    allowNull: true,
+  },
+  totalPaid: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: 0,
   },
 });
 

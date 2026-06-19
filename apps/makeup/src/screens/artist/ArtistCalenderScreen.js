@@ -63,6 +63,7 @@ const ArtistCalenderScreen = ({ onBack }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [reason, setReason] = useState('');
   const [time, setTime] = useState('11:00 AM');
+  const [saving, setSaving] = useState(false);
 
   const fetchSchedule = async () => {
     try {
@@ -188,6 +189,7 @@ const ArtistCalenderScreen = ({ onBack }) => {
     }
 
     try {
+      setSaving(true);
       await createArtistBlock({
         date: selectedDateStr,
         time: time.trim(),
@@ -202,7 +204,9 @@ const ArtistCalenderScreen = ({ onBack }) => {
       await fetchSchedule();
     } catch (error) {
       console.error('Failed to save unavailable time', error);
-      Alert.alert('Error', 'Failed to save unavailable time on server.');
+      Alert.alert('Error', error.response?.data?.message || error.message || 'Failed to save unavailable time on server.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -409,10 +413,15 @@ const ArtistCalenderScreen = ({ onBack }) => {
 
               {/* Submit Button */}
               <TouchableOpacity
-                style={styles.modalSubmitButton}
+                style={[styles.modalSubmitButton, saving && { opacity: 0.7 }]}
                 onPress={handleAddUnavailable}
+                disabled={saving}
               >
-                <Text style={styles.modalSubmitText}>Save Unavailable Time</Text>
+                {saving ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <Text style={styles.modalSubmitText}>Save Unavailable Time</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>

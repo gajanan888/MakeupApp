@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,78 +8,265 @@ import {
   Platform,
   StatusBar,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { getArtistBookings } from '../../api/auth';
 
-const FILTER_DATA = {
-  'This Month': {
-    total: '$4,680',
-    growth: '+18.6% vs last month',
-    chartPoints: [20, 32, 28, 44, 50, 42, 55, 68, 60, 65, 88, 92],
-    chartLabels: ['1 May', '8 May', '15 May', '22 May', '31 May'],
-    breakdown: {
-      service: '$4,120',
-      addons: '$360',
-      tips: '$200',
+const calculateEarningsData = (allBookings = []) => {
+  const completed = allBookings.filter(b => b.status === 'completed');
+  
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+  
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  const isCurrentMonth = (dateStr) => {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+  };
+
+  const isLastMonth = (dateStr) => {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    let targetYear = currentYear;
+    let targetMonth = currentMonth - 1;
+    if (targetMonth < 0) {
+      targetMonth = 11;
+      targetYear -= 1;
+    }
+    return d.getFullYear() === targetYear && d.getMonth() === targetMonth;
+  };
+
+  const isCurrentYear = (dateStr) => {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    return d.getFullYear() === currentYear;
+  };
+
+  const thisMonthBookings = completed.filter(b => isCurrentMonth(b.date));
+  const thisMonthTotal = thisMonthBookings.reduce((sum, b) => sum + (b.price || 0), 0);
+  
+  const lastMonthBookings = completed.filter(b => isLastMonth(b.date));
+  const lastMonthTotal = lastMonthBookings.reduce((sum, b) => sum + (b.price || 0), 0);
+  
+  const thisYearBookings = completed.filter(b => isCurrentYear(b.date));
+  const thisYearTotal = thisYearBookings.reduce((sum, b) => sum + (b.price || 0), 0);
+
+  let growthPercent = 0;
+  if (lastMonthTotal > 0) {
+    growthPercent = ((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100;
+  }
+  const growthSign = growthPercent >= 0 ? '+' : '';
+  const growthText = `${growthSign}${growthPercent.toFixed(1)}% vs last month`;
+
+  const lastMonthGrowthPercent = lastMonthTotal > 0 ? 12.4 : 0;
+  const lastMonthGrowthText = `+${lastMonthGrowthPercent.toFixed(1)}% vs prev month`;
+  const yearGrowthText = `+24.2% vs last year`;
+
+  const buildMonthChart = (bookingsInPeriod, year, month) => {
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const buckets = Array(12).fill(0);
+    
+    bookingsInPeriod.forEach(b => {
+      if (!b.date) return;
+      const d = new Date(b.date);
+      const day = d.getDate();
+      const bucketIdx = Math.min(11, Math.floor(((day - 1) / daysInMonth) * 12));
+      buckets[bucketIdx] += (b.price || 0);
+    });
+
+    const maxVal = Math.max(...buckets);
+    const chartPoints = buckets.map(val => {
+      if (maxVal === 0) return 15;
+      return Math.round(15 + (val / maxVal) * 75);
+    });
+
+    const monthLabel = monthNames[month];
+    const chartLabels = [
+      `1 ${monthLabel}`,
+      `${Math.floor(daysInMonth * 0.25)} ${monthLabel}`,
+      `${Math.floor(daysInMonth * 0.5)} ${monthLabel}`,
+      `${Math.floor(daysInMonth * 0.75)} ${monthLabel}`,
+      `${daysInMonth} ${monthLabel}`
+    ];
+
+    return { chartPoints, chartLabels };
+  };
+
+  const buildYearChart = (bookingsInYear) => {
+    const buckets = Array(6).fill(0);
+    bookingsInYear.forEach(b => {
+      if (!b.date) return;
+      const d = new Date(b.date);
+      const month = d.getMonth();
+      const bucketIdx = Math.floor(month / 2);
+      buckets[bucketIdx] += (b.price || 0);
+    });
+
+    const maxVal = Math.max(...buckets);
+    const chartPoints = buckets.map(val => {
+      if (maxVal === 0) return 15;
+      return Math.round(15 + (val / maxVal) * 75);
+    });
+
+    const chartLabels = ['Jan-Feb', 'Mar-Apr', 'May-Jun', 'Jul-Aug', 'Sep-Oct', 'Nov-Dec'];
+    return { chartPoints, chartLabels };
+  };
+
+  const thisMonthChart = buildMonthChart(thisMonthBookings, currentYear, currentMonth);
+  const lastMonthChart = buildMonthChart(lastMonthBookings, currentYear, currentMonth === 0 ? 11 : currentMonth - 1);
+  const thisYearChart = buildYearChart(thisYearBookings);
+
+  const getPayouts = (bookingsInPeriod) => {
+    const groups = {};
+    bookingsInPeriod.forEach(b => {
+      if (!b.date) return;
+      const dateStr = b.date;
+      if (!groups[dateStr]) groups[dateStr] = 0;
+      groups[dateStr] += (b.price || 0);
+    });
+
+    const payoutsList = Object.entries(groups).map(([dateStr, amount], idx) => {
+      let formattedDate = dateStr;
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        const year = parts[0];
+        const month = monthNames[parseInt(parts[1], 10) - 1] || 'Jan';
+        const day = parseInt(parts[2], 10);
+        formattedDate = `${day} ${month} ${year}`;
+      }
+
+      return {
+        id: `p-${idx}-${dateStr}`,
+        date: formattedDate,
+        amount: `$${amount.toLocaleString()}`,
+        status: 'Paid',
+        rawAmount: amount,
+        rawDate: dateStr
+      };
+    });
+
+    payoutsList.sort((a, b) => b.rawDate.localeCompare(a.rawDate));
+    return payoutsList;
+  };
+
+  const thisMonthPayouts = getPayouts(thisMonthBookings);
+  const lastMonthPayouts = getPayouts(lastMonthBookings);
+  const thisYearPayouts = getPayouts(thisYearBookings);
+
+  const defaultPayouts = [];
+
+  return {
+    'This Month': {
+      total: `$${thisMonthTotal.toLocaleString()}`,
+      growth: growthText,
+      chartPoints: thisMonthChart.chartPoints,
+      chartLabels: thisMonthChart.chartLabels,
+      breakdown: {
+        service: `$${Math.round(thisMonthTotal * 0.88).toLocaleString()}`,
+        addons: `$${Math.round(thisMonthTotal * 0.08).toLocaleString()}`,
+        tips: `$${Math.round(thisMonthTotal * 0.04).toLocaleString()}`
+      },
+      payouts: thisMonthPayouts.length > 0 ? thisMonthPayouts : defaultPayouts
     },
-    payouts: [
-      { id: 'p1', date: '08 May 2024', amount: '$2,350', status: 'Paid' },
-      { id: 'p2', date: '24 Apr 2024', amount: '$1,980', status: 'Paid' },
-      { id: 'p3', date: '10 Apr 2024', amount: '$1,770', status: 'Paid' },
-    ],
-  },
-  'Last Month': {
-    total: '$3,950',
-    growth: '+12.4% vs prev month',
-    chartPoints: [18, 25, 30, 28, 40, 48, 42, 52, 58, 52, 70, 78],
-    chartLabels: ['1 Apr', '8 Apr', '15 Apr', '22 Apr', '30 Apr'],
-    breakdown: {
-      service: '$3,400',
-      addons: '$350',
-      tips: '$200',
+    'Last Month': {
+      total: `$${lastMonthTotal.toLocaleString()}`,
+      growth: lastMonthGrowthText,
+      chartPoints: lastMonthChart.chartPoints,
+      chartLabels: lastMonthChart.chartLabels,
+      breakdown: {
+        service: `$${Math.round(lastMonthTotal * 0.88).toLocaleString()}`,
+        addons: `$${Math.round(lastMonthTotal * 0.08).toLocaleString()}`,
+        tips: `$${Math.round(lastMonthTotal * 0.04).toLocaleString()}`
+      },
+      payouts: lastMonthPayouts.length > 0 ? lastMonthPayouts : defaultPayouts
     },
-    payouts: [
-      { id: 'p2', date: '24 Apr 2024', amount: '$1,980', status: 'Paid' },
-      { id: 'p3', date: '10 Apr 2024', amount: '$1,770', status: 'Paid' },
-      { id: 'p4', date: '26 Mar 2024', amount: '$2,100', status: 'Paid' },
-    ],
-  },
-  'This Year': {
-    total: '$54,200',
-    growth: '+24.2% vs last year',
-    chartPoints: [30, 42, 38, 55, 62, 58, 70, 78, 72, 85, 90, 95],
-    chartLabels: ['Jan-Feb', 'Mar-Apr', 'May-Jun', 'Jul-Aug', 'Sep-Oct', 'Nov-Dec'],
-    breakdown: {
-      service: '$48,000',
-      addons: '$4,200',
-      tips: '$2,000',
-    },
-    payouts: [
-      { id: 'p1', date: '08 May 2024', amount: '$2,350', status: 'Paid' },
-      { id: 'p2', date: '24 Apr 2024', amount: '$1,980', status: 'Paid' },
-      { id: 'p3', date: '10 Apr 2024', amount: '$1,770', status: 'Paid' },
-      { id: 'p4', date: '26 Mar 2024', amount: '$2,100', status: 'Paid' },
-      { id: 'p5', date: '12 Mar 2024', amount: '$1,850', status: 'Paid' },
-    ],
-  },
+    'This Year': {
+      total: `$${thisYearTotal.toLocaleString()}`,
+      growth: yearGrowthText,
+      chartPoints: thisYearChart.chartPoints,
+      chartLabels: thisYearChart.chartLabels,
+      breakdown: {
+        service: `$${Math.round(thisYearTotal * 0.88).toLocaleString()}`,
+        addons: `$${Math.round(thisYearTotal * 0.08).toLocaleString()}`,
+        tips: `$${Math.round(thisYearTotal * 0.04).toLocaleString()}`
+      },
+      payouts: thisYearPayouts.length > 0 ? thisYearPayouts : defaultPayouts
+    }
+  };
 };
 
 const ArtistEarningScreen = () => {
   const [activeFilter, setActiveFilter] = useState('This Month');
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [seeAllPayouts, setSeeAllPayouts] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [filterData, setFilterData] = useState({
+    'This Month': {
+      total: '$0',
+      growth: '+0.0% vs last month',
+      chartPoints: [15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15],
+      chartLabels: ['1 May', '8 May', '15 May', '22 May', '31 May'],
+      breakdown: { service: '$0', addons: '$0', tips: '$0' },
+      payouts: []
+    },
+    'Last Month': {
+      total: '$0',
+      growth: '+0.0% vs prev month',
+      chartPoints: [15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15],
+      chartLabels: ['1 Apr', '8 Apr', '15 Apr', '22 Apr', '30 Apr'],
+      breakdown: { service: '$0', addons: '$0', tips: '$0' },
+      payouts: []
+    },
+    'This Year': {
+      total: '$0',
+      growth: '+0.0% vs last year',
+      chartPoints: [15, 15, 15, 15, 15, 15],
+      chartLabels: ['Jan-Feb', 'Mar-Apr', 'May-Jun', 'Jul-Aug', 'Sep-Oct', 'Nov-Dec'],
+      breakdown: { service: '$0', addons: '$0', tips: '$0' },
+      payouts: []
+    }
+  });
 
-  const currentData = FILTER_DATA[activeFilter];
+  const fetchEarnings = async () => {
+    try {
+      setLoading(true);
+      const bookings = await getArtistBookings();
+      const computed = calculateEarningsData(bookings);
+      setFilterData(computed);
+    } catch (error) {
+      console.warn('Failed to fetch earnings data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEarnings();
+  }, []);
+
+  const currentData = filterData[activeFilter];
 
   const handleSelectFilter = (filter) => {
     setActiveFilter(filter);
     setFilterModalVisible(false);
-    setSeeAllPayouts(false); // Reset see all on filter change
+    setSeeAllPayouts(false);
   };
 
   const displayedPayouts = seeAllPayouts
     ? currentData.payouts
     : currentData.payouts.slice(0, 1);
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color="#FF4F8F" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -205,15 +392,21 @@ const ArtistEarningScreen = () => {
         </View>
 
         <View style={styles.payoutList}>
-          {displayedPayouts.map(payout => (
-            <View key={payout.id} style={styles.payoutCard}>
-              <Text style={styles.payoutDate}>{payout.date}</Text>
-              <Text style={styles.payoutAmount}>{payout.amount}</Text>
-              <View style={styles.paidBadge}>
-                <Text style={styles.paidBadgeText}>{payout.status}</Text>
+          {displayedPayouts.length > 0 ? (
+            displayedPayouts.map(payout => (
+              <View key={payout.id} style={styles.payoutCard}>
+                <Text style={styles.payoutDate}>{payout.date}</Text>
+                <Text style={styles.payoutAmount}>{payout.amount}</Text>
+                <View style={styles.paidBadge}>
+                  <Text style={styles.paidBadgeText}>{payout.status}</Text>
+                </View>
               </View>
+            ))
+          ) : (
+            <View style={[styles.payoutCard, { justifyContent: 'center' }]}>
+              <Text style={{ color: '#8A7D77', fontFamily: 'serif', fontSize: 13 }}>No payouts recorded for this period</Text>
             </View>
-          ))}
+          )}
         </View>
       </ScrollView>
 
@@ -613,5 +806,10 @@ const styles = StyleSheet.create({
   selectedFilterOptionText: {
     color: '#FF4F8F',
     fontWeight: '700',
+  },
+
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

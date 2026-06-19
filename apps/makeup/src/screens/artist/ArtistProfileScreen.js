@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
-import { getArtistProfile, updateArtistProfile } from '../../api/auth';
+import { getArtistProfile, updateArtistProfile, getArtistDashboard, changeArtistPassword } from '../../api/auth';
 
 const ArtistProfileScreen = ({ onBack }) => {
   const navigation = useNavigation();
@@ -36,6 +36,11 @@ const ArtistProfileScreen = ({ onBack }) => {
     bankName: '',
     accountNumber: '',
     ifscCode: '',
+  });
+
+  const [stats, setStats] = useState({
+    bookingsCount: 0,
+    rating: 4.8,
   });
 
   // Notification States
@@ -96,6 +101,18 @@ const ArtistProfileScreen = ({ onBack }) => {
         setEditBankName(mappedProfile.bankName);
         setEditAccountNo(mappedProfile.accountNumber);
         setEditIfsc(mappedProfile.ifscCode);
+      }
+
+      try {
+        const dashboardData = await getArtistDashboard();
+        if (dashboardData && dashboardData.stats) {
+          setStats({
+            bookingsCount: dashboardData.stats.totalBookings || 0,
+            rating: dashboardData.stats.rating || 4.8,
+          });
+        }
+      } catch (dashError) {
+        console.warn('Failed to load dashboard stats in profile:', dashError);
       }
     } catch (error) {
       console.error('Failed to load profile', error);
@@ -178,7 +195,7 @@ const ArtistProfileScreen = ({ onBack }) => {
   };
 
   // Handle Update Password
-  const handleUpdatePassword = () => {
+  const handleUpdatePassword = async () => {
     if (!currPassword || !newPassword || !confirmPassword) {
       Alert.alert('Error', 'Please fill in all password fields.');
       return;
@@ -187,11 +204,17 @@ const ArtistProfileScreen = ({ onBack }) => {
       Alert.alert('Error', 'New passwords do not match.');
       return;
     }
-    setCurrPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    setActiveModal(null);
-    Alert.alert('Success', 'Password changed successfully.');
+    try {
+      await changeArtistPassword(currPassword, newPassword);
+      setCurrPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setActiveModal(null);
+      Alert.alert('Success', 'Password changed successfully.');
+    } catch (error) {
+      console.error('Failed to change password:', error);
+      Alert.alert('Error', error.response?.data?.message || error.message || 'Failed to change password.');
+    }
   };
 
   // Handle Logout action
@@ -495,7 +518,7 @@ const ArtistProfileScreen = ({ onBack }) => {
         {/* PROFILE CARD */}
         <View style={styles.profileCard}>
           <Image
-            source={{ uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80' }}
+            source={{ uri: profile.profileImage || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80' }}
             style={styles.avatar}
           />
           <View style={styles.profileDetails}>
@@ -505,7 +528,7 @@ const ArtistProfileScreen = ({ onBack }) => {
             </View>
             <View style={styles.ratingRow}>
               <Ionicons name="star" size={14} color="#FFC53D" />
-              <Text style={styles.ratingText}> 4.8 (128)</Text>
+              <Text style={styles.ratingText}> {stats.rating} ({stats.bookingsCount})</Text>
             </View>
             <View style={styles.locationRow}>
               <Ionicons name="location-outline" size={14} color="#8A7D77" />
@@ -517,12 +540,12 @@ const ArtistProfileScreen = ({ onBack }) => {
         {/* STATS ROW */}
         <View style={styles.statsCard}>
           <View style={styles.statColumn}>
-            <Text style={styles.statValue}>128</Text>
+            <Text style={styles.statValue}>{stats.bookingsCount}</Text>
             <Text style={styles.statLabel}>Bookings</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statColumn}>
-            <Text style={styles.statValue}>4.8</Text>
+            <Text style={styles.statValue}>{stats.rating}</Text>
             <Text style={styles.statLabel}>Rating</Text>
           </View>
           <View style={styles.statDivider} />

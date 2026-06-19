@@ -14,7 +14,8 @@ import {
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
 import Geolocation from '@react-native-community/geolocation';
-import { getArtistDashboard } from '../../api/auth';
+import { getArtistDashboard, getArtistProfile } from '../../api/auth';
+import ArtistBookingDetailModal from './ArtistBookingDetailModal';
 
 const ArtistDashboardScreen = ({ onNavigate }) => {
   const navigation = useNavigation();
@@ -25,27 +26,43 @@ const ArtistDashboardScreen = ({ onNavigate }) => {
     upcomingBookings: []
   });
   const [loadingDashboard, setLoadingDashboard] = useState(true);
+  const [profileImage, setProfileImage] = useState('https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80');
+  const [selectedBooking, setSelectedBooking] = useState(null);
 
   useEffect(() => {
     let active = true;
-    const fetchDashboardData = async () => {
+    const fetchProfileData = async () => {
       try {
-        const data = await getArtistDashboard();
-        if (active && data) {
-          setDashboardData(data);
+        const data = await getArtistProfile();
+        if (active && data && data.profile && data.profile.profileImage) {
+          setProfileImage(data.profile.profileImage);
         }
       } catch (error) {
-        console.error('Failed to fetch dashboard stats', error);
-      } finally {
-        if (active) {
-          setLoadingDashboard(false);
-        }
+        console.warn('Failed to fetch profile in dashboard:', error);
       }
     };
-    fetchDashboardData();
+    fetchProfileData();
     return () => {
       active = false;
     };
+  }, []);
+
+  const fetchDashboardData = async (showLoading = false) => {
+    try {
+      if (showLoading) setLoadingDashboard(true);
+      const data = await getArtistDashboard();
+      if (data) {
+        setDashboardData(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch dashboard stats', error);
+    } finally {
+      if (showLoading) setLoadingDashboard(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData(true);
   }, []);
 
   useEffect(() => {
@@ -136,6 +153,54 @@ const ArtistDashboardScreen = ({ onNavigate }) => {
     };
   }, []);
 
+  const handleOpenBookingDetail = (b) => {
+    const avatars = [
+      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=200',
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200',
+      'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200',
+      'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?q=80&w=200',
+    ];
+    const avatar = avatars[Number(b.customerId) % avatars.length];
+    
+    let dateText = '';
+    if (b.date) {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const parts = b.date.split('-');
+      if (parts.length === 3) {
+        const year = parts[0];
+        const month = months[parseInt(parts[1], 10) - 1] || 'Jan';
+        const day = parseInt(parts[2], 10);
+        dateText = `${day} ${month} ${year}`;
+      } else {
+        dateText = b.date;
+      }
+    }
+    const formattedDate = b.time ? `${dateText} • ${b.time}` : dateText;
+
+    let mappedStatus = 'Upcoming';
+    if (b.status === 'completed') {
+      mappedStatus = 'Completed';
+    } else if (b.status === 'cancelled' || b.status === 'rejected') {
+      mappedStatus = 'Cancelled';
+    }
+
+    const detailObj = {
+      id: String(b.id),
+      customerId: b.customerId,
+      name: b.customer?.name || 'Client',
+      category: b.category || 'Makeup Service',
+      date: formattedDate,
+      location: 'At Client Location',
+      price: `$${b.price || 0}`,
+      status: mappedStatus,
+      rawStatus: b.status,
+      phone: b.customer?.phone || '',
+      address: b.customer?.profile?.location || 'At Client Location',
+      avatar,
+    };
+    setSelectedBooking(detailObj);
+  };
+
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
@@ -143,8 +208,8 @@ const ArtistDashboardScreen = ({ onNavigate }) => {
     >
       {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.headerButton}>
-          <Ionicons name="menu-outline" size={26} color="#111" />
+        <TouchableOpacity style={styles.headerButton} onPress={() => onNavigate && onNavigate('Profile')}>
+          <Image source={{ uri: profileImage }} style={styles.profileHeaderImage} />
         </TouchableOpacity>
         
         <View style={styles.headerTitleContainer}>
@@ -229,10 +294,15 @@ const ArtistDashboardScreen = ({ onNavigate }) => {
 
       {dashboardData.upcomingBookings.length > 0 ? (
         dashboardData.upcomingBookings.map((booking) => (
-          <View key={booking.id} style={styles.bookingCard}>
+          <TouchableOpacity key={booking.id} style={styles.bookingCard} onPress={() => handleOpenBookingDetail(booking)}>
             <Image
               source={{
-                uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200',
+                uri: [
+                  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=200',
+                  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200',
+                  'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200',
+                  'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?q=80&w=200',
+                ][(booking.customerId || 0) % 4],
               }}
               style={styles.clientAvatar}
             />
@@ -261,7 +331,7 @@ const ArtistDashboardScreen = ({ onNavigate }) => {
                 <Text style={styles.upcomingBadgeText}>{booking.status}</Text>
               </View>
             </View>
-          </View>
+          </TouchableOpacity>
         ))
       ) : (
         <View style={[styles.bookingCard, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
@@ -307,6 +377,14 @@ const ArtistDashboardScreen = ({ onNavigate }) => {
           <Text style={styles.actionLabel}>Promote</Text>
         </TouchableOpacity>
       </View>
+
+      <ArtistBookingDetailModal 
+        visible={selectedBooking !== null} 
+        onClose={() => setSelectedBooking(null)} 
+        booking={selectedBooking} 
+        onStatusUpdate={() => fetchDashboardData(false)} 
+        onChatPress={(b) => navigation.navigate('ArtistMessage', { customerId: b.customerId })} 
+      />
     </ScrollView>
   );
 };
@@ -628,6 +706,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
     fontFamily: 'serif',
+  },
+
+  profileHeaderImage: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#FF4F8F',
   },
 });
 

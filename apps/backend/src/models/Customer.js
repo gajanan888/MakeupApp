@@ -1,5 +1,7 @@
 import { DataTypes } from "sequelize";
 import sequelize from "../config/db.js";
+import Wishlist from "./Wishlist.js";
+import Artist from "./Artist.js";
 
 const Customer = sequelize.define("Customer", {
   name: {
@@ -23,6 +25,13 @@ const Customer = sequelize.define("Customer", {
     type: DataTypes.ENUM("user", "artist", "admin"),
     defaultValue: "user",
   },
+  profileImage: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
 });
-
+Customer.belongsToMany(Artist, { through: Wishlist, as: 'wishlistedArtists', foreignKey: 'customerId' });
+Artist.belongsToMany(Customer, { through: Wishlist, as: 'wishlistedBy', foreignKey: 'artistId' });
 export default Customer;
+
+

@@ -3,7 +3,7 @@ import Booking from "../../models/Booking.js";
 import Artist from "../../models/Artist.js";
 import Customer from "../../models/Customer.js";
 
-export const createBooking = async ({ customerId, artistId, date, time, category, price }) => {
+export const createBooking = async ({ customerId, artistId, date, time, category, price, location, addOns, totalPaid }) => {
   const artist = await Artist.findByPk(artistId);
   if (!artist) {
     throw new Error("Artist not found");
@@ -31,6 +31,9 @@ export const createBooking = async ({ customerId, artistId, date, time, category
     time,
     category,
     price,
+    location,
+    addOns,
+    totalPaid,
     status: "pending",
   });
 
@@ -127,6 +130,44 @@ export const rejectBooking = async ({ bookingId, artistId }) => {
   }
 
   booking.status = "rejected";
+  await booking.save();
+
+  return booking;
+};
+
+export const startBooking = async ({ bookingId, artistId }) => {
+  const booking = await Booking.findOne({
+    where: { id: bookingId, artistId },
+  });
+
+  if (!booking) {
+    throw new Error("Booking not found");
+  }
+
+  if (booking.status !== "accepted") {
+    throw new Error("Only accepted bookings can be started");
+  }
+
+  booking.status = "in_progress";
+  await booking.save();
+
+  return booking;
+};
+
+export const completeBooking = async ({ bookingId, artistId }) => {
+  const booking = await Booking.findOne({
+    where: { id: bookingId, artistId },
+  });
+
+  if (!booking) {
+    throw new Error("Booking not found");
+  }
+
+  if (booking.status !== "in_progress") {
+    throw new Error("Only in-progress bookings can be completed");
+  }
+
+  booking.status = "completed";
   await booking.save();
 
   return booking;

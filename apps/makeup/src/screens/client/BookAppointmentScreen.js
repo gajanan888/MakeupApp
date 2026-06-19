@@ -1,434 +1,394 @@
 import React, { useState } from 'react';
 import {
-    View,
-    Text,
-    Image,
-    TouchableOpacity,
-    StyleSheet,
-    ScrollView,
-    Alert,
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  SafeAreaView,
+  Platform,
+  StatusBar,
 } from 'react-native';
-
 import Ionicons from '@react-native-vector-icons/ionicons';
+import ScreenHeader from '../../components/ScreenHeader';
 
-const BookAppointmentScreen = ({
-    navigation,
-    route,
-}) => {
+const BookAppointmentScreen = ({ navigation, route }) => {
+  const { artist } = route.params;
 
-    const { artist } = route.params;
+  const [selectedService, setSelectedService] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState('');
 
-    const [selectedService, setSelectedService] = useState('');
-    const [selectedLocation, setSelectedLocation] = useState('');
+  // Fallback services if artist has no custom services
+  const defaultServices = [
+    { name: 'Bridal Makeup', price: '$250' },
+    { name: 'Engagement Makeup', price: '$180' },
+    { name: 'Party Makeup', price: '$150' },
+    { name: 'Photoshoot Makeup', price: '$200' },
+    { name: 'Airbrush Makeup', price: '$220' },
+  ];
 
-    const services = artist.services && artist.services.length > 0
-        ? artist.services.map(s => ({
-            name: s.specialization,
-            price: s.priceRange,
+  // Map backend services to screen items
+  const services =
+    artist.services && artist.services.length > 0
+      ? artist.services.map(s => ({
+          name: s.name || s.specialization || 'Makeup Service',
+          price: s.price ? `₹${s.price}` : s.priceRange || '₹2,000',
         }))
-        : [
-            {
-                name: 'Bridal Makeup',
-                price: '₹5,999',
-            },
-            {
-                name: 'Engagement Makeup',
-                price: '₹3,499',
-            },
-            {
-                name: 'Party Makeup',
-                price: '₹1,999',
-            },
-            {
-                name: 'Photoshoot Makeup',
-                price: '₹4,599',
-            },
-            {
-                name: 'Airbrush Makeup',
-                price: '₹4,299',
-            },
-        ];
+      : defaultServices;
 
-    const handleNext = () => {
+  const handleNext = () => {
+    if (!selectedService) {
+      Alert.alert('Required', 'Please select a service.');
+      return;
+    }
 
-        if (!selectedService) {
-            Alert.alert(
-                'Select Service',
-                'Please select a service'
-            );
-            return;
-        }
+    if (!selectedLocation) {
+      Alert.alert('Required', 'Please select a service location.');
+      return;
+    }
 
-        if (!selectedLocation) {
-            Alert.alert(
-                'Select Location',
-                'Please select a location'
-            );
-            return;
-        }
+    navigation.navigate('SelectDateTime', {
+      artist,
+      selectedService,
+      selectedLocation,
+    });
+  };
 
-        navigation.navigate(
-            'SelectDateTime',
-            {
-                artist,
-                selectedService,
-                selectedLocation,
-            }
-        );
-    };
+  const getPriceRange = () => {
+    if (artist.services && artist.services.length > 0) {
+      const prices = artist.services
+        .map(s => parseFloat(s.price) || 0)
+        .filter(p => p > 0);
+      if (prices.length > 0) {
+        const min = Math.min(...prices);
+        const max = Math.max(...prices);
+        return min === max ? `₹${min}` : `₹${min} - ₹${max}`;
+      }
+    }
+    return artist.profile?.priceRange || '$150 - $300';
+  };
 
-    return (
-        <ScrollView
-            style={styles.container}
-            showsVerticalScrollIndicator={false}
-        >
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <ScreenHeader
+        title="Book Your Appointment"
+        onBack={() => navigation.goBack()}
+      />
 
-            <View style={styles.header}>
-
-                <TouchableOpacity
-                    onPress={() => navigation.goBack()}
-                >
-                    <Ionicons
-                        name="chevron-back"
-                        size={28}
-                        color="#222"
-                    />
-                </TouchableOpacity>
-
-                <Text style={styles.headerTitle}>
-                    Book Your Appointment
-                </Text>
-
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Artist Profile Info Segment */}
+        <View style={styles.artistRow}>
+          {artist.profile?.profileImage || artist.image ? (
+            <Image
+              source={{ uri: artist.profile?.profileImage || artist.image }}
+              style={styles.artistImage}
+            />
+          ) : (
+            <View style={[styles.artistImage, styles.artistImagePlaceholder]}>
+              <Ionicons name="person" size={32} color="#FF4F87" />
             </View>
-            {/* Artist Card */}
+          )}
+          <View style={styles.artistMeta}>
+            <Text style={styles.artistName}>{artist.name}</Text>
+            <Text style={styles.artistSpeciality}>
+              {artist.speciality ||
+                artist.specializations?.[0]?.name ||
+                'Bridal Specialist'}
+            </Text>
+            <Text style={styles.artistPrice}>{getPriceRange()}</Text>
+          </View>
+        </View>
 
-            <View style={styles.artistCard}>
-
-                {artist.image ? (
-                    <Image
-                        source={artist.image}
-                        style={styles.artistImage}
-                    />
-                ) : (
-                    <View style={[styles.artistImage, styles.artistImagePlaceholder]}>
-                        <Ionicons name="person" size={24} color="#FF4F87" />
-                    </View>
-                )}
-
-                <View style={styles.artistInfo}>
-
-                    <Text style={styles.artistName}>
-                        {artist.name}
-                    </Text>
-
-                    <Text style={styles.artistSpeciality}>
-                        {artist.speciality || artist.specializations?.[0]?.name || 'Makeup Artist'}
-                    </Text>
-
-                    <Text style={styles.artistPrice}>
-                        {artist.services?.[0]?.priceRange || 'Contact for Pricing'}
-                    </Text>
-
+        {/* Services Segment */}
+        <Text style={styles.sectionTitle}>Select Service</Text>
+        <View style={styles.optionsList}>
+          {services.map(service => {
+            const isSelected = selectedService === service.name;
+            return (
+              <TouchableOpacity
+                key={service.name}
+                style={styles.optionRow}
+                onPress={() => setSelectedService(service.name)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.leftOptionRow}>
+                  {/* Custom Radio Button */}
+                  <View
+                    style={[
+                      styles.customRadio,
+                      isSelected && styles.customRadioActive,
+                    ]}
+                  >
+                    {isSelected && <View style={styles.customRadioInner} />}
+                  </View>
+                  <Text
+                    style={[
+                      styles.optionText,
+                      isSelected && styles.optionTextActive,
+                    ]}
+                  >
+                    {service.name}
+                  </Text>
                 </View>
-
-            </View>
-
-            {/* Service Section */}
-
-            <Text style={styles.sectionTitle}>
-                Select Service
-            </Text>
-
-            {services.map((service) => (
-
-                <TouchableOpacity
-                    key={service.name}
-                    style={styles.optionRow}
-                    onPress={() =>
-                        setSelectedService(service.name)
-                    }
+                <Text
+                  style={[
+                    styles.priceText,
+                    isSelected && styles.priceTextActive,
+                  ]}
                 >
-
-                    <View style={styles.radioRow}>
-
-                        <Ionicons
-                            name={
-                                selectedService === service.name
-                                    ? 'radio-button-on'
-                                    : 'radio-button-off'
-                            }
-                            size={20}
-                            color="#FF4F87"
-                        />
-
-                        <Text style={styles.optionText}>
-                            {service.name}
-                        </Text>
-
-                    </View>
-
-                    <Text style={styles.priceText}>
-                        {service.price}
-                    </Text>
-
-                </TouchableOpacity>
-
-            ))}
-
-            {/* Location */}
-
-            <Text style={styles.sectionTitle}>
-                Location
-            </Text>
-
-            <View style={styles.locationCard}>
-
-                <TouchableOpacity
-                    style={styles.locationRow}
-                    onPress={() =>
-                        setSelectedLocation('studio')
-                    }
-                >
-
-                    <View style={styles.radioRow}>
-
-                        <Ionicons
-                            name={
-                                selectedLocation === 'studio'
-                                    ? 'radio-button-on'
-                                    : 'radio-button-off'
-                            }
-                            size={20}
-                            color="#FF4F87"
-                        />
-
-                        <View style={{ marginLeft: 10 }}>
-
-                            <Text
-                                style={[
-                                    styles.optionText,
-                                    selectedLocation === 'studio' &&
-                                    styles.selectedLocationText,
-                                ]}
-                            >
-                                At Artist Studio
-                            </Text>
-
-                            <Text style={styles.addressText}>
-                                123 Beauty Street, Pune
-                            </Text>
-
-                        </View>
-
-                    </View>
-
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={styles.locationRow}
-                    onPress={() =>
-                        setSelectedLocation('home')
-                    }
-                >
-
-                    <View style={styles.radioRow}>
-
-                        <Ionicons
-                            name={
-                                selectedLocation === 'home'
-                                    ? 'radio-button-on'
-                                    : 'radio-button-off'
-                            }
-                            size={20}
-                            color="#FF4F87"
-                        />
-
-                        <Text
-                            style={[
-                                styles.optionText,
-                                selectedLocation === 'home' &&
-                                styles.selectedLocationText,
-                            ]}
-                        >
-                            At Your Location
-                        </Text>
-
-                    </View>
-
-                </TouchableOpacity>
-
-            </View>
-
-            {/* Next Button */}
-
-            <TouchableOpacity
-                style={styles.nextButton}
-                onPress={handleNext}
-            >
-                <Text style={styles.nextButtonText}>
-                    Next
+                  {service.price}
                 </Text>
-            </TouchableOpacity>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
 
-        </ScrollView>
-    );
+        {/* Locations Segment */}
+        <Text style={styles.sectionTitle}>Location</Text>
+
+        {/* At Artist Studio Box */}
+        <TouchableOpacity
+          style={[
+            styles.locationCard,
+            selectedLocation === 'studio' && styles.locationCardActive,
+          ]}
+          onPress={() => setSelectedLocation('studio')}
+          activeOpacity={0.8}
+        >
+          <View
+            style={[
+              styles.customRadio,
+              selectedLocation === 'studio' && styles.customRadioActive,
+            ]}
+          >
+            {selectedLocation === 'studio' && (
+              <View style={styles.customRadioInner} />
+            )}
+          </View>
+          <View style={styles.locationTextCol}>
+            <Text
+              style={[
+                styles.locationHeading,
+                selectedLocation === 'studio' && styles.locationHeadingActive,
+              ]}
+            >
+              At Artist Studio
+            </Text>
+            <Text style={styles.addressText}>123 Beauty Street, Pune</Text>
+          </View>
+        </TouchableOpacity>
+
+        {/* At Your Location Box */}
+        <TouchableOpacity
+          style={[
+            styles.locationCard,
+            selectedLocation === 'home' && styles.locationCardActive,
+          ]}
+          onPress={() => setSelectedLocation('home')}
+          activeOpacity={0.8}
+        >
+          <View
+            style={[
+              styles.customRadio,
+              selectedLocation === 'home' && styles.customRadioActive,
+            ]}
+          >
+            {selectedLocation === 'home' && (
+              <View style={styles.customRadioInner} />
+            )}
+          </View>
+          <View style={styles.locationTextCol}>
+            <Text
+              style={[
+                styles.locationHeading,
+                selectedLocation === 'home' && styles.locationHeadingActive,
+              ]}
+            >
+              At Your Location
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        {/* Next Trigger Button */}
+        <TouchableOpacity
+          style={styles.nextButton}
+          onPress={handleNext}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.nextButtonText}>Next</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
+  );
 };
 
 export default BookAppointmentScreen;
 
 const styles = StyleSheet.create({
-
-    container: {
-        flex: 1,
-        backgroundColor: '#F7F7F7',
-        paddingHorizontal: 16,
-        paddingTop: 45,
-    },
-
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 12,
-        marginBottom: 18,
-    },
-
-    headerTitle: {
-        fontSize: 24,
-        fontWeight: '800',
-        color: '#111',
-
-        marginLeft: 14,
-    },
-
-    artistCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-
-        backgroundColor: '#FFFFFF',
-
-        padding: 12,
-
-        borderRadius: 14,
-
-        marginBottom: 24,
-    },
-
-    artistImage: {
-        width: 55,
-        height: 55,
-
-        borderRadius: 12,
-    },
-
-    artistImagePlaceholder: {
-        backgroundColor: '#FFE6EF',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-
-    artistInfo: {
-        marginLeft: 12,
-    },
-
-    artistName: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: '#111',
-    },
-
-    artistSpeciality: {
-        fontSize: 12,
-        color: '#777',
-        marginTop: 3,
-    },
-
-    artistPrice: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#111',
-        marginTop: 6,
-    },
-
-    sectionTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#111',
-
-        marginBottom: 12,
-        marginTop: 10,
-    },
-
-    optionRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-
-        paddingVertical: 10,
-
-        borderBottomWidth: 1,
-        borderBottomColor: '#F1F1F1',
-    },
-
-    radioRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-
-    optionText: {
-        marginLeft: 10,
-
-        fontSize: 14,
-        color: '#333',
-    },
-
-    priceText: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#111',
-    },
-
-    locationCard: {
-        backgroundColor: '#FFFFFF',
-
-        borderRadius: 14,
-
-        paddingHorizontal: 14,
-        paddingVertical: 4,
-    },
-
-    locationRow: {
-        paddingVertical: 12,
-    },
-
-    addressText: {
-        fontSize: 12,
-        color: '#999',
-        marginTop: 3,
-    },
-
-    selectedLocationText: {
-        color: '#FF4F87',
-        fontWeight: '600',
-    },
-
-    nextButton: {
-        backgroundColor: '#FF4F87',
-
-        height: 54,
-
-        borderRadius: 14,
-
-        justifyContent: 'center',
-        alignItems: 'center',
-
-        marginTop: 30,
-        marginBottom: 30,
-    },
-
-    nextButtonText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: '700',
-    },
-
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#FCFCFC',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
+  },
+  container: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  artistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 26,
+  },
+  artistImage: {
+    width: 70,
+    height: 70,
+    borderRadius: 14,
+    backgroundColor: '#FFE6EF',
+  },
+  artistImagePlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  artistMeta: {
+    marginLeft: 16,
+    flex: 1,
+  },
+  artistName: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#111',
+  },
+  artistSpeciality: {
+    fontSize: 13,
+    color: '#777',
+    marginTop: 4,
+  },
+  artistPrice: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111',
+    marginTop: 6,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111',
+    marginTop: 10,
+    marginBottom: 16,
+  },
+  optionsList: {
+    marginBottom: 20,
+  },
+  optionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F1F1',
+  },
+  leftOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  customRadio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: '#E2E2E2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  customRadioActive: {
+    borderColor: '#FF4F87',
+  },
+  customRadioInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#FF4F87',
+  },
+  optionText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+  },
+  optionTextActive: {
+    color: '#111',
+    fontWeight: '600',
+  },
+  priceText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#333',
+  },
+  priceTextActive: {
+    color: '#FF4F87',
+  },
+  locationCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: '#EAEAEA',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.02,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  locationCardActive: {
+    borderColor: '#FF4F87',
+    shadowOpacity: 0.04,
+  },
+  locationTextCol: {
+    flex: 1,
+    marginLeft: 4,
+  },
+  locationHeading: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  locationHeadingActive: {
+    color: '#FF4F87',
+  },
+  addressText: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 4,
+  },
+  nextButton: {
+    backgroundColor: '#FF4F87',
+    height: 52,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 26,
+    shadowColor: '#FF4F87',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  nextButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
 });

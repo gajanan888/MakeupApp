@@ -80,41 +80,93 @@ const BottomNavigation = ({
                 </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.navItem}>
+            <TouchableOpacity
+                style={styles.navItem}
+                onPress={() => navigation.navigate('CustomerBookings')}
+            >
                 <Ionicons
-                    name="calendar-outline"
+                    name={
+                        activeTab === 'Bookings'
+                            ? 'calendar'
+                            : 'calendar-outline'
+                    }
                     size={24}
-                    color="#999"
+                    color={
+                        activeTab === 'Bookings'
+                            ? '#FF4F87'
+                            : '#999'
+                    }
                 />
 
-                <Text style={styles.navText}>
+                <Text
+                    style={
+                        activeTab === 'Bookings'
+                            ? styles.activeNavText
+                            : styles.navText
+                    }
+                >
                     Bookings
                 </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.navItem}>
+            <TouchableOpacity
+                style={styles.navItem}
+                onPress={() => navigation.navigate('CustomerMessage')}
+            >
                 <Ionicons
-                    name="chatbubble-ellipses-outline"
+                    name={
+                        activeTab === 'Chat'
+                            ? 'chatbubble-ellipses'
+                            : 'chatbubble-ellipses-outline'
+                    }
                     size={24}
-                    color="#999"
+                    color={
+                        activeTab === 'Chat'
+                            ? '#FF4F87'
+                            : '#999'
+                    }
                 />
 
-                <Text style={styles.navText}>
+                <Text
+                    style={
+                        activeTab === 'Chat'
+                            ? styles.activeNavText
+                            : styles.navText
+                    }
+                >
                     Chat
                 </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.navItem}>
+            <TouchableOpacity
+                style={styles.navItem}
+                onPress={() => navigation.navigate('CustomerProfile')}
+            >
                 <Ionicons
-                    name="person-outline"
+                    name={
+                        activeTab === 'Profile'
+                            ? 'person'
+                            : 'person-outline'
+                    }
                     size={24}
-                    color="#999"
+                    color={
+                        activeTab === 'Profile'
+                            ? '#FF4F87'
+                            : '#999'
+                    }
                 />
 
-                <Text style={styles.navText}>
+                <Text
+                    style={
+                        activeTab === 'Profile'
+                            ? styles.activeNavText
+                            : styles.navText
+                    }
+                >
                     Profile
                 </Text>
             </TouchableOpacity>
+
 
         </View>
 
