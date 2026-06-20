@@ -7,6 +7,7 @@ import {
   listBookingsController,
   listCustomersController,
   updateBookingStatusController,
+  verifyArtistController,
 } from "./admin.controller.js";
 import { protectAdmin } from "../../middleware/adminAuth.js";
 
@@ -19,6 +20,7 @@ router.get("/dashboard", protectAdmin, getDashboardAnalyticsController);
 
 router.get("/customers", protectAdmin, listCustomersController);
 router.get("/artists", protectAdmin, listArtistsController);
+router.patch("/artists/:id/verify", protectAdmin, verifyArtistController);
 
 router.get("/bookings", protectAdmin, listBookingsController);
 router.patch(

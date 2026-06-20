@@ -15,6 +15,11 @@ const Admin = sequelize.define("Admin", {
     type: DataTypes.STRING,
     allowNull: false,
   },
+  role: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: "super_admin",
+  },
 });
 
 export default Admin;

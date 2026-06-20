@@ -1,10 +1,6 @@
 @font-face {
   font-family: 'luxiachy';
-  src: url('./Fonts/luxiachy.otf');
-}
-@font-face {
-  font-family: '';
-  src: url();
+  src: url('/Fonts/luxiachy.otf');
 }
 *{
   margin: 0;

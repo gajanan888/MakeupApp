@@ -26,7 +26,7 @@ export const registerAdmin = async ({ name, email, password }) => {
   };
 };
 
-export const loginAdmin = async ({ email, password }) => {
+export const loginAdmin = async ({ email, password, selectedRole }) => {
   const admin = await Admin.findOne({
     where: { email },
   });
@@ -40,10 +40,17 @@ export const loginAdmin = async ({ email, password }) => {
     throw new Error("Invalid password");
   }
 
+  // Super Admin can log in as any role.
+  // Other roles must match the database role exactly.
+  if (selectedRole && admin.role !== "super_admin" && admin.role !== selectedRole) {
+    throw new Error(`Access Denied: This account is authorized as a ${admin.role.replace('_', ' ')} only.`);
+  }
+
   return {
     id: admin.id,
     name: admin.name,
     email: admin.email,
+    role: admin.role,
     token: generateToken(admin.id),
   };
 };

@@ -1,9 +1,8 @@
 import React from "react";
 import { useEffect, useState } from "react";
 import "../Styles/Navbar.css";
-import logo from "../../public/Images/logo.png";
 
-const Navbar = () => {
+const Navbar = ({ onAdminClick }) => {
   const [show, setShow] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
 
@@ -26,7 +25,7 @@ const Navbar = () => {
     <div className={`navbar ${show ? "show" : "hide"}`}>
       <div className="logo">
         {" "}
-        <img src={logo} alt="Logo" />{" "}
+        <img src="/Images/logo.png" alt="Logo" />{" "}
       </div>
 
       <div className="navlinks">
@@ -37,7 +36,8 @@ const Navbar = () => {
         <h3>Artist</h3>
       </div>
 
-      <div className="user">
+      <div className="user" style={{ display: "flex", gap: "20px", alignItems: "center" }}>
+        <h3 onClick={onAdminClick} style={{ cursor: "pointer", color: "var(--primary, #ff4f8f)", fontSize: "14px" }}>Admin Portal</h3>
         <h3>Download App</h3>
         <div></div>
       </div>

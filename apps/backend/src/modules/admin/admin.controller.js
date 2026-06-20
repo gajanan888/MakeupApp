@@ -6,6 +6,7 @@ import {
   listBookings,
   listCustomers,
   updateBookingStatus,
+  verifyArtist,
 } from "./admin.service.js";
 import {
   getPagination,
@@ -206,6 +207,34 @@ export const getDashboardAnalyticsController = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || "Failed to fetch analytics",
+      data: null,
+    });
+  }
+};
+
+export const verifyArtistController = async (req, res) => {
+  try {
+    const { isValid, value } = validateIdParam(req.params.id);
+    if (!isValid) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid artist id",
+        data: null,
+      });
+    }
+
+    const { isVerified } = req.body;
+    const artist = await verifyArtist(value, isVerified);
+
+    res.json({
+      success: true,
+      message: "Artist verification status updated",
+      data: artist,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message || "Failed to update artist verification",
       data: null,
     });
   }

@@ -4,6 +4,10 @@ import Admin from "../../models/Admin.js";
 import Customer from "../../models/Customer.js";
 import Artist from "../../models/Artist.js";
 import Booking from "../../models/Booking.js";
+import ArtistProfile from "../../models/ArtistProfile.js";
+import ArtistCertificate from "../../models/ArtistCertificate.js";
+import ArtistPortfolio from "../../models/ArtistPortfolio.js";
+import ArtistPayment from "../../models/ArtistPayment.js";
 
 export const getAdminProfile = async (adminId) => {
   const admin = await Admin.findByPk(adminId, {
@@ -70,8 +74,13 @@ export const listArtists = async ({ q, offset, limit }) => {
   }
 
   return Artist.findAndCountAll({
-    attributes: ["id", "name", "email", "phone", "pricing", "experience"],
     where,
+    include: [
+      { model: ArtistProfile, as: "profile" },
+      { model: ArtistCertificate, as: "certificates" },
+      { model: ArtistPortfolio, as: "portfolio" },
+      { model: ArtistPayment, as: "payment" },
+    ],
     order: [["createdAt", "DESC"]],
     offset,
     limit,
@@ -179,4 +188,16 @@ export const getDashboardAnalytics = async () => {
       count: Number(row.get("count")),
     })),
   };
+};
+
+export const verifyArtist = async (artistId, isVerified) => {
+  const artist = await Artist.findByPk(artistId);
+  if (!artist) {
+    throw new Error("Artist not found");
+  }
+
+  artist.isVerified = Boolean(isVerified);
+  await artist.save();
+
+  return artist;
 };

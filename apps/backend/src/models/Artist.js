@@ -19,6 +19,10 @@ const Artist = sequelize.define("Artist", {
   password: {
     type: DataTypes.STRING,
   },
+  isVerified: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
   // keep Artist model minimal; profile and related fields moved to normalized tables
 });
 
