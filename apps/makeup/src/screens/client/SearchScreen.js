@@ -15,10 +15,11 @@ import {
 import { getArtists } from '../../api/auth';
 import ScreenHeader from '../../components/ScreenHeader';
 
-const SearchScreen = ({ navigation }) => {
+const SearchScreen = ({ navigation, route }) => {
+  const initialCategory = route?.params?.category || 'All';
   const [searchText, setSearchText] = useState('');
   const [favorites, setFavorites] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [showFilter, setShowFilter] = useState(false);
   const [selectedRating, setSelectedRating] = useState(null);
   const [selectedPrice, setSelectedPrice] = useState(null);
@@ -55,6 +56,12 @@ const SearchScreen = ({ navigation }) => {
 
     fetchArtists();
   }, []);
+
+  useEffect(() => {
+    if (route?.params?.category) {
+      setSelectedCategory(route.params.category);
+    }
+  }, [route?.params?.category]);
 
   const toggleFavorite = artistId => {
     if (favorites.includes(artistId)) {

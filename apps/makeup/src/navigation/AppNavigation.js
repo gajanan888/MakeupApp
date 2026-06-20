@@ -29,6 +29,16 @@ import ArtistMessageScreen from '../screens/artist/ArtistMessageScreen';
 import CustomerMessageScreen from '../screens/client/CustomerMessageScreen';
 import ProfileScreen from '../screens/client/ProfileScreen';
 import AIMatchScreen from '../screens/client/AIMatchScreen';
+import FaceScanScreen from '../screens/client/FaceScanScreen';
+import FaceScanScanningScreen from '../screens/client/FaceScanScanningScreen';
+import FaceScanAnalyzingScreen from '../screens/client/FaceScanAnalyzingScreen';
+import FaceScanResultScreen from '../screens/client/FaceScanResultScreen';
+import FaceScanRecommendationsScreen from '../screens/client/FaceScanRecommendationsScreen';
+import LookDetailsScreen from '../screens/client/LookDetailsScreen';
+import TryThisLookScreen from '../screens/client/TryThisLookScreen';
+import TryThisLookEyeScreen from '../screens/client/TryThisLookEyeScreen';
+import TryThisLookFinalScreen from '../screens/client/TryThisLookFinalScreen';
+import BookLookArtistScreen from '../screens/client/BookLookArtistScreen';
 import SelectDateTimeScreen from '../screens/client/SelectDateTimeScreen';
 import AddOnsScreen from '../screens/client/AddOnsScreen';
 import BookingConfirmationScreen from '../screens/client/BookingConfirmationScreen';
@@ -41,35 +51,17 @@ const AppNavigator = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen
-          name="Onboarding"
-          component={OnboardingScreen}
-        />
+        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
 
-        <Stack.Screen
-          name="RoleSelection"
-          component={RoleSelectionScreen}
-        />
+        <Stack.Screen name="RoleSelection" component={RoleSelectionScreen} />
 
-        <Stack.Screen
-          name="ClientLogin"
-          component={ClientLoginScreen}
-        />
+        <Stack.Screen name="ClientLogin" component={ClientLoginScreen} />
 
-        <Stack.Screen
-          name="ArtistLogin"
-          component={ArtistLoginScreen}
-        />
+        <Stack.Screen name="ArtistLogin" component={ArtistLoginScreen} />
 
-        <Stack.Screen
-          name="ClientRegister"
-          component={ClientRegisterScreen}
-        />
+        <Stack.Screen name="ClientRegister" component={ClientRegisterScreen} />
 
-        <Stack.Screen
-          name="ClientHome"
-          component={ClientHomeScreen}
-        />
+        <Stack.Screen name="ClientHome" component={ClientHomeScreen} />
 
         <Stack.Screen
           name="ArtistRegister1"
@@ -116,20 +108,11 @@ const AppNavigator = () => {
           component={ArtistRegistrationPendingScreen}
         />
 
-        <Stack.Screen
-          name="ArtistHome"
-          component={ArtistHomeScreen}
-        />
+        <Stack.Screen name="ArtistHome" component={ArtistHomeScreen} />
 
-        <Stack.Screen
-          name="ArtistMessage"
-          component={ArtistMessageScreen}
-        />
+        <Stack.Screen name="ArtistMessage" component={ArtistMessageScreen} />
 
-        <Stack.Screen
-          name="ForgotPassword"
-          component={ForgotPasswordScreen}
-        />
+        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
 
         <Stack.Screen
           name="OtpVerification"
@@ -141,15 +124,9 @@ const AppNavigator = () => {
           component={CreateNewPasswordScreen}
         />
 
-        <Stack.Screen
-          name="Search"
-          component={SearchScreen}
-        />
+        <Stack.Screen name="Search" component={SearchScreen} />
 
-        <Stack.Screen
-          name="ArtistDetails"
-          component={ArtistDetailsScreen}
-        />
+        <Stack.Screen name="ArtistDetails" component={ArtistDetailsScreen} />
 
         <Stack.Screen
           name="BookAppointment"
@@ -164,34 +141,38 @@ const AppNavigator = () => {
           name="CustomerMessage"
           component={CustomerMessageScreen}
         />
+        <Stack.Screen name="CustomerProfile" component={ProfileScreen} />
+        <Stack.Screen name="AIMatch" component={AIMatchScreen} />
+        <Stack.Screen name="FaceScan" component={FaceScanScreen} />
         <Stack.Screen
-          name="CustomerProfile"
-          component={ProfileScreen}
+          name="FaceScanScanning"
+          component={FaceScanScanningScreen}
         />
         <Stack.Screen
-          name="AIMatch"
-          component={AIMatchScreen}
+          name="FaceScanAnalyzing"
+          component={FaceScanAnalyzingScreen}
         />
+        <Stack.Screen name="FaceScanResult" component={FaceScanResultScreen} />
         <Stack.Screen
-          name="SelectDateTime"
-          component={SelectDateTimeScreen}
+          name="FaceScanRecommendations"
+          component={FaceScanRecommendationsScreen}
         />
+        <Stack.Screen name="LookDetails" component={LookDetailsScreen} />
+        <Stack.Screen name="TryThisLook" component={TryThisLookScreen} />
+        <Stack.Screen name="TryThisLookEye" component={TryThisLookEyeScreen} />
         <Stack.Screen
-          name="AddOns"
-          component={AddOnsScreen}
+          name="TryThisLookFinal"
+          component={TryThisLookFinalScreen}
         />
+        <Stack.Screen name="BookLookArtist" component={BookLookArtistScreen} />
+        <Stack.Screen name="SelectDateTime" component={SelectDateTimeScreen} />
+        <Stack.Screen name="AddOns" component={AddOnsScreen} />
         <Stack.Screen
           name="BookingConfirmation"
           component={BookingConfirmationScreen}
         />
-        <Stack.Screen
-          name="Payment"
-          component={PaymentScreen}
-        />
-        <Stack.Screen
-          name="BookingSuccess"
-          component={BookingSuccessScreen}
-        />
+        <Stack.Screen name="Payment" component={PaymentScreen} />
+        <Stack.Screen name="BookingSuccess" component={BookingSuccessScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
