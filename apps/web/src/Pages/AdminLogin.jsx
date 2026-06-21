@@ -66,6 +66,7 @@ const AdminLogin = ({ onLoginSuccess }) => {
                 <option value="compliance">Compliance & Verification Officer</option>
                 <option value="support">Customer Support Specialist</option>
                 <option value="finance">Financial Administrator</option>
+                <option value="tech_lead">Technical Lead</option>
               </select>
             </div>
           </div>

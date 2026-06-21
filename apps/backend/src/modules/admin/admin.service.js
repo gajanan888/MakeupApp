@@ -1,5 +1,8 @@
 import { Op } from "sequelize";
 import bcrypt from "bcrypt";
+import axios from "axios";
+import { v2 as cloudinary } from "cloudinary";
+import sequelize from "../../config/db.js";
 import Admin from "../../models/Admin.js";
 import Customer from "../../models/Customer.js";
 import Artist from "../../models/Artist.js";
@@ -200,4 +203,140 @@ export const verifyArtist = async (artistId, isVerified) => {
   await artist.save();
 
   return artist;
+};
+
+export const getTechHealth = async () => {
+  // 1. Database connection & details
+  let dbStatus = "healthy";
+  let dbLatency = 0;
+  let dbDialect = sequelize.getDialect();
+  let dbError = null;
+
+  try {
+    const start = Date.now();
+    await sequelize.authenticate();
+    // run simple diagnostic select
+    await sequelize.query("SELECT 1;");
+    dbLatency = Date.now() - start;
+  } catch (err) {
+    dbStatus = "unhealthy";
+    dbError = err.message;
+  }
+
+  const pool = sequelize.connectionManager.pool;
+  const dbPool = pool ? {
+    size: pool.size || 0,
+    available: pool.available || 0,
+    pending: pool.pending || 0,
+  } : { size: 0, available: 0, pending: 0 };
+
+  // 2. Cloudinary check
+  const cloudinaryConfigured = !!(
+    process.env.CLOUDINARY_CLOUD_NAME &&
+    process.env.CLOUDINARY_API_KEY &&
+    process.env.CLOUDINARY_API_SECRET
+  );
+
+  let cloudinaryStatus = "not_configured";
+  let cloudinaryPing = "skipped";
+  let cloudinaryError = null;
+
+  if (cloudinaryConfigured) {
+    try {
+      cloudinary.config({
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET,
+        secure: true,
+      });
+      const result = await cloudinary.api.ping();
+      if (result && result.status === "ok") {
+        cloudinaryStatus = "healthy";
+        cloudinaryPing = "ok";
+      } else {
+        cloudinaryStatus = "unhealthy";
+        cloudinaryPing = "failed";
+      }
+    } catch (err) {
+      cloudinaryStatus = "unhealthy";
+      cloudinaryError = err.message;
+    }
+  }
+
+  // 3. OTP check (2Factor)
+  const otpConfigured = !!process.env.OTP_API_KEY;
+  let otpStatus = "mock";
+  let otpPing = "mocked (dev mode)";
+  let otpError = null;
+
+  if (otpConfigured) {
+    try {
+      const response = await axios.get(
+        `https://2factor.in/API/V1/${process.env.OTP_API_KEY}/BAL/SMS`
+      );
+      if (response.data && response.data.Status === "Success") {
+        otpStatus = "healthy";
+        otpPing = response.data.Details || "active";
+      } else {
+        otpStatus = "unhealthy";
+        otpPing = "failed response";
+      }
+    } catch (err) {
+      otpStatus = "unhealthy";
+      otpError = err.message;
+    }
+  }
+
+  // 4. Payment Key validation
+  const paymentKeyConfigured = !!process.env.PAYMENT_ENCRYPTION_KEY;
+  const paymentStatus = paymentKeyConfigured ? "secure" : "warning_dev_key";
+
+  // 5. System metrics & process info
+  const systemMetrics = {
+    nodeVersion: process.version,
+    platform: process.platform,
+    env: process.env.NODE_ENV || "development",
+    uptimeSeconds: process.uptime(),
+    memoryUsage: process.memoryUsage(),
+  };
+
+  // 6. Database record stats summary
+  const [customerCount, artistCount, bookingCount] = await Promise.all([
+    Customer.count(),
+    Artist.count(),
+    Booking.count(),
+  ]);
+
+  return {
+    database: {
+      status: dbStatus,
+      dialect: dbDialect,
+      latencyMs: dbLatency,
+      pool: dbPool,
+      error: dbError,
+      records: {
+        customers: customerCount,
+        artists: artistCount,
+        bookings: bookingCount,
+      }
+    },
+    cloudinary: {
+      status: cloudinaryStatus,
+      configured: cloudinaryConfigured,
+      ping: cloudinaryPing,
+      cloudName: process.env.CLOUDINARY_CLOUD_NAME || "Not set",
+      error: cloudinaryError,
+    },
+    otp: {
+      status: otpStatus,
+      configured: otpConfigured,
+      ping: otpPing,
+      error: otpError,
+    },
+    paymentEncryption: {
+      status: paymentStatus,
+      configured: paymentKeyConfigured,
+    },
+    system: systemMetrics,
+  };
 };

@@ -32,6 +32,12 @@ const adminsToSeed = [
     email: "finance@glamai.com",
     password: "financepassword",
     role: "finance"
+  },
+  {
+    name: "System Technical Lead",
+    email: "tech@glamai.com",
+    password: "techpassword",
+    role: "tech_lead"
   }
 ];
 

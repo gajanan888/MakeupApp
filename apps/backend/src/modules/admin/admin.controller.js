@@ -7,6 +7,7 @@ import {
   listCustomers,
   updateBookingStatus,
   verifyArtist,
+  getTechHealth,
 } from "./admin.service.js";
 import {
   getPagination,
@@ -235,6 +236,32 @@ export const verifyArtistController = async (req, res) => {
     res.status(400).json({
       success: false,
       message: error.message || "Failed to update artist verification",
+      data: null,
+    });
+  }
+};
+
+export const getTechHealthController = async (req, res) => {
+  try {
+    // Only super_admin or tech_lead roles are authorized
+    if (req.admin.role !== "super_admin" && req.admin.role !== "tech_lead") {
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden: Access restricted to Technical Leads and Super Admins",
+        data: null,
+      });
+    }
+
+    const data = await getTechHealth();
+    res.json({
+      success: true,
+      message: "Technical status fetched successfully",
+      data,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch technical status",
       data: null,
     });
   }
