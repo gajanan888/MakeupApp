@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -227,8 +228,17 @@ const ArtistProfileScreen = ({ onBack }) => {
         { 
           text: 'Logout', 
           style: 'destructive',
-          onPress: () => {
-            navigation.navigate('ArtistLogin');
+          onPress: async () => {
+            try {
+              await AsyncStorage.removeItem('token');
+              await AsyncStorage.removeItem('userRole');
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Onboarding' }],
+              });
+            } catch (err) {
+              console.warn('Logout failed:', err);
+            }
           }
         }
       ]

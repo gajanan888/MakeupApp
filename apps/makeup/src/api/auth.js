@@ -13,6 +13,7 @@ export const loginClient = async (email, password) => {
   if (payload?.name)  await AsyncStorage.setItem('customerName', payload.name);
   if (payload?.email) await AsyncStorage.setItem('customerEmail', payload.email);
   if (payload?.id)    await AsyncStorage.setItem('customerId', String(payload.id));
+  await AsyncStorage.setItem('userRole', 'client');
 
   return payload;
 };
@@ -25,6 +26,7 @@ export const registerClient = async (data) => {
   if (payload?.name)  await AsyncStorage.setItem('customerName', payload.name);
   if (payload?.email) await AsyncStorage.setItem('customerEmail', payload.email);
   if (payload?.id)    await AsyncStorage.setItem('customerId', String(payload.id));
+  await AsyncStorage.setItem('userRole', 'client');
 
   return payload;
 };
@@ -38,6 +40,7 @@ export const loginArtist = async (email, password) => {
   const payload = response?.data?.data;
 
   if (payload?.token) await AsyncStorage.setItem('token', payload.token);
+  await AsyncStorage.setItem('userRole', 'artist');
 
   return payload;
 };
@@ -47,6 +50,7 @@ export const registerArtist = async (data) => {
   const payload = response?.data?.data;
 
   if (payload?.token) await AsyncStorage.setItem('token', payload.token);
+  await AsyncStorage.setItem('userRole', 'artist');
 
   return payload;
 };

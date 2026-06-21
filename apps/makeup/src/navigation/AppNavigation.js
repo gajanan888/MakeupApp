@@ -1,5 +1,7 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
+import { View, ActivityIndicator } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import OnboardingScreen from '../screens/common/OnboardingScreen';
@@ -48,9 +50,42 @@ import BookingSuccessScreen from '../screens/client/BookingSuccessScreen';
 const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [initialRoute, setInitialRoute] = React.useState('Onboarding');
+
+  React.useEffect(() => {
+    const checkLogin = async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const role = await AsyncStorage.getItem('userRole');
+
+        if (token) {
+          if (role === 'artist') {
+            setInitialRoute('ArtistHome');
+          } else if (role === 'client') {
+            setInitialRoute('ClientHome');
+          }
+        }
+      } catch (e) {
+        console.error('Error checking login status:', e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    checkLogin();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FCFCFC' }}>
+        <ActivityIndicator size="large" color="#FF4F87" />
+      </View>
+    );
+  }
+
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator initialRouteName={initialRoute} screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
 
         <Stack.Screen name="RoleSelection" component={RoleSelectionScreen} />

@@ -53,7 +53,10 @@ const ClientLoginScreen = ({ navigation }) => {
                 Alert.alert('Login Failed', 'Could not complete login. Please try again.');
                 return;
             }
-            navigation.replace('ClientHome');
+            navigation.reset({
+                index: 0,
+                routes: [{ name: 'ClientHome' }],
+            });
         } catch (err) {
             // Show the exact server message (email not found / wrong password / network)
             const serverMsg = err?.response?.data?.message;

@@ -74,7 +74,10 @@ const ArtistRegisterSummaryScreen = ({ navigation }) => {
       await updateArtistProfile(payload);
       resetRegistration();
       Alert.alert('Profile saved', 'Your artist profile is ready.');
-      navigation.navigate('ArtistHome');
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'ArtistHome' }],
+      });
     } catch (error) {
       const message = error?.response?.data?.message || error?.message;
       Alert.alert('Save failed', message || 'Unable to save profile.');

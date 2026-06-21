@@ -16,7 +16,10 @@ const OnboardingScreen = ({ navigation }) => {
     };
 
     const handleSkip = () => {
-        navigation.navigate('ClientHome');
+        navigation.reset({
+            index: 0,
+            routes: [{ name: 'ClientHome' }],
+        });
     };
 
     return (

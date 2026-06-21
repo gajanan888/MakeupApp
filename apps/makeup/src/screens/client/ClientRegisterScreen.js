@@ -104,7 +104,10 @@ const ClientRegisterScreen = ({ navigation }) => {
                 phone: phone.trim(),
                 password,
             });
-            navigation.replace('ClientHome');
+            navigation.reset({
+                index: 0,
+                routes: [{ name: 'ClientHome' }],
+            });
         } catch (err) {
             const msg = err?.response?.data?.message || err?.message || 'Registration failed';
             Alert.alert('Registration Failed', msg);

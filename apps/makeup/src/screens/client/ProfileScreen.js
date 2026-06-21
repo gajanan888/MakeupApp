@@ -177,6 +177,7 @@ const ProfileScreen = ({ navigation }) => {
             try {
               await AsyncStorage.removeItem('token');
               await AsyncStorage.removeItem('customerName');
+              await AsyncStorage.removeItem('userRole');
               navigation.reset({
                 index: 0,
                 routes: [{ name: 'Onboarding' }],
