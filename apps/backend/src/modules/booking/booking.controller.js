@@ -7,6 +7,8 @@ import {
   rejectBooking,
   startBooking,
   completeBooking,
+  payAdvance,
+  declineAdvancePayment,
 } from "./booking.service.js";
 import {
   getPagination,
@@ -94,7 +96,9 @@ export const cancelBookingController = async (req, res) => {
 
     const booking = await cancelBooking({
       bookingId,
-      customerId: req.customer.id,
+      customerId: req.userRole === "artist" ? null : req.customer.id,
+      artistId: req.userRole === "artist" ? req.artist.id : null,
+      reason: req.body?.reason,
     });
 
     res.json({
@@ -186,6 +190,7 @@ export const rejectBookingController = async (req, res) => {
     const booking = await rejectBooking({
       bookingId,
       artistId: req.artist.id,
+      reason: req.body?.reason,
     });
 
     res.json({
@@ -197,6 +202,50 @@ export const rejectBookingController = async (req, res) => {
     res.status(400).json({
       success: false,
       message: error.message || "Failed to reject booking",
+      data: null,
+    });
+  }
+};
+
+export const payAdvanceController = async (req, res) => {
+  try {
+    const bookingId = Number(req.params.id);
+    const booking = await payAdvance({
+      bookingId,
+      customerId: req.customer.id,
+    });
+
+    res.json({
+      success: true,
+      message: "Advance payment successful. Booking confirmed.",
+      data: booking,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message || "Advance payment failed",
+      data: null,
+    });
+  }
+};
+
+export const declineAdvancePaymentController = async (req, res) => {
+  try {
+    const bookingId = Number(req.params.id);
+    const booking = await declineAdvancePayment({
+      bookingId,
+      customerId: req.customer.id,
+    });
+
+    res.json({
+      success: true,
+      message: "Payment declined, 30-minute timer started.",
+      data: booking,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message || "Failed to decline advance payment",
       data: null,
     });
   }

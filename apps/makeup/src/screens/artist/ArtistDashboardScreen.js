@@ -105,21 +105,21 @@ const ArtistDashboardScreen = ({ onNavigate }) => {
           const { latitude, longitude } = position.coords;
           try {
             const response = await fetch(
-              `https://api.geoapify.com/v1/geocode/reverse?lat=${latitude}&lon=${longitude}&apiKey=60988df054524262b847818891916f3e`
+              `https://us1.locationiq.com/v1/reverse?key=pk.a74ba553bc5de1a0d26527268257f8d4&lat=${latitude}&lon=${longitude}&format=json`
             );
             const data = await response.json();
             if (active) {
-              if (data && data.features && data.features.length > 0) {
-                const props = data.features[0].properties;
-                const city = props.city || props.county || props.state || '';
-                const suburb = props.suburb || props.district || props.neighbourhood || '';
+              if (data && data.address) {
+                const addr = data.address;
+                const city = addr.city || addr.town || addr.village || addr.county || addr.state || '';
+                const suburb = addr.suburb || addr.neighbourhood || addr.district || '';
                 let displayLoc = '';
                 if (suburb && city) {
                   displayLoc = `${suburb}, ${city}`;
                 } else if (city) {
                   displayLoc = city;
                 } else {
-                  displayLoc = props.formatted || 'Location detected';
+                  displayLoc = data.display_name || 'Location detected';
                 }
                 setLocationName(displayLoc);
               } else {
@@ -191,7 +191,7 @@ const ArtistDashboardScreen = ({ onNavigate }) => {
       category: b.category || 'Makeup Service',
       date: formattedDate,
       location: 'At Client Location',
-      price: `$${b.price || 0}`,
+      price: `₹${b.price || 0}`,
       status: mappedStatus,
       rawStatus: b.status,
       phone: b.customer?.phone || '',
@@ -242,7 +242,7 @@ const ArtistDashboardScreen = ({ onNavigate }) => {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.earningsAmount}>${dashboardData.stats.totalEarnings}</Text>
+        <Text style={styles.earningsAmount}>₹{dashboardData.stats.totalEarnings}</Text>
 
         <Text style={styles.earningsTrend}>
           <Text style={styles.trendGreen}>+0.0% </Text>
@@ -321,8 +321,8 @@ const ArtistDashboardScreen = ({ onNavigate }) => {
               </View>
 
               <View style={styles.bookingMetaRow}>
-                <Ionicons name="logo-usd" size={12} color="#777" style={{ marginRight: 2 }} />
-                <Text style={styles.bookingMetaText}>${booking.price || 0}</Text>
+                <Ionicons name="cash-outline" size={12} color="#777" style={{ marginRight: 2 }} />
+                <Text style={styles.bookingMetaText}>₹{booking.price || 0}</Text>
               </View>
             </View>
 

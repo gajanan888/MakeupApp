@@ -88,7 +88,7 @@ const BookingSuccessScreen = ({ navigation, route }) => {
             <Ionicons name="cash-outline" size={20} color="#666" style={styles.detailIcon} />
             <View>
               <Text style={styles.totalLabel}>Total Paid</Text>
-              <Text style={styles.totalAmount}>${totalPaid}</Text>
+              <Text style={styles.totalAmount}>₹{totalPaid}</Text>
             </View>
           </View>
         </View>

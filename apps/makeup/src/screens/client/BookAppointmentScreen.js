@@ -17,16 +17,13 @@ import ScreenHeader from '../../components/ScreenHeader';
 const BookAppointmentScreen = ({ navigation, route }) => {
   const { artist } = route.params;
 
-  const [selectedService, setSelectedService] = useState('');
-  const [selectedLocation, setSelectedLocation] = useState('');
-
   // Fallback services if artist has no custom services
   const defaultServices = [
-    { name: 'Bridal Makeup', price: '$250' },
-    { name: 'Engagement Makeup', price: '$180' },
-    { name: 'Party Makeup', price: '$150' },
-    { name: 'Photoshoot Makeup', price: '$200' },
-    { name: 'Airbrush Makeup', price: '$220' },
+    { name: 'Bridal Makeup', price: '₹2,500' },
+    { name: 'Engagement Makeup', price: '₹1,800' },
+    { name: 'Party Makeup', price: '₹1,500' },
+    { name: 'Photoshoot Makeup', price: '₹2,000' },
+    { name: 'Airbrush Makeup', price: '₹2,200' },
   ];
 
   // Map backend services to screen items
@@ -38,6 +35,15 @@ const BookAppointmentScreen = ({ navigation, route }) => {
         }))
       : defaultServices;
 
+  // Pre-select service based on search category parameter
+  const initialCategory = route.params?.selectedCategory || '';
+  const matchingService = services.find(s =>
+    s.name.toLowerCase().includes(initialCategory.toLowerCase())
+  );
+
+  const [selectedService, setSelectedService] = useState(matchingService ? matchingService.name : '');
+  const [selectedLocation, setSelectedLocation] = useState('');
+
   const handleNext = () => {
     if (!selectedService) {
       Alert.alert('Required', 'Please select a service.');
@@ -46,6 +52,26 @@ const BookAppointmentScreen = ({ navigation, route }) => {
 
     if (!selectedLocation) {
       Alert.alert('Required', 'Please select a service location.');
+      return;
+    }
+
+    if (route.params?.selectedDate && route.params?.selectedTime) {
+      const parsedDate = new Date(route.params.selectedDate);
+      const dateStr = parsedDate.toLocaleDateString('en-IN', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+
+      navigation.navigate('AddOns', {
+        artist,
+        selectedService,
+        selectedLocation,
+        selectedDate: route.params.selectedDate,
+        selectedTime: route.params.selectedTime,
+        dateStr,
+      });
       return;
     }
 
@@ -67,7 +93,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
         return min === max ? `₹${min}` : `₹${min} - ₹${max}`;
       }
     }
-    return artist.profile?.priceRange || '$150 - $300';
+    return artist.profile?.priceRange || '₹1,500 - ₹3,000';
   };
 
   return (

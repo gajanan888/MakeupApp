@@ -114,7 +114,7 @@ const AddOnsScreen = ({ navigation, route }) => {
                   isChecked && styles.addonPriceActive,
                 ]}
               >
-                ${addon.price}
+                ₹{addon.price}
               </Text>
             </TouchableOpacity>
           );
@@ -129,7 +129,7 @@ const AddOnsScreen = ({ navigation, route }) => {
                 {selectedAddons.length} add-on
                 {selectedAddons.length > 1 ? 's' : ''} selected
               </Text>
-              <Text style={styles.summaryTotal}>+${addonsTotal}</Text>
+              <Text style={styles.summaryTotal}>+₹{addonsTotal}</Text>
             </View>
             <Text style={styles.summaryItems} numberOfLines={1}>
               {selectedAddons.map(a => a.name).join(' · ')}

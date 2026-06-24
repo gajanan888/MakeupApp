@@ -9,6 +9,9 @@ import {
   Platform,
   StatusBar,
   ActivityIndicator,
+  Modal,
+  TextInput,
+  Alert,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
@@ -27,6 +30,9 @@ const ArtistBookingScreen = ({ onBack }) => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const [rejectModalVisible, setRejectModalVisible] = useState(false);
+  const [rejectBookingId, setRejectBookingId] = useState(null);
+  const [rejectionReasonText, setRejectionReasonText] = useState('');
 
   const fetchBookings = async () => {
     try {
@@ -71,7 +77,7 @@ const ArtistBookingScreen = ({ onBack }) => {
           category: b.category || 'Makeup Service',
           date: formattedDate,
           location: 'At Client Location',
-          price: `$${b.price || 0}`,
+          price: `₹${b.price || 0}`,
           status: mappedStatus,
           rawStatus: b.status,
           phone: b.customer?.phone || '',
@@ -90,7 +96,12 @@ const ArtistBookingScreen = ({ onBack }) => {
 
   useEffect(() => {
     fetchBookings();
-  }, []);
+
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchBookings();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const handleAccept = async (bookingId) => {
     try {
@@ -101,13 +112,10 @@ const ArtistBookingScreen = ({ onBack }) => {
     }
   };
 
-  const handleReject = async (bookingId) => {
-    try {
-      await rejectArtistBooking(bookingId);
-      await fetchBookings();
-    } catch (error) {
-      console.warn('Failed to reject booking:', error);
-    }
+  const handleReject = (bookingId) => {
+    setRejectBookingId(bookingId);
+    setRejectionReasonText('');
+    setRejectModalVisible(true);
   };
 
   const handleStart = async (bookingId) => {
@@ -312,8 +320,65 @@ const ArtistBookingScreen = ({ onBack }) => {
         onClose={() => setSelectedBooking(null)} 
         booking={selectedBooking} 
         onStatusUpdate={fetchBookings} 
-        onChatPress={(b) => navigation.navigate('ArtistMessage', { customerId: b.customerId })} 
+        onChatPress={(b) => navigation.navigate('ArtistMessage', { 
+          customerId: b.customerId,
+          customerName: b.name,
+          customerAvatar: b.avatar
+        })} 
       />
+
+      {/* Reject Booking Dialog Modal */}
+      <Modal visible={rejectModalVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.dialogContainer}>
+            <Text style={styles.dialogTitle}>Decline Request</Text>
+            <Text style={styles.dialogLabel}>Please provide a reason for declining this request:</Text>
+            <TextInput
+              style={styles.dialogInput}
+              placeholder="E.g. Slot unavailable / Personal emergency..."
+              placeholderTextColor="#999"
+              value={rejectionReasonText}
+              onChangeText={setRejectionReasonText}
+              multiline
+            />
+            <View style={styles.dialogButtons}>
+              <TouchableOpacity
+                style={[styles.dialogBtn, styles.dialogCancelBtn]}
+                onPress={() => {
+                  setRejectModalVisible(false);
+                  setRejectBookingId(null);
+                  setRejectionReasonText('');
+                }}
+              >
+                <Text style={styles.dialogCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.dialogBtn, styles.dialogSubmitBtn]}
+                onPress={async () => {
+                  if (!rejectionReasonText.trim()) {
+                    Alert.alert('Required', 'Please enter a reason.');
+                    return;
+                  }
+                  try {
+                    setLoading(true);
+                    setRejectModalVisible(false);
+                    await rejectArtistBooking(rejectBookingId, rejectionReasonText.trim());
+                    setRejectBookingId(null);
+                    setRejectionReasonText('');
+                    await fetchBookings();
+                  } catch (err) {
+                    Alert.alert('Error', err.message || 'Failed to reject booking.');
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+              >
+                <Text style={styles.dialogSubmitText}>Decline</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -530,6 +595,79 @@ const styles = StyleSheet.create({
   completeBtn: {
     backgroundColor: '#389E0D',
     flex: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  dialogContainer: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 340,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  dialogTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111',
+    marginBottom: 8,
+    fontFamily: 'serif',
+  },
+  dialogLabel: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 12,
+    lineHeight: 18,
+    fontFamily: 'serif',
+  },
+  dialogInput: {
+    borderWidth: 1,
+    borderColor: '#E6E6E6',
+    borderRadius: 8,
+    padding: 10,
+    height: 80,
+    textAlignVertical: 'top',
+    fontSize: 14,
+    color: '#222',
+    backgroundColor: '#FAFAFA',
+    marginBottom: 16,
+  },
+  dialogButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  dialogBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  dialogCancelBtn: {
+    backgroundColor: '#F5F5F5',
+  },
+  dialogCancelText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#666',
+    fontFamily: 'serif',
+  },
+  dialogSubmitBtn: {
+    backgroundColor: '#CF1322',
+  },
+  dialogSubmitText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFF',
+    fontFamily: 'serif',
   },
 });
 

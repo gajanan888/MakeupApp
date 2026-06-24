@@ -104,6 +104,8 @@ export const getCustomerBookings   = async () => {
   return response?.data?.data?.items || response?.data?.data || [];
 };
 export const cancelCustomerBooking = async (id) => (await api.patch(`/api/booking/${id}/cancel`))?.data;
+export const payCustomerBookingAdvance = async (id) => (await api.post(`/api/booking/${id}/pay-advance`))?.data;
+export const declineCustomerBookingAdvance = async (id) => (await api.post(`/api/booking/${id}/decline-advance`))?.data;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CUSTOMER PROFILE

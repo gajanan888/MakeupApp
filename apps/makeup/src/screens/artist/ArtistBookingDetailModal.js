@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
+  TextInput,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import {
@@ -30,6 +31,8 @@ const MAP_PREVIEW = 'https://images.unsplash.com/photo-1569336415962-a4bd9f69cd8
 
 const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, onChatPress }) => {
   const [updating, setUpdating] = useState(false);
+  const [rejectModalVisible, setRejectModalVisible] = useState(false);
+  const [rejectionReasonText, setRejectionReasonText] = useState('');
 
   if (!booking) return null;
 
@@ -109,16 +112,18 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
                 <Text style={styles.contactLabel}>SMS</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={styles.contactBubble} 
-                onPress={() => {
-                  onClose();
-                  if (onChatPress) onChatPress(booking);
-                }}
-              >
-                <Ionicons name="chatbubbles" size={20} color="#FF4F8F" />
-                <Text style={styles.contactLabel}>Chat Log</Text>
-              </TouchableOpacity>
+              {['confirmed', 'in_progress'].includes(booking?.rawStatus) && (
+                <TouchableOpacity 
+                  style={styles.contactBubble} 
+                  onPress={() => {
+                    onClose();
+                    if (onChatPress) onChatPress(booking);
+                  }}
+                >
+                  <Ionicons name="chatbubbles" size={20} color="#FF4F8F" />
+                  <Text style={styles.contactLabel}>Chat Log</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* STYLE INSPIRATION PHOTOS */}
@@ -144,20 +149,20 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
             <View style={styles.invoiceCard}>
               <View style={styles.invoiceRow}>
                 <Text style={styles.invoiceLabel}>Service Rate</Text>
-                <Text style={styles.invoiceValue}>${rawPrice}</Text>
+                <Text style={styles.invoiceValue}>₹{rawPrice}</Text>
               </View>
               <View style={styles.invoiceRow}>
                 <Text style={styles.invoiceLabel}>Estimated Tax</Text>
-                <Text style={styles.invoiceValue}>${tax}</Text>
+                <Text style={styles.invoiceValue}>₹{tax}</Text>
               </View>
               <View style={styles.invoiceRow}>
                 <Text style={styles.invoiceLabel}>Client Tip</Text>
-                <Text style={styles.invoiceValue}>${tip}</Text>
+                <Text style={styles.invoiceValue}>₹{tip}</Text>
               </View>
               <View style={styles.invoiceDivider} />
               <View style={styles.invoiceRow}>
                 <Text style={[styles.invoiceLabel, styles.invoiceTotalLabel]}>Total Amount</Text>
-                <Text style={[styles.invoiceValue, styles.invoiceTotalVal]}>${total}</Text>
+                <Text style={[styles.invoiceValue, styles.invoiceTotalVal]}>₹{total}</Text>
               </View>
             </View>
 
@@ -234,7 +239,10 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
                     </TouchableOpacity>
                     <TouchableOpacity 
                       style={[styles.actionBtn, styles.declineBtn]}
-                      onPress={() => handleAction(rejectArtistBooking, 'Booking declined.')}
+                      onPress={() => {
+                        setRejectionReasonText('');
+                        setRejectModalVisible(true);
+                      }}
                     >
                       <Text style={[styles.actionBtnText, styles.declineText]}>Decline</Text>
                     </TouchableOpacity>
@@ -263,6 +271,59 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
           </View>
         </View>
       </Pressable>
+
+      {/* Reject Booking Dialog Modal */}
+      <Modal visible={rejectModalVisible} transparent animationType="fade">
+        <View style={styles.dialogOverlay}>
+          <View style={styles.dialogContainer}>
+            <Text style={styles.dialogTitle}>Decline Request</Text>
+            <Text style={styles.dialogLabel}>Please provide a reason for declining this request:</Text>
+            <TextInput
+              style={styles.dialogInput}
+              placeholder="E.g. Slot unavailable / Personal emergency..."
+              placeholderTextColor="#999"
+              value={rejectionReasonText}
+              onChangeText={setRejectionReasonText}
+              multiline
+            />
+            <View style={styles.dialogButtons}>
+              <TouchableOpacity
+                style={[styles.dialogBtn, styles.dialogCancelBtn]}
+                onPress={() => {
+                  setRejectModalVisible(false);
+                  setRejectionReasonText('');
+                }}
+              >
+                <Text style={styles.dialogCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.dialogBtn, styles.dialogSubmitBtn]}
+                onPress={async () => {
+                  if (!rejectionReasonText.trim()) {
+                    Alert.alert('Required', 'Please enter a reason.');
+                    return;
+                  }
+                  try {
+                    setUpdating(true);
+                    setRejectModalVisible(false);
+                    await rejectArtistBooking(booking.id, rejectionReasonText.trim());
+                    setRejectionReasonText('');
+                    Alert.alert('Success', 'Booking declined.');
+                    if (onStatusUpdate) await onStatusUpdate();
+                    onClose();
+                  } catch (err) {
+                    Alert.alert('Error', err.message || 'Failed to reject booking.');
+                  } finally {
+                    setUpdating(false);
+                  }
+                }}
+              >
+                <Text style={styles.dialogSubmitText}>Decline</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </Modal>
   );
 };
@@ -498,6 +559,72 @@ const styles = StyleSheet.create({
   },
   completeBtn: {
     backgroundColor: '#389E0D',
+  },
+  dialogContainer: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 340,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  dialogTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111',
+    marginBottom: 8,
+    fontFamily: 'serif',
+  },
+  dialogLabel: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 12,
+    lineHeight: 18,
+    fontFamily: 'serif',
+  },
+  dialogInput: {
+    borderWidth: 1,
+    borderColor: '#E6E6E6',
+    borderRadius: 8,
+    padding: 10,
+    height: 80,
+    textAlignVertical: 'top',
+    fontSize: 14,
+    color: '#222',
+    backgroundColor: '#FAFAFA',
+    marginBottom: 16,
+  },
+  dialogButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  dialogBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  dialogCancelBtn: {
+    backgroundColor: '#F5F5F5',
+  },
+  dialogCancelText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#666',
+    fontFamily: 'serif',
+  },
+  dialogSubmitBtn: {
+    backgroundColor: '#CF1322',
+  },
+  dialogSubmitText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFF',
+    fontFamily: 'serif',
   },
 });
 

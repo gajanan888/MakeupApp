@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { View, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { getArtistProfile } from '../api/auth';
 
 import OnboardingScreen from '../screens/common/OnboardingScreen';
 import RoleSelectionScreen from '../screens/common/RoleSelectionScreen';
@@ -61,7 +62,37 @@ const AppNavigator = () => {
 
         if (token) {
           if (role === 'artist') {
-            setInitialRoute('ArtistHome');
+            try {
+              const profileData = await getArtistProfile();
+              if (profileData) {
+                const hasProfile = profileData.profile && 
+                                   profileData.profile.profileImage && 
+                                   profileData.profile.gender && 
+                                   profileData.profile.bio && 
+                                   profileData.profile.location && 
+                                   profileData.profile.experience;
+
+                const hasSpecializations = profileData.specializations && profileData.specializations.length > 0;
+                const hasServices = profileData.services && profileData.services.length > 0;
+                const hasPortfolio = profileData.portfolio && profileData.portfolio.length > 0;
+                const hasPayment = profileData.payment && 
+                                  (profileData.payment.upiId || 
+                                   (profileData.payment.accountNumber && profileData.payment.ifscCode));
+
+                const isComplete = hasProfile && hasSpecializations && hasServices && hasPortfolio && hasPayment;
+
+                if (isComplete) {
+                  setInitialRoute('ArtistHome');
+                } else {
+                  setInitialRoute('ArtistRegistrationPending');
+                }
+              } else {
+                setInitialRoute('ArtistRegistrationPending');
+              }
+            } catch (err) {
+              console.warn('Failed to fetch profile on startup, defaulting to pending:', err);
+              setInitialRoute('ArtistRegistrationPending');
+            }
           } else if (role === 'client') {
             setInitialRoute('ClientHome');
           }

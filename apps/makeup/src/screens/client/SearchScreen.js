@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import BottomNavigation from '../../components/BottomNavigation';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -26,6 +27,34 @@ const SearchScreen = ({ navigation, route }) => {
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [artists, setArtists] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Date and Time selection states
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedTime, setSelectedTime] = useState(null);
+  const [tempDate, setTempDate] = useState(null);
+  const [tempTime, setTempTime] = useState(null);
+  const [showDateTimeModal, setShowDateTimeModal] = useState(false);
+
+  const getNext14Days = () => {
+    const days = [];
+    for (let i = 0; i < 14; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() + i);
+      days.push(d);
+    }
+    return days;
+  };
+
+  const timeSlots = [
+    '09:00 AM',
+    '10:00 AM',
+    '11:00 AM',
+    '01:00 PM',
+    '02:00 PM',
+    '03:00 PM',
+    '04:00 PM',
+    '05:00 PM',
+  ];
 
   const categories = [
     'All',
@@ -55,6 +84,13 @@ const SearchScreen = ({ navigation, route }) => {
     };
 
     fetchArtists();
+
+    // Pre-populate city filter if detected
+    AsyncStorage.getItem('detectedCity').then(city => {
+      if (city) {
+        setSelectedLocation(city);
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -119,6 +155,51 @@ const SearchScreen = ({ navigation, route }) => {
           onPress={() => setShowFilter(true)}
         >
           <Ionicons name="options-outline" size={20} color="#444" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Premium Date & Time Selection Pill */}
+      <View style={styles.dateTimePillContainer}>
+        <TouchableOpacity
+          style={[
+            styles.dateTimePill,
+            selectedDate && styles.dateTimePillActive,
+          ]}
+          onPress={() => {
+            setTempDate(selectedDate || new Date());
+            setTempTime(selectedTime || '09:00 AM');
+            setShowDateTimeModal(true);
+          }}
+        >
+          <Ionicons
+            name="calendar-outline"
+            size={16}
+            color={selectedDate ? '#FFF' : '#FF4F87'}
+          />
+          <Text
+            style={[
+              styles.dateTimePillText,
+              selectedDate && styles.dateTimePillTextActive,
+            ]}
+          >
+            {selectedDate && selectedTime
+              ? `${selectedDate.toLocaleDateString('en-IN', {
+                  day: 'numeric',
+                  month: 'short',
+                })} at ${selectedTime}`
+              : 'Select Date & Time'}
+          </Text>
+          {selectedDate && (
+            <TouchableOpacity
+              onPress={() => {
+                setSelectedDate(null);
+                setSelectedTime(null);
+              }}
+              style={{ marginLeft: 6 }}
+            >
+              <Ionicons name="close-circle" size={16} color="#FFF" />
+            </TouchableOpacity>
+          )}
         </TouchableOpacity>
       </View>
       <Modal visible={showFilter} animationType="slide" transparent>
@@ -365,7 +446,12 @@ const SearchScreen = ({ navigation, route }) => {
               <TouchableOpacity
                 key={artist.id}
                 style={styles.artistCard}
-                onPress={() => navigation.navigate('ArtistDetails', { artist })}
+                onPress={() => navigation.navigate('ArtistDetails', {
+                  artist,
+                  selectedDate: selectedDate ? selectedDate.toISOString() : null,
+                  selectedTime,
+                  selectedCategory,
+                })}
               >
                 {artist.profile?.profileImage || artist.image ? (
                   <Image
@@ -426,6 +512,81 @@ const SearchScreen = ({ navigation, route }) => {
           )}
         </View>
       </ScrollView>
+
+      {/* Date & Time Picker Modal */}
+      <Modal visible={showDateTimeModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Date & Time</Text>
+              <TouchableOpacity onPress={() => setShowDateTimeModal(false)}>
+                <Ionicons name="close" size={24} color="#111" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.filterLabel}>Select Date</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 15 }}>
+              {getNext14Days().map((d, index) => {
+                const isSelected = tempDate && d.toDateString() === tempDate.toDateString();
+                const dayName = d.toLocaleDateString('en-IN', { weekday: 'short' });
+                const dayNum = d.getDate();
+                const monthName = d.toLocaleDateString('en-IN', { month: 'short' });
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    style={[styles.dayCard, isSelected && styles.dayCardSelected]}
+                    onPress={() => setTempDate(d)}
+                  >
+                    <Text style={[styles.dayCardLabel, isSelected && styles.dayCardLabelSelected]}>{dayName}</Text>
+                    <Text style={[styles.dayCardText, isSelected && styles.dayCardTextSelected]}>{dayNum}</Text>
+                    <Text style={[styles.dayCardLabel, isSelected && styles.dayCardLabelSelected]}>{monthName}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <Text style={styles.filterLabel}>Select Time Slot</Text>
+            <View style={styles.filterRow}>
+              {timeSlots.map((slot, index) => {
+                const isSelected = tempTime === slot;
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    style={[styles.filterChip, isSelected && styles.selectedChip]}
+                    onPress={() => setTempTime(slot)}
+                  >
+                    <Text style={[styles.filterChipText, isSelected && styles.selectedChipText]}>{slot}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={styles.clearButton}
+                onPress={() => {
+                  setTempDate(null);
+                  setTempTime(null);
+                }}
+              >
+                <Text style={styles.clearButtonText}>Clear</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.applyButton}
+                onPress={() => {
+                  setSelectedDate(tempDate);
+                  setSelectedTime(tempTime);
+                  setShowDateTimeModal(false);
+                }}
+              >
+                <Text style={styles.applyButtonText}>Apply Schedule</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <BottomNavigation navigation={navigation} activeTab="Search" />
     </View>
   );
@@ -751,6 +912,65 @@ const styles = StyleSheet.create({
   },
 
   selectedChipText: {
+    color: '#FFF',
+  },
+  dateTimePillContainer: {
+    paddingHorizontal: 12,
+    marginVertical: 8,
+  },
+  dateTimePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#FFF',
+    borderWidth: 1.5,
+    borderColor: '#FF4F87',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  dateTimePillActive: {
+    backgroundColor: '#FF4F87',
+  },
+  dateTimePillText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FF4F87',
+    marginLeft: 6,
+  },
+  dateTimePillTextActive: {
+    color: '#FFF',
+  },
+  dayCard: {
+    width: 60,
+    height: 80,
+    borderRadius: 12,
+    backgroundColor: '#F8F8F8',
+    borderWidth: 1,
+    borderColor: '#ECECEC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  dayCardSelected: {
+    backgroundColor: '#FF4F87',
+    borderColor: '#FF4F87',
+  },
+  dayCardText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#222',
+    marginVertical: 2,
+  },
+  dayCardTextSelected: {
+    color: '#FFF',
+  },
+  dayCardLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#888',
+  },
+  dayCardLabelSelected: {
     color: '#FFF',
   },
 });

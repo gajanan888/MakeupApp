@@ -29,6 +29,18 @@ const App = () => {
     setPath(newPath);
   };
 
+  useEffect(() => {
+    if (!token) {
+      if (path !== "/admin") {
+        navigateTo("/admin");
+      }
+    } else {
+      if (path === "/") {
+        navigateTo("/admin");
+      }
+    }
+  }, [token, path]);
+
   const handleLoginSuccess = (newToken, userDetails) => {
     setToken(newToken);
     setAdminUser(userDetails);

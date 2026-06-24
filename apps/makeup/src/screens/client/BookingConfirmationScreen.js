@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,12 @@ import {
   ScrollView,
   Platform,
   StatusBar,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import ScreenHeader from '../../components/ScreenHeader';
+import { createCustomerBooking } from '../../api/auth';
 
 const BookingConfirmationScreen = ({ navigation, route }) => {
   const {
@@ -25,19 +28,92 @@ const BookingConfirmationScreen = ({ navigation, route }) => {
   } = route?.params || {};
 
   const servicePrice = selectedService?.price || 0;
-  const total = servicePrice + addonsTotal;
+  // Parse clean numbers from strings if they contain currency symbols
+  const parseAmount = (val) => {
+    if (typeof val === 'number') return val;
+    if (!val) return 0;
+    return parseFloat(String(val).replace(/[^0-9]/g, '')) || 0;
+  };
+  const numericServicePrice = parseAmount(servicePrice);
+  const numericAddonsTotal = parseAmount(addonsTotal);
+  const total = numericServicePrice + numericAddonsTotal;
 
-  const handleConfirm = () => {
-    navigation.navigate('Payment', {
-      artist,
-      selectedService,
-      selectedLocation,
-      selectedDate,
-      selectedTime,
-      dateStr,
-      selectedAddons,
-      addonsTotal,
-    });
+  const [loading, setLoading] = useState(false);
+
+  const handleConfirm = async () => {
+    try {
+      setLoading(true);
+
+      // Format date to YYYY-MM-DD
+      let apiDate = selectedDate;
+      if (selectedDate) {
+        const dObj = new Date(selectedDate);
+        if (!isNaN(dObj.getTime())) {
+          const year = dObj.getFullYear();
+          const month = String(dObj.getMonth() + 1).padStart(2, '0');
+          const day = String(dObj.getDate()).padStart(2, '0');
+          apiDate = `${year}-${month}-${day}`;
+        }
+      }
+
+      // Format time to 24h HH:MM format
+      let apiTime = selectedTime;
+      if (selectedTime && (selectedTime.includes('AM') || selectedTime.includes('PM'))) {
+        const parts = selectedTime.trim().split(/\s+/);
+        if (parts.length === 2) {
+          const timeParts = parts[0].split(':');
+          if (timeParts.length === 2) {
+            let hour = parseInt(timeParts[0], 10);
+            const minute = timeParts[1];
+            const ampm = parts[1].toUpperCase();
+            if (ampm === 'PM' && hour < 12) {
+              hour += 12;
+            } else if (ampm === 'AM' && hour === 12) {
+              hour = 0;
+            }
+            apiTime = `${String(hour).padStart(2, '0')}:${minute}`;
+          }
+        }
+      }
+
+      const bookingData = {
+        artistId: artist.id,
+        date: apiDate,
+        time: apiTime,
+        category: selectedService?.name || selectedService,
+        price: total,
+        location: typeof selectedLocation === 'string' ? selectedLocation : selectedLocation?.address || 'At Client Location',
+        addOns: selectedAddons,
+        totalPaid: 0,
+      };
+
+      await createCustomerBooking(bookingData);
+      
+      Alert.alert(
+        'Request Sent',
+        'Your booking request has been sent to the artist. You can monitor the status under the Bookings tab.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'CustomerBookings' }],
+              });
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.warn('Booking request failed', error);
+      const errMsg = error.response?.data?.message || 
+                     (error.response?.data?.data?.errors && error.response.data.data.errors.join('\n')) ||
+                     error.message || 
+                     'Could not send booking request. Please try again.';
+      Alert.alert('Request Failed', errMsg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -61,7 +137,7 @@ const BookingConfirmationScreen = ({ navigation, route }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Service</Text>
           <Text style={styles.detail}>{selectedService?.name || 'N/A'}</Text>
-          <Text style={styles.price}>${servicePrice}</Text>
+          <Text style={styles.price}>₹{servicePrice}</Text>
         </View>
         {/* Location */}
         <View style={styles.section}>
@@ -83,7 +159,7 @@ const BookingConfirmationScreen = ({ navigation, route }) => {
             {selectedAddons.map(a => (
               <View key={a.id} style={styles.addonRow}>
                 <Text style={styles.addonName}>{a.name}</Text>
-                <Text style={styles.addonPrice}>+${a.price}</Text>
+                <Text style={styles.addonPrice}>+₹{a.price}</Text>
               </View>
             ))}
           </View>
@@ -91,13 +167,21 @@ const BookingConfirmationScreen = ({ navigation, route }) => {
         {/* Total */}
         <View style={styles.totalBox}>
           <Text style={styles.totalLabel}>Total</Text>
-          <Text style={styles.totalAmount}>${total}</Text>
+          <Text style={styles.totalAmount}>₹{total}</Text>
         </View>
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm}>
-          <Text style={styles.confirmBtnText}>Confirm Booking</Text>
+        <TouchableOpacity
+          style={[styles.confirmBtn, loading && { backgroundColor: '#FFA7C4' }]}
+          onPress={handleConfirm}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#FFF" />
+          ) : (
+            <Text style={styles.confirmBtnText}>Send Request</Text>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>

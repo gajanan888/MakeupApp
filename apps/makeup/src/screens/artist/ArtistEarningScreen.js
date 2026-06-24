@@ -142,7 +142,7 @@ const calculateEarningsData = (allBookings = []) => {
       return {
         id: `p-${idx}-${dateStr}`,
         date: formattedDate,
-        amount: `$${amount.toLocaleString()}`,
+        amount: `₹${amount.toLocaleString()}`,
         status: 'Paid',
         rawAmount: amount,
         rawDate: dateStr
@@ -161,38 +161,38 @@ const calculateEarningsData = (allBookings = []) => {
 
   return {
     'This Month': {
-      total: `$${thisMonthTotal.toLocaleString()}`,
+      total: `₹${thisMonthTotal.toLocaleString()}`,
       growth: growthText,
       chartPoints: thisMonthChart.chartPoints,
       chartLabels: thisMonthChart.chartLabels,
       breakdown: {
-        service: `$${Math.round(thisMonthTotal * 0.88).toLocaleString()}`,
-        addons: `$${Math.round(thisMonthTotal * 0.08).toLocaleString()}`,
-        tips: `$${Math.round(thisMonthTotal * 0.04).toLocaleString()}`
+        service: `₹${Math.round(thisMonthTotal * 0.88).toLocaleString()}`,
+        addons: `₹${Math.round(thisMonthTotal * 0.08).toLocaleString()}`,
+        tips: `₹${Math.round(thisMonthTotal * 0.04).toLocaleString()}`
       },
       payouts: thisMonthPayouts.length > 0 ? thisMonthPayouts : defaultPayouts
     },
     'Last Month': {
-      total: `$${lastMonthTotal.toLocaleString()}`,
+      total: `₹${lastMonthTotal.toLocaleString()}`,
       growth: lastMonthGrowthText,
       chartPoints: lastMonthChart.chartPoints,
       chartLabels: lastMonthChart.chartLabels,
       breakdown: {
-        service: `$${Math.round(lastMonthTotal * 0.88).toLocaleString()}`,
-        addons: `$${Math.round(lastMonthTotal * 0.08).toLocaleString()}`,
-        tips: `$${Math.round(lastMonthTotal * 0.04).toLocaleString()}`
+        service: `₹${Math.round(lastMonthTotal * 0.88).toLocaleString()}`,
+        addons: `₹${Math.round(lastMonthTotal * 0.08).toLocaleString()}`,
+        tips: `₹${Math.round(lastMonthTotal * 0.04).toLocaleString()}`
       },
       payouts: lastMonthPayouts.length > 0 ? lastMonthPayouts : defaultPayouts
     },
     'This Year': {
-      total: `$${thisYearTotal.toLocaleString()}`,
+      total: `₹${thisYearTotal.toLocaleString()}`,
       growth: yearGrowthText,
       chartPoints: thisYearChart.chartPoints,
       chartLabels: thisYearChart.chartLabels,
       breakdown: {
-        service: `$${Math.round(thisYearTotal * 0.88).toLocaleString()}`,
-        addons: `$${Math.round(thisYearTotal * 0.08).toLocaleString()}`,
-        tips: `$${Math.round(thisYearTotal * 0.04).toLocaleString()}`
+        service: `₹${Math.round(thisYearTotal * 0.88).toLocaleString()}`,
+        addons: `₹${Math.round(thisYearTotal * 0.08).toLocaleString()}`,
+        tips: `₹${Math.round(thisYearTotal * 0.04).toLocaleString()}`
       },
       payouts: thisYearPayouts.length > 0 ? thisYearPayouts : defaultPayouts
     }
@@ -206,27 +206,27 @@ const ArtistEarningScreen = () => {
   const [loading, setLoading] = useState(true);
   const [filterData, setFilterData] = useState({
     'This Month': {
-      total: '$0',
+      total: '₹0',
       growth: '+0.0% vs last month',
       chartPoints: [15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15],
       chartLabels: ['1 May', '8 May', '15 May', '22 May', '31 May'],
-      breakdown: { service: '$0', addons: '$0', tips: '$0' },
+      breakdown: { service: '₹0', addons: '₹0', tips: '₹0' },
       payouts: []
     },
     'Last Month': {
-      total: '$0',
+      total: '₹0',
       growth: '+0.0% vs prev month',
       chartPoints: [15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15],
       chartLabels: ['1 Apr', '8 Apr', '15 Apr', '22 Apr', '30 Apr'],
-      breakdown: { service: '$0', addons: '$0', tips: '$0' },
+      breakdown: { service: '₹0', addons: '₹0', tips: '₹0' },
       payouts: []
     },
     'This Year': {
-      total: '$0',
+      total: '₹0',
       growth: '+0.0% vs last year',
       chartPoints: [15, 15, 15, 15, 15, 15],
       chartLabels: ['Jan-Feb', 'Mar-Apr', 'May-Jun', 'Jul-Aug', 'Sep-Oct', 'Nov-Dec'],
-      breakdown: { service: '$0', addons: '$0', tips: '$0' },
+      breakdown: { service: '₹0', addons: '₹0', tips: '₹0' },
       payouts: []
     }
   });

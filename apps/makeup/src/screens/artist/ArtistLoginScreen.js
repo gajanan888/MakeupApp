@@ -58,7 +58,7 @@ const ArtistLoginScreen = ({ navigation }) => {
 
             navigation.reset({
                 index: 0,
-                routes: [{ name: 'ArtistHome' }],
+                routes: [{ name: isComplete ? 'ArtistHome' : 'ArtistRegistrationPending' }],
             });
         } catch (error) {
             console.error('Login error:', error);

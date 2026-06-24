@@ -290,7 +290,13 @@ const CustomerMessageScreen = () => {
     }
   };
 
-  const activeContact = conversations.find(c => c.id === activeArtistId);
+  const activeContact = conversations.find(c => c.id === activeArtistId) || (activeArtistId ? {
+    id: activeArtistId,
+    name: route.params?.artistName || "Makeup Artist",
+    avatar: route.params?.artistAvatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200",
+    messages: [],
+    isChatEnabled: true,
+  } : null);
 
   const renderContactItem = ({ item }) => {
     return (
@@ -461,27 +467,36 @@ const CustomerMessageScreen = () => {
             </ScrollView>
 
             {/* Input Bar */}
-            <View style={[styles.inputBar, { paddingBottom: insets.bottom || 12 }]}>
-              <TouchableOpacity
-                style={styles.attachBtn}
-                onPress={() => setImagePickerVisible(true)}
-              >
-                <Ionicons name="add" size={26} color="#8E8E93" />
-              </TouchableOpacity>
-              <View style={styles.inputWrapper}>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Type a message..."
-                  placeholderTextColor="#999"
-                  value={inputText}
-                  onChangeText={setInputText}
-                  onSubmitEditing={handleSend}
-                />
-                <TouchableOpacity style={styles.sendBtn} onPress={handleSend}>
-                  <Ionicons name="send" size={16} color="#FFF" />
-                </TouchableOpacity>
+            {activeContact.isChatEnabled === false ? (
+              <View style={[styles.disabledInputBar, { paddingBottom: insets.bottom || 12 }]}>
+                <Ionicons name="lock-closed-outline" size={18} color="#8A7D77" style={{ marginBottom: 4 }} />
+                <Text style={styles.disabledInputText}>
+                  Chat is disabled because there is no active, confirmed booking.
+                </Text>
               </View>
-            </View>
+            ) : (
+              <View style={[styles.inputBar, { paddingBottom: insets.bottom || 12 }]}>
+                <TouchableOpacity
+                  style={styles.attachBtn}
+                  onPress={() => setImagePickerVisible(true)}
+                >
+                  <Ionicons name="add" size={26} color="#8E8E93" />
+                </TouchableOpacity>
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Type a message..."
+                    placeholderTextColor="#999"
+                    value={inputText}
+                    onChangeText={setInputText}
+                    onSubmitEditing={handleSend}
+                  />
+                  <TouchableOpacity style={styles.sendBtn} onPress={handleSend}>
+                    <Ionicons name="send" size={16} color="#FFF" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
           </View>
         )}
       </KeyboardAvoidingView>
@@ -843,5 +858,21 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#666',
+  },
+  disabledInputBar: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F5F5F7',
+    backgroundColor: '#FAFAFA',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  disabledInputText: {
+    fontSize: 13,
+    color: '#8A7D77',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    fontFamily: 'serif',
   },
 });

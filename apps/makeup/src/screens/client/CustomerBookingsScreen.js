@@ -12,18 +12,77 @@ import {
   Alert,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { getCustomerBookings, cancelCustomerBooking } from '../../api/auth';
+import { getCustomerBookings, cancelCustomerBooking, declineCustomerBookingAdvance, getCustomerProfile } from '../../api/auth';
 import BottomNavigation from '../../components/BottomNavigation';
+
+const CountdownTimer = ({ deadline, onExpire }) => {
+  const [timeLeft, setTimeLeft] = useState('');
+
+  useEffect(() => {
+    const updateTimer = () => {
+      const now = new Date();
+      const target = new Date(deadline);
+      const diff = target.getTime() - now.getTime();
+
+      if (diff <= 0) {
+        setTimeLeft('Expired');
+        onExpire();
+        return;
+      }
+
+      const minutes = Math.floor(diff / 60000);
+      const seconds = Math.floor((diff % 60000) / 1000);
+      setTimeLeft(`${minutes}:${seconds.toString().padStart(2, '0')} mins`);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [deadline]);
+
+  return (
+    <View style={styles.timerRow}>
+      <Ionicons name="time-outline" size={14} color="#D46B08" />
+      <Text style={styles.timerText}>Pay within: {timeLeft}</Text>
+    </View>
+  );
+};
 
 const CustomerBookingsScreen = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState('Upcoming'); // 'Upcoming' | 'Past' | 'Cancelled'
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [customerProfile, setCustomerProfile] = useState(null);
+
+  const canCancelBooking = (booking) => {
+    if (!booking.dateRaw || !booking.timeRaw) return false;
+    let hours = 12;
+    let minutes = 0;
+    if (booking.timeRaw) {
+      const parts = booking.timeRaw.split(" ");
+      const timeStr = parts[0];
+      const ampm = parts[1] || "AM";
+      const [h, m] = timeStr.split(":").map(Number);
+      hours = h;
+      minutes = m;
+      if (ampm.toUpperCase() === "PM" && hours !== 12) hours += 12;
+      if (ampm.toUpperCase() === "AM" && hours === 12) hours = 0;
+    }
+    const serviceDate = new Date(`${booking.dateRaw}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`);
+    const diffHours = (serviceDate.getTime() - Date.now()) / (1000 * 60 * 60);
+    return diffHours >= 36;
+  };
 
   const fetchBookings = async () => {
     try {
       setLoading(true);
       const data = await getCustomerBookings();
+      try {
+        const prof = await getCustomerProfile();
+        setCustomerProfile(prof?.data || prof);
+      } catch (err) {
+        console.warn('Profile fetch failed:', err);
+      }
       
       const mapped = data.map(b => {
         let tabGroup = 'Upcoming';
@@ -62,10 +121,17 @@ const CustomerBookingsScreen = ({ navigation }) => {
           category: b.category || 'Makeup Service',
           date: formattedDate,
           location: b.location || 'At Client Location',
-          price: `$${b.totalPaid || b.price || 0}`,
+          price: `₹${b.price || 0}`,
           tabGroup,
           rawStatus: b.status,
           avatar,
+          rejectionReason: b.rejectionReason,
+          advanceAmount: b.advanceAmount || 0,
+          advancePaid: b.advancePaid,
+          paymentDeadline: b.paymentDeadline,
+          artistRaw: b.artist,
+          dateRaw: b.date,
+          timeRaw: b.time,
         };
       });
 
@@ -79,12 +145,37 @@ const CustomerBookingsScreen = ({ navigation }) => {
 
   useEffect(() => {
     fetchBookings();
-  }, []);
 
-  const handleCancelBooking = (bookingId) => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchBookings();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
+  const handleDeclineAdvance = async (bookingId) => {
+    try {
+      setLoading(true);
+      await declineCustomerBookingAdvance(bookingId);
+      Alert.alert('Payment Deferred', 'You have elected to pay later. A 30-minute timer has started. Please pay within this time to avoid cancellation.');
+      await fetchBookings();
+    } catch (err) {
+      console.warn(err);
+      const errMsg = err.response?.data?.message || err.message || 'Failed to defer payment.';
+      Alert.alert('Error', errMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelBooking = (booking) => {
+    let cancelMsg = 'Are you sure you want to cancel this appointment? This action cannot be undone.';
+    if (booking.rawStatus === 'confirmed') {
+      cancelMsg = 'Cancellation is only allowed up to 36 hours before the service time. Cancellations before 36 hours incur a 2% service charge on the total price. The remaining advance payment will be refunded. Do you want to proceed?';
+    }
+
     Alert.alert(
       'Cancel Appointment',
-      'Are you sure you want to cancel this appointment? This action cannot be undone.',
+      cancelMsg,
       [
         { text: 'Keep Booking', style: 'cancel' },
         { 
@@ -93,12 +184,13 @@ const CustomerBookingsScreen = ({ navigation }) => {
           onPress: async () => {
             try {
               setLoading(true);
-              await cancelCustomerBooking(bookingId);
+              await cancelCustomerBooking(booking.id);
               Alert.alert('Cancelled', 'Your appointment has been successfully cancelled.');
               await fetchBookings();
             } catch (err) {
               console.warn(err);
-              Alert.alert('Error', err.message || 'Failed to cancel appointment.');
+              const errMsg = err.response?.data?.message || err.message || 'Failed to cancel appointment.';
+              Alert.alert('Cancellation Error', errMsg);
             } finally {
               setLoading(false);
             }
@@ -113,15 +205,17 @@ const CustomerBookingsScreen = ({ navigation }) => {
   const getBadgeColors = (rawStatus) => {
     switch (rawStatus) {
       case 'pending':
-        return { bg: '#F9F0FF', text: '#531DAB', label: 'Pending' };
+        return { bg: '#FFF7E6', text: '#D46B08', label: 'Pending Approval' };
       case 'accepted':
-        return { bg: '#E6F7FF', text: '#0050B3', label: 'Confirmed' };
+        return { bg: '#E6F7FF', text: '#0050B3', label: 'Accepted (Unpaid)' };
+      case 'confirmed':
+        return { bg: '#F6FFED', text: '#389E0D', label: 'Confirmed (Paid)' };
       case 'in_progress':
-        return { bg: '#FFF7E6', text: '#D46B08', label: 'In Progress' };
+        return { bg: '#E6F7FF', text: '#0050B3', label: 'In Progress' };
       case 'completed':
         return { bg: '#F6FFED', text: '#389E0D', label: 'Completed' };
       case 'rejected':
-        return { bg: '#FFF1F0', text: '#CF1322', label: 'Declined' };
+        return { bg: '#FFF1F0', text: '#CF1322', label: 'Rejected' };
       case 'cancelled':
         return { bg: '#FFF1F0', text: '#CF1322', label: 'Cancelled' };
       default:
@@ -171,7 +265,10 @@ const CustomerBookingsScreen = ({ navigation }) => {
           {filteredBookings.length > 0 ? (
             filteredBookings.map(booking => {
               const badgeColors = getBadgeColors(booking.rawStatus);
-              const showCancelBtn = ['pending', 'accepted'].includes(booking.rawStatus);
+              // Show cancel if pending, accepted, or confirmed (if >= 36 hours before)
+              const showCancelBtn = ['pending', 'accepted'].includes(booking.rawStatus) || 
+                                    (booking.rawStatus === 'confirmed' && canCancelBooking(booking));
+              const showChatBtn = ['confirmed', 'in_progress'].includes(booking.rawStatus);
 
               return (
                 <View key={booking.id} style={styles.bookingCard}>
@@ -199,20 +296,94 @@ const CustomerBookingsScreen = ({ navigation }) => {
                       <Ionicons name="location-outline" size={14} color="#8A7D77" />
                       <Text style={styles.metaText}>{booking.location}</Text>
                     </View>
+                    
+                    {booking.rawStatus === 'rejected' && booking.rejectionReason && (
+                      <View style={styles.rejectionBox}>
+                        <Text style={styles.rejectionLabel}>Decline Reason:</Text>
+                        <Text style={styles.rejectionText}>{booking.rejectionReason}</Text>
+                      </View>
+                    )}
+
+                    {booking.rawStatus === 'accepted' && booking.paymentDeadline && (
+                      <CountdownTimer deadline={booking.paymentDeadline} onExpire={fetchBookings} />
+                    )}
+
                     <View style={styles.priceRow}>
                       <Text style={styles.priceLabel}>Price</Text>
                       <Text style={styles.priceValue}>{booking.price}</Text>
                     </View>
+
+                    {booking.rawStatus === 'accepted' && (
+                      <View style={styles.advanceRow}>
+                        <Text style={styles.advanceLabel}>Advance Due (10%):</Text>
+                        <Text style={styles.advanceValue}>₹{booking.advanceAmount}</Text>
+                      </View>
+                    )}
                   </View>
 
-                  {showCancelBtn && (
+                  {booking.rawStatus === 'accepted' && (
                     <View style={styles.cardFooter}>
-                      <TouchableOpacity
-                        style={styles.cancelBtn}
-                        onPress={() => handleCancelBooking(booking.id)}
-                      >
-                        <Text style={styles.cancelBtnText}>Cancel Appointment</Text>
-                      </TouchableOpacity>
+                      {!booking.paymentDeadline ? (
+                        <View style={styles.actionRow}>
+                          <TouchableOpacity
+                            style={[styles.actionBtn, styles.declineBtn]}
+                            onPress={() => handleDeclineAdvance(booking.id)}
+                          >
+                            <Text style={styles.declineBtnText}>Pay Later</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[styles.actionBtn, styles.payBtn]}
+                            onPress={() => navigation.navigate('Payment', {
+                              artist: booking.artistRaw || { id: booking.artistId, name: booking.artistName, avatar: booking.avatar },
+                              isAdvancePayment: true,
+                              bookingId: booking.id,
+                              advanceAmount: booking.advanceAmount,
+                            })}
+                          >
+                            <Text style={styles.payBtnText}>Pay Advance</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        <TouchableOpacity
+                          style={[styles.actionBtn, styles.payBtn, { width: '100%' }]}
+                          onPress={() => navigation.navigate('Payment', {
+                            artist: booking.artistRaw || { id: booking.artistId, name: booking.artistName, avatar: booking.avatar },
+                            isAdvancePayment: true,
+                            bookingId: booking.id,
+                            advanceAmount: booking.advanceAmount,
+                          })}
+                        >
+                          <Text style={styles.payBtnText}>Pay Advance (₹{booking.advanceAmount})</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
+
+                  {(showCancelBtn || showChatBtn) && (
+                    <View style={[styles.cardFooter, (showCancelBtn && showChatBtn) && styles.actionRow]}>
+                      {showCancelBtn && (
+                        <TouchableOpacity
+                          style={[styles.cancelBtn, showChatBtn && { flex: 1, marginRight: 8 }]}
+                          onPress={() => handleCancelBooking(booking)}
+                        >
+                          <Text style={styles.cancelBtnText}>Cancel Booking</Text>
+                        </TouchableOpacity>
+                      )}
+
+                      {showChatBtn && (
+                        <TouchableOpacity
+                          style={[styles.chatBtn, showCancelBtn && { flex: 1, marginLeft: 8 }]}
+                          onPress={() => navigation.navigate('CustomerMessage', { 
+                            artistId: booking.artistRaw?.id || booking.artistId,
+                            artistName: booking.artistName,
+                            artistAvatar: booking.avatar
+                          })}
+                        >
+                          <Ionicons name="chatbubble-ellipses-outline" size={16} color="#FFF" style={{ marginRight: 6 }} />
+                          <Text style={styles.chatBtnText}>Chat</Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   )}
                 </View>
@@ -425,6 +596,113 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
     lineHeight: 20,
+    fontFamily: 'serif',
+  },
+  rejectionBox: {
+    backgroundColor: '#FFF1F0',
+    borderColor: '#FFA39E',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    marginVertical: 10,
+  },
+  rejectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#CF1322',
+    fontFamily: 'serif',
+  },
+  rejectionText: {
+    fontSize: 13,
+    color: '#595959',
+    marginTop: 2,
+    fontFamily: 'serif',
+  },
+  timerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF7E6',
+    borderColor: '#FFE7BA',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginVertical: 8,
+  },
+  timerText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#D46B08',
+    marginLeft: 6,
+    fontFamily: 'serif',
+  },
+  advanceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F5F5F5',
+  },
+  advanceLabel: {
+    fontSize: 12,
+    color: '#333',
+    fontWeight: '600',
+    fontFamily: 'serif',
+  },
+  advanceValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FF4F87',
+    fontFamily: 'serif',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+  },
+  actionBtn: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  declineBtn: {
+    borderWidth: 1.5,
+    borderColor: '#D9D9D9',
+    marginRight: 8,
+  },
+  declineBtnText: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '700',
+    fontFamily: 'serif',
+  },
+  payBtn: {
+    backgroundColor: '#FF4F87',
+    marginLeft: 8,
+  },
+  payBtnText: {
+    fontSize: 12,
+    color: '#FFF',
+    fontWeight: '700',
+    fontFamily: 'serif',
+  },
+  chatBtn: {
+    flexDirection: 'row',
+    backgroundColor: '#FF4F87',
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chatBtnText: {
+    fontSize: 12,
+    color: '#FFF',
+    fontWeight: '700',
     fontFamily: 'serif',
   },
 });

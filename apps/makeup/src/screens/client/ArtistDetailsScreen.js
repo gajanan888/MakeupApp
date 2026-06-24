@@ -245,7 +245,12 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
       <View style={styles.bottomContainer}>
         <TouchableOpacity
           style={styles.bookButton}
-          onPress={() => navigation.navigate('BookAppointment', { artist })}
+          onPress={() => navigation.navigate('BookAppointment', {
+            artist,
+            selectedDate: route.params?.selectedDate,
+            selectedTime: route.params?.selectedTime,
+            selectedCategory: route.params?.selectedCategory,
+          })}
         >
           <Text style={styles.bookButtonText}>Book Now</Text>
         </TouchableOpacity>

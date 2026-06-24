@@ -92,13 +92,13 @@ const ProfileSetupScreen = ({ navigation, route }) => {
       try {
         setLoadingSuggestions(true);
         const response = await fetch(
-          `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(
+          `https://api.locationiq.com/v1/autocomplete?key=pk.a74ba553bc5de1a0d26527268257f8d4&q=${encodeURIComponent(
             locationQuery,
-          )}&apiKey=60988df054524262b847818891916f3e`,
+          )}`,
         );
         const result = await response.json();
-        if (result.features) {
-          setSuggestions(result.features);
+        if (Array.isArray(result)) {
+          setSuggestions(result);
         } else {
           setSuggestions([]);
         }
@@ -364,7 +364,7 @@ const ProfileSetupScreen = ({ navigation, route }) => {
               <View style={styles.suggestionsContainer}>
                 <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 200 }}>
                   {suggestions.map((item, index) => {
-                    const name = item.properties.formatted;
+                    const name = item.display_name;
                     return (
                       <TouchableOpacity
                         key={index}
