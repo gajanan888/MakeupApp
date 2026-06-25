@@ -14,6 +14,7 @@ import {
   getPagination,
   validateCreateBooking,
 } from "../../validators/booking.validator.js";
+import { logActivity } from "../../utils/activityLogger.js";
 
 export const createBookingController = async (req, res) => {
   try {
@@ -36,6 +37,16 @@ export const createBookingController = async (req, res) => {
       location: req.body.location,
       addOns: req.body.addOns,
       totalPaid: req.body.totalPaid,
+    });
+
+    await logActivity({
+      userId: req.customer.id,
+      userType: "customer",
+      userName: req.customer.name,
+      action: "BOOKING_CREATE",
+      bookingId: booking.id,
+      details: `Created a booking for '${booking.category}' on ${booking.date} at ${booking.time} for total ₹${booking.totalPaid || 0}.`,
+      req,
     });
 
     res.status(201).json({
@@ -94,11 +105,22 @@ export const cancelBookingController = async (req, res) => {
       });
     }
 
+    const isArtist = req.userRole === "artist";
     const booking = await cancelBooking({
       bookingId,
-      customerId: req.userRole === "artist" ? null : req.customer.id,
-      artistId: req.userRole === "artist" ? req.artist.id : null,
+      customerId: isArtist ? null : req.customer.id,
+      artistId: isArtist ? req.artist.id : null,
       reason: req.body?.reason,
+    });
+
+    await logActivity({
+      userId: isArtist ? req.artist.id : req.customer.id,
+      userType: isArtist ? "artist" : "customer",
+      userName: isArtist ? req.artist.name : req.customer.name,
+      action: "BOOKING_CANCEL",
+      bookingId: booking.id,
+      details: `Cancelled booking. Reason: ${req.body?.reason || "Not specified"}.`,
+      req,
     });
 
     res.json({
@@ -162,6 +184,16 @@ export const acceptBookingController = async (req, res) => {
       artistId: req.artist.id,
     });
 
+    await logActivity({
+      userId: req.artist.id,
+      userType: "artist",
+      userName: req.artist.name,
+      action: "BOOKING_ACCEPT",
+      bookingId: booking.id,
+      details: `Accepted booking request for '${booking.category || "service"}'.`,
+      req,
+    });
+
     res.json({
       success: true,
       message: "Booking accepted",
@@ -193,6 +225,16 @@ export const rejectBookingController = async (req, res) => {
       reason: req.body?.reason,
     });
 
+    await logActivity({
+      userId: req.artist.id,
+      userType: "artist",
+      userName: req.artist.name,
+      action: "BOOKING_REJECT",
+      bookingId: booking.id,
+      details: `Rejected booking request. Reason: ${req.body?.reason || "Not specified"}.`,
+      req,
+    });
+
     res.json({
       success: true,
       message: "Booking rejected",
@@ -215,6 +257,16 @@ export const payAdvanceController = async (req, res) => {
       customerId: req.customer.id,
     });
 
+    await logActivity({
+      userId: req.customer.id,
+      userType: "customer",
+      userName: req.customer.name,
+      action: "PAYMENT_ADVANCE",
+      bookingId: booking.id,
+      details: `Successfully paid advance amount of ₹${booking.advanceAmount || 0} for booking.`,
+      req,
+    });
+
     res.json({
       success: true,
       message: "Advance payment successful. Booking confirmed.",
@@ -235,6 +287,16 @@ export const declineAdvancePaymentController = async (req, res) => {
     const booking = await declineAdvancePayment({
       bookingId,
       customerId: req.customer.id,
+    });
+
+    await logActivity({
+      userId: req.customer.id,
+      userType: "customer",
+      userName: req.customer.name,
+      action: "PAYMENT_DECLINE",
+      bookingId: booking.id,
+      details: `Declined advance payment request.`,
+      req,
     });
 
     res.json({
@@ -267,6 +329,16 @@ export const startBookingController = async (req, res) => {
       artistId: req.artist.id,
     });
 
+    await logActivity({
+      userId: req.artist.id,
+      userType: "artist",
+      userName: req.artist.name,
+      action: "BOOKING_START",
+      bookingId: booking.id,
+      details: `Started service appointment with customer (ID: ${booking.customerId}).`,
+      req,
+    });
+
     res.json({
       success: true,
       message: "Booking started",
@@ -295,6 +367,16 @@ export const completeBookingController = async (req, res) => {
     const booking = await completeBooking({
       bookingId,
       artistId: req.artist.id,
+    });
+
+    await logActivity({
+      userId: req.artist.id,
+      userType: "artist",
+      userName: req.artist.name,
+      action: "BOOKING_COMPLETE",
+      bookingId: booking.id,
+      details: `Completed booking appointment. Balance settled.`,
+      req,
     });
 
     res.json({

@@ -64,7 +64,9 @@ const BookingSuccessScreen = ({ navigation, route }) => {
             )}
             <View style={styles.artistInfo}>
               <Text style={styles.artistName}>{artist?.name || 'Artist Name'}</Text>
-              <Text style={styles.serviceName}>{selectedService?.name || 'Service Name'}</Text>
+              <Text style={styles.serviceName}>
+                {selectedService?.name || (typeof selectedService === 'string' ? selectedService : 'Service Name')}
+              </Text>
             </View>
           </View>
 

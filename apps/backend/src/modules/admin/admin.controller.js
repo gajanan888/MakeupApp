@@ -8,6 +8,7 @@ import {
   updateBookingStatus,
   verifyArtist,
   getTechHealth,
+  getActivityLogs,
 } from "./admin.service.js";
 import {
   getPagination,
@@ -15,6 +16,7 @@ import {
   validateIdParam,
   validatePasswordChange,
 } from "../../validators/admin.validator.js";
+import { logActivity } from "../../utils/activityLogger.js";
 
 export const getAdminProfileController = async (req, res) => {
   try {
@@ -169,7 +171,7 @@ export const updateBookingStatusController = async (req, res) => {
       });
     }
 
-    if (!validateBookingStatus(req.body.status)) {
+    if (req.body.status !== undefined && !validateBookingStatus(req.body.status)) {
       return res.status(400).json({
         success: false,
         message: "Invalid booking status",
@@ -177,14 +179,35 @@ export const updateBookingStatusController = async (req, res) => {
       });
     }
 
+    const { status, advancePaid, refundStatus, refundAmount } = req.body;
+
     const booking = await updateBookingStatus({
       bookingId: value,
-      status: req.body.status,
+      status,
+      advancePaid,
+      refundStatus,
+      refundAmount,
+    });
+
+    const changes = [];
+    if (status !== undefined) changes.push(`status to '${status}'`);
+    if (advancePaid !== undefined) changes.push(`advancePaid to '${advancePaid}'`);
+    if (refundStatus !== undefined) changes.push(`refundStatus to '${refundStatus}'`);
+    if (refundAmount !== undefined) changes.push(`refundAmount to '${refundAmount}'`);
+
+    await logActivity({
+      userId: req.admin.id,
+      userType: "admin",
+      userName: req.admin.name,
+      action: "ADMIN_STATUS_UPDATE",
+      bookingId: booking.id,
+      details: `Admin updated booking #${booking.id}: ${changes.join(", ")}.`,
+      req,
     });
 
     res.json({
       success: true,
-      message: "Booking status updated",
+      message: "Booking updated successfully",
       data: booking,
     });
   } catch (error) {
@@ -227,6 +250,15 @@ export const verifyArtistController = async (req, res) => {
     const { isVerified } = req.body;
     const artist = await verifyArtist(value, isVerified);
 
+    await logActivity({
+      userId: req.admin.id,
+      userType: "admin",
+      userName: req.admin.name,
+      action: "ADMIN_ARTIST_VERIFY",
+      details: `Admin ${isVerified ? "approved/verified" : "suspended"} artist '${artist.name}' (ID: ${artist.id}).`,
+      req,
+    });
+
     res.json({
       success: true,
       message: "Artist verification status updated",
@@ -262,6 +294,39 @@ export const getTechHealthController = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || "Failed to fetch technical status",
+      data: null,
+    });
+  }
+};
+
+export const getActivityLogsController = async (req, res) => {
+  try {
+    const { page, limit, offset } = getPagination(
+      req.query.page,
+      req.query.limit
+    );
+    const result = await getActivityLogs({
+      bookingId: req.query.bookingId,
+      userId: req.query.userId,
+      userType: req.query.userType,
+      limit,
+      offset,
+    });
+
+    res.json({
+      success: true,
+      message: "Activity logs fetched",
+      data: {
+        items: result.rows,
+        total: result.count,
+        page,
+        limit,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch activity logs",
       data: null,
     });
   }

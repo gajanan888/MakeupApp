@@ -37,7 +37,7 @@ const TAB_PERMISSIONS = {
   dashboard: ["super_admin", "compliance", "support", "finance", "tech_lead"],
   verification: ["super_admin", "compliance"],
   customers: ["super_admin", "support"],
-  bookings: ["super_admin", "support"],
+  bookings: ["super_admin", "compliance", "support", "finance", "tech_lead"],
   finance: ["super_admin", "finance"],
   technical: ["super_admin", "tech_lead"],
   settings: ["super_admin", "compliance", "support", "finance", "tech_lead"],
@@ -56,6 +56,9 @@ const AdminDashboard = ({ token, user, onLogout }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [selectedArtist, setSelectedArtist] = useState(null);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [globalLogs, setGlobalLogs] = useState([]);
+  const [bookingLogs, setBookingLogs] = useState([]);
   
   // Settings password states
   const [currentPassword, setCurrentPassword] = useState("");
@@ -281,7 +284,9 @@ const AdminDashboard = ({ token, user, onLogout }) => {
   // Trigger loads based on active tab
   useEffect(() => {
     fetchAnalytics();
-    if (activeTab === "verification" || activeTab === "finance") {
+    if (activeTab === "dashboard") {
+      fetchGlobalLogs();
+    } else if (activeTab === "verification" || activeTab === "finance") {
       fetchArtists();
     } else if (activeTab === "customers") {
       fetchCustomers();
@@ -331,12 +336,100 @@ const AdminDashboard = ({ token, user, onLogout }) => {
       const data = await response.json();
       if (data.success) {
         setBookings(bookings.map(b => b.id === bookingId ? { ...b, status: newStatus } : b));
+        if (selectedBooking && selectedBooking.id === bookingId) {
+          setSelectedBooking({ ...selectedBooking, status: newStatus });
+        }
         fetchAnalytics(); // refresh dashboard statuses
+        fetchBookingLogs(bookingId);
       }
     } catch (err) {
       alert("Failed to update booking status: " + err.message);
     }
   };
+
+  const fetchGlobalLogs = async () => {
+    try {
+      const response = await fetch("/api/admin/activity-logs?limit=30", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (data.success) {
+        setGlobalLogs(data.data.items || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch global activity logs:", err);
+    }
+  };
+
+  const fetchBookingLogs = async (bookingId) => {
+    try {
+      const response = await fetch(`/api/admin/activity-logs?bookingId=${bookingId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (data.success) {
+        setBookingLogs(data.data.items || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch booking logs:", err);
+    }
+  };
+
+  const handleUpdateAdvancePaid = async (bookingId, isPaid) => {
+    try {
+      const response = await fetch(`/api/admin/bookings/${bookingId}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ advancePaid: isPaid }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        const updated = data.data;
+        setBookings(bookings.map(b => b.id === bookingId ? { ...b, advancePaid: updated.advancePaid } : b));
+        if (selectedBooking && selectedBooking.id === bookingId) {
+          setSelectedBooking({ ...selectedBooking, advancePaid: updated.advancePaid });
+        }
+        fetchBookingLogs(bookingId);
+      }
+    } catch (err) {
+      alert("Failed to update advance payment status: " + err.message);
+    }
+  };
+
+  const handleUpdateRefundStatus = async (bookingId, status, refundAmount) => {
+    try {
+      const response = await fetch(`/api/admin/bookings/${bookingId}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ refundStatus: status, refundAmount }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        const updated = data.data;
+        setBookings(bookings.map(b => b.id === bookingId ? { ...b, refundStatus: updated.refundStatus, refundAmount: updated.refundAmount } : b));
+        if (selectedBooking && selectedBooking.id === bookingId) {
+          setSelectedBooking({ ...selectedBooking, refundStatus: updated.refundStatus, refundAmount: updated.refundAmount });
+        }
+        fetchBookingLogs(bookingId);
+      }
+    } catch (err) {
+      alert("Failed to update refund status: " + err.message);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedBooking) {
+      fetchBookingLogs(selectedBooking.id);
+    } else {
+      setBookingLogs([]);
+    }
+  }, [selectedBooking]);
 
   // Handle password update
   const handlePasswordChange = async (e) => {
@@ -665,6 +758,75 @@ const AdminDashboard = ({ token, user, onLogout }) => {
                     </div>
                   </div>
                 </div>
+
+                {/* Real-time System Activity Log Feed */}
+                <div className="dashboard-panel" style={{ marginTop: "30px" }}>
+                  <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <Activity size={20} className="pulse-icon" style={{ color: "var(--primary)" }} />
+                      <h3 className="panel-title" style={{ margin: 0 }}>Live System Activity Feed</h3>
+                    </div>
+                    <button className="action-btn-secondary" onClick={fetchGlobalLogs} style={{ padding: "6px 12px", fontSize: "12px", display: "flex", alignItems: "center", gap: "5px", background: "rgba(197, 155, 133, 0.1)", border: "1px solid rgba(197, 155, 133, 0.25)", color: "var(--text-main)", borderRadius: "6px", cursor: "pointer" }}>
+                      Refresh Feed
+                    </button>
+                  </div>
+                  
+                  <div style={{ maxHeight: "400px", overflowY: "auto", paddingRight: "10px" }}>
+                    {globalLogs.length === 0 ? (
+                      <div style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
+                        No system activity recorded yet.
+                      </div>
+                    ) : (
+                      <div className="activity-timeline">
+                        {globalLogs.map((log) => {
+                          let badgeBg = "rgba(255,255,255,0.05)";
+                          let badgeText = "var(--text-muted)";
+                          if (log.userType === "customer") { badgeBg = "rgba(110, 141, 120, 0.12)"; badgeText = "var(--success)"; }
+                          if (log.userType === "artist") { badgeBg = "rgba(140, 82, 255, 0.12)"; badgeText = "var(--violet)"; }
+                          if (log.userType === "admin") { badgeBg = "rgba(255, 79, 143, 0.12)"; badgeText = "var(--primary)"; }
+                          if (log.userType === "system") { badgeBg = "rgba(124, 158, 178, 0.12)"; badgeText = "var(--info)"; }
+
+                          return (
+                            <div key={log.id} style={{ display: "flex", gap: "15px", padding: "12px 0", borderBottom: "1px solid rgba(197, 155, 133, 0.08)" }}>
+                              <div style={{ flexShrink: 0 }}>
+                                <span style={{
+                                  padding: "4px 8px",
+                                  borderRadius: "6px",
+                                  fontSize: "11px",
+                                  fontWeight: 600,
+                                  background: badgeBg,
+                                  color: badgeText,
+                                  textTransform: "uppercase"
+                                }}>
+                                  {log.userType}
+                                </span>
+                              </div>
+                              <div style={{ flexGrow: 1 }}>
+                                <div style={{ fontSize: "14px", color: "var(--text-main)" }}>
+                                  <strong>{log.userName}</strong>: <span style={{ fontFamily: "monospace", color: "var(--primary)", fontWeight: "bold" }}>{log.action}</span>
+                                </div>
+                                <div style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "4px" }}>
+                                  {log.details}
+                                </div>
+                                {log.bookingId && (
+                                  <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>
+                                    Related Booking: <span style={{ fontFamily: "monospace", color: "var(--info)" }}>#{log.bookingId}</span>
+                                  </div>
+                                )}
+                              </div>
+                              <div style={{ flexShrink: 0, textAlign: "right", fontSize: "12px", color: "var(--text-muted)" }}>
+                                {new Date(log.createdAt).toLocaleTimeString()}
+                                <div style={{ fontSize: "10px", marginTop: "2px" }}>
+                                  {new Date(log.createdAt).toLocaleDateString()}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </>
             )}
 
@@ -858,18 +1020,22 @@ const AdminDashboard = ({ token, user, onLogout }) => {
                       <tbody>
                         {filteredBookings.map((booking) => (
                           <tr key={booking.id}>
-                            <td>
-                              <span style={{ fontFamily: "monospace", color: "var(--text-muted)" }}>
+                            <td style={{ cursor: "pointer" }} onClick={() => setSelectedBooking(booking)}>
+                              <span style={{ fontFamily: "monospace", color: "var(--primary)", fontWeight: "bold" }}>
                                 #{booking.id}
                               </span>
                             </td>
-                            <td>{booking.customer?.name || `Client ID: ${booking.customerId}`}</td>
-                            <td>{booking.artist?.name || `Artist ID: ${booking.artistId}`}</td>
-                            <td>
+                            <td style={{ cursor: "pointer" }} onClick={() => setSelectedBooking(booking)}>
+                              {booking.customer?.name || `Client ID: ${booking.customerId}`}
+                            </td>
+                            <td style={{ cursor: "pointer" }} onClick={() => setSelectedBooking(booking)}>
+                              {booking.artist?.name || `Artist ID: ${booking.artistId}`}
+                            </td>
+                            <td style={{ cursor: "pointer" }} onClick={() => setSelectedBooking(booking)}>
                               <div>{booking.date}</div>
                               <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>{booking.time}</div>
                             </td>
-                            <td>
+                            <td style={{ cursor: "pointer" }} onClick={() => setSelectedBooking(booking)}>
                               <span className={`badge badge-${
                                 booking.status === "completed" ? "success" :
                                 ["pending", "accepted"].includes(booking.status) ? "pending" : "danger"
@@ -1505,6 +1671,292 @@ const AdminDashboard = ({ token, user, onLogout }) => {
                   Approve Artist
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. SELECTED BOOKING DETAILS DRAWER */}
+      {selectedBooking && (
+        <div className="drawer-backdrop" onClick={() => setSelectedBooking(null)}>
+          <div className="drawer-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "680px" }}>
+            <div className="drawer-header">
+              <div>
+                <span className={`badge badge-${
+                  selectedBooking.status === "completed" ? "success" :
+                  ["pending", "accepted"].includes(selectedBooking.status) ? "pending" : "danger"
+                }`} style={{ marginBottom: "8px" }}>
+                  {selectedBooking.status.toUpperCase()}
+                </span>
+                <h2>Booking Details #{selectedBooking.id}</h2>
+              </div>
+              <button className="drawer-close-btn" onClick={() => setSelectedBooking(null)}>
+                <XCircle size={24} />
+              </button>
+            </div>
+
+            <div className="drawer-body">
+              {/* Service & Schedule */}
+              <div className="drawer-section">
+                <h4 className="drawer-section-title">Service & Schedule</h4>
+                <div className="drawer-grid-2">
+                  <div className="info-item">
+                    <div className="info-item-label">Category / Service</div>
+                    <div className="info-item-value" style={{ fontWeight: 600 }}>{selectedBooking.category || "Not specified"}</div>
+                  </div>
+                  <div className="info-item">
+                    <div className="info-item-label">Schedule Date & Time</div>
+                    <div className="info-item-value">
+                      {selectedBooking.date} at {selectedBooking.time}
+                    </div>
+                  </div>
+                  <div className="info-item" style={{ gridColumn: "span 2" }}>
+                    <div className="info-item-label">Appointment Location</div>
+                    <div className="info-item-value">{selectedBooking.location || "Not specified"}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Price Breakdown */}
+              <div className="drawer-section">
+                <h4 className="drawer-section-title">Price Breakdown</h4>
+                <div className="drawer-grid-2" style={{ background: "rgba(197, 155, 133, 0.05)", padding: "15px", borderRadius: "10px", gap: "12px" }}>
+                  <div className="info-item">
+                    <div className="info-item-label">Base Service Price</div>
+                    <div className="info-item-value">₹{selectedBooking.price?.toLocaleString() || 0}</div>
+                  </div>
+                  <div className="info-item">
+                    <div className="info-item-label">Total Amount Paid</div>
+                    <div className="info-item-value" style={{ color: "var(--success)", fontWeight: 700 }}>
+                      ₹{selectedBooking.totalPaid?.toLocaleString() || 0}
+                    </div>
+                  </div>
+                  <div className="info-item">
+                    <div className="info-item-label">Advance Deposit Required</div>
+                    <div className="info-item-value">₹{selectedBooking.advanceAmount?.toLocaleString() || 0}</div>
+                  </div>
+                  <div className="info-item">
+                    <div className="info-item-label">Advance Payment Status</div>
+                    <div className="info-item-value">
+                      <span className={`badge badge-${selectedBooking.advancePaid ? "success" : "pending"}`}>
+                        {selectedBooking.advancePaid ? "Paid" : "Pending"}
+                      </span>
+                    </div>
+                  </div>
+                  {selectedBooking.paymentDeadline && (
+                    <div className="info-item" style={{ gridColumn: "span 2", marginTop: "5px" }}>
+                      <div className="info-item-label">Payment Deadline</div>
+                      <div className="info-item-value" style={{ fontSize: "12px", color: "var(--danger)" }}>
+                        {new Date(selectedBooking.paymentDeadline).toLocaleString()}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Client Details */}
+              <div className="drawer-section">
+                <h4 className="drawer-section-title">Client Details</h4>
+                <div className="drawer-grid-2">
+                  <div className="info-item">
+                    <div className="info-item-label">Client Name</div>
+                    <div className="info-item-value">{selectedBooking.customer?.name || `ID: ${selectedBooking.customerId}`}</div>
+                  </div>
+                  <div className="info-item">
+                    <div className="info-item-label">Phone Number</div>
+                    <div className="info-item-value">{selectedBooking.customer?.phone || "Not provided"}</div>
+                  </div>
+                  <div className="info-item" style={{ gridColumn: "span 2" }}>
+                    <div className="info-item-label">Email Address</div>
+                    <div className="info-item-value">{selectedBooking.customer?.email || "Not provided"}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Artist Details */}
+              <div className="drawer-section">
+                <h4 className="drawer-section-title">Makeup Artist Details</h4>
+                <div className="drawer-grid-2">
+                  <div className="info-item">
+                    <div className="info-item-label">Artist Name</div>
+                    <div className="info-item-value">{selectedBooking.artist?.name || `ID: ${selectedBooking.artistId}`}</div>
+                  </div>
+                  <div className="info-item">
+                    <div className="info-item-label">Phone Number</div>
+                    <div className="info-item-value">{selectedBooking.artist?.phone || "Not provided"}</div>
+                  </div>
+                  <div className="info-item" style={{ gridColumn: "span 2" }}>
+                    <div className="info-item-label">Email Address</div>
+                    <div className="info-item-value">{selectedBooking.artist?.email || "Not provided"}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cancellation/Rejection Details */}
+              {(selectedBooking.status === "cancelled" || selectedBooking.status === "rejected") && (
+                <div className="drawer-section" style={{ background: "rgba(207, 124, 124, 0.05)", border: "1px solid rgba(207, 124, 124, 0.15)", borderRadius: "10px", padding: "15px" }}>
+                  <h4 className="drawer-section-title" style={{ color: "var(--danger)" }}>Cancellation / Rejection Log</h4>
+                  <div className="drawer-grid-2">
+                    {selectedBooking.cancelledBy && (
+                      <div className="info-item">
+                        <div className="info-item-label">Cancelled By</div>
+                        <div className="info-item-value" style={{ textTransform: "capitalize" }}>{selectedBooking.cancelledBy}</div>
+                      </div>
+                    )}
+                    {selectedBooking.cancellationReason && (
+                      <div className="info-item" style={{ gridColumn: "span 2" }}>
+                        <div className="info-item-label">Cancellation Reason</div>
+                        <div className="info-item-value" style={{ fontStyle: "italic" }}>"{selectedBooking.cancellationReason}"</div>
+                      </div>
+                    )}
+                    {selectedBooking.rejectionReason && (
+                      <div className="info-item" style={{ gridColumn: "span 2" }}>
+                        <div className="info-item-label">Rejection Reason</div>
+                        <div className="info-item-value" style={{ fontStyle: "italic" }}>"{selectedBooking.rejectionReason}"</div>
+                      </div>
+                    )}
+                    {selectedBooking.refundStatus && selectedBooking.refundStatus !== "none" && (
+                      <>
+                        <div className="info-item">
+                          <div className="info-item-label">Refund Status</div>
+                          <div className="info-item-value" style={{ textTransform: "capitalize" }}>{selectedBooking.refundStatus}</div>
+                        </div>
+                        <div className="info-item">
+                          <div className="info-item-label">Refund Amount</div>
+                          <div className="info-item-value">₹{selectedBooking.refundAmount || 0}</div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Add-Ons */}
+              {selectedBooking.addOns && selectedBooking.addOns.length > 0 && (
+                <div className="drawer-section">
+                  <h4 className="drawer-section-title">Selected Add-Ons</h4>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {selectedBooking.addOns.map((addOn, index) => (
+                      <div key={index} style={{ display: "flex", justifyContent: "space-between", background: "rgba(255,255,255,0.02)", padding: "10px 15px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.05)" }}>
+                        <span style={{ fontSize: "14px", fontWeight: 500 }}>{addOn.name}</span>
+                        <span style={{ fontSize: "14px", color: "var(--primary)", fontWeight: 600 }}>₹{addOn.price}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Role-Specific Actions Panel */}
+              <div className="drawer-section" style={{ borderTop: "2px dashed rgba(197, 155, 133, 0.2)", paddingTop: "20px" }}>
+                <h4 className="drawer-section-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Shield size={16} /> Role Actions: {ADMIN_ROLES[activeRole.toUpperCase()]?.label || activeRole}
+                </h4>
+
+                {/* Technical Lead view */}
+                {(activeRole === "super_admin" || activeRole === "tech_lead") && (
+                  <div style={{ background: "rgba(0, 180, 216, 0.05)", border: "1px solid rgba(0, 180, 216, 0.15)", padding: "15px", borderRadius: "10px", marginBottom: "15px" }}>
+                    <div style={{ fontWeight: 600, color: "var(--info)", fontSize: "13px", display: "flex", alignItems: "center", gap: "5px", marginBottom: "10px" }}>
+                      <Cpu size={14} /> Diagnostic Payload (JSON)
+                    </div>
+                    <pre style={{
+                      background: "rgba(0,0,0,0.8)",
+                      color: "#00ffcc",
+                      padding: "12px",
+                      borderRadius: "8px",
+                      fontSize: "11px",
+                      fontFamily: "monospace",
+                      overflowX: "auto",
+                      maxHeight: "150px"
+                    }}>
+                      {JSON.stringify(selectedBooking, null, 2)}
+                    </pre>
+                  </div>
+                )}
+
+                {/* Finance view */}
+                {(activeRole === "super_admin" || activeRole === "finance") && (
+                  <div style={{ background: "rgba(255, 209, 102, 0.08)", border: "1px solid rgba(255, 209, 102, 0.25)", padding: "15px", borderRadius: "10px", marginBottom: "15px" }}>
+                    <div style={{ fontWeight: 600, color: "var(--warning)", fontSize: "13px", display: "flex", alignItems: "center", gap: "5px", marginBottom: "10px" }}>
+                      <IndianRupee size={14} /> Financial Settlement Card
+                    </div>
+                    <p style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "10px" }}>
+                      Verify advance deposit payouts, record platform ledger entry, or manually override refund parameters for cancelled bookings.
+                    </p>
+                    <div style={{ display: "flex", gap: "10px" }}>
+                      {!selectedBooking.advancePaid && (
+                        <button
+                          className="action-btn-secondary"
+                          onClick={() => handleUpdateAdvancePaid(selectedBooking.id, true)}
+                          style={{ background: "var(--success)", color: "white", border: "none", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}
+                        >
+                          Mark Advance as Paid
+                        </button>
+                      )}
+                      {selectedBooking.status === "cancelled" && selectedBooking.refundStatus !== "refunded" && (
+                        <button
+                          className="action-btn-secondary"
+                          onClick={() => handleUpdateRefundStatus(selectedBooking.id, "refunded", selectedBooking.totalPaid)}
+                          style={{ background: "var(--danger)", color: "white", border: "none", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}
+                        >
+                          Mark as Refunded
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Compliance view */}
+                {(activeRole === "super_admin" || activeRole === "compliance") && (
+                  <div style={{ background: "rgba(140, 82, 255, 0.05)", border: "1px solid rgba(140, 82, 255, 0.15)", padding: "15px", borderRadius: "10px", marginBottom: "15px" }}>
+                    <div style={{ fontWeight: 600, color: "var(--violet)", fontSize: "13px", display: "flex", alignItems: "center", gap: "5px", marginBottom: "10px" }}>
+                      <UserCheck size={14} /> Artist Verification Checks
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: "13px" }}>
+                        Artist: <strong>{selectedBooking.artist?.name}</strong> (Verification Status: {selectedBooking.artist?.isVerified ? "Verified" : "Unverified"})
+                      </span>
+                      <button
+                        className="action-btn-secondary"
+                        onClick={() => handleVerifyArtist(selectedBooking.artistId, !selectedBooking.artist?.isVerified)}
+                        style={{ padding: "5px 10px", fontSize: "12px" }}
+                      >
+                        {selectedBooking.artist?.isVerified ? "Suspend Artist" : "Verify Artist"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Booking activity logs */}
+              <div className="drawer-section" style={{ marginTop: "20px" }}>
+                <h4 className="drawer-section-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Activity size={16} /> Booking Audit Trail (Real-Time logs)
+                </h4>
+                <div style={{ maxHeight: "200px", overflowY: "auto", border: "1px solid rgba(197, 155, 133, 0.15)", padding: "10px", borderRadius: "10px" }}>
+                  {bookingLogs.length === 0 ? (
+                    <p style={{ color: "var(--text-muted)", fontSize: "12px", textAlign: "center" }}>No activity logs recorded for this booking.</p>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      {bookingLogs.map((log) => (
+                        <div key={log.id} style={{ fontSize: "12px", borderBottom: "1px solid rgba(197, 155, 133, 0.08)", paddingBottom: "6px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <strong>{log.userName} ({log.userType})</strong>
+                            <span style={{ color: "var(--text-muted)", fontSize: "10px" }}>{new Date(log.createdAt).toLocaleString()}</span>
+                          </div>
+                          <div style={{ color: "var(--primary)", fontFamily: "monospace", margin: "2px 0", fontWeight: "bold" }}>{log.action}</div>
+                          <div style={{ color: "var(--text-muted)" }}>{log.details}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="drawer-footer">
+              <button className="btn-secondary" onClick={() => setSelectedBooking(null)}>
+                Close
+              </button>
             </div>
           </div>
         </div>

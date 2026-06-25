@@ -1,5 +1,6 @@
 import { loginAdmin, registerAdmin } from "./auth.service.js";
 import { validateAdminRegister } from "../../validators/admin.validator.js";
+import { logActivity } from "../../utils/activityLogger.js";
 
 const isBootstrapAllowed = (req) => {
   const secret = process.env.ADMIN_BOOTSTRAP_SECRET;
@@ -47,6 +48,18 @@ export const registerAdminController = async (req, res) => {
 export const loginAdminController = async (req, res) => {
   try {
     const data = await loginAdmin(req.body);
+
+    if (data?.admin) {
+      await logActivity({
+        userId: data.admin.id,
+        userType: "admin",
+        userName: data.admin.name,
+        action: "ADMIN_LOGIN",
+        details: `Logged into the administrative dashboard with role: ${data.admin.role}.`,
+        req,
+      });
+    }
+
     res.json({
       success: true,
       message: "Admin login successful",

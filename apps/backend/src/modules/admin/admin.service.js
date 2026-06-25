@@ -11,6 +11,7 @@ import ArtistProfile from "../../models/ArtistProfile.js";
 import ArtistCertificate from "../../models/ArtistCertificate.js";
 import ArtistPortfolio from "../../models/ArtistPortfolio.js";
 import ArtistPayment from "../../models/ArtistPayment.js";
+import ActivityLog from "../../models/ActivityLog.js";
 
 export const getAdminProfile = async (adminId) => {
   const admin = await Admin.findByPk(adminId, {
@@ -146,13 +147,17 @@ export const listBookings = async ({
   });
 };
 
-export const updateBookingStatus = async ({ bookingId, status }) => {
+export const updateBookingStatus = async ({ bookingId, status, advancePaid, refundStatus, refundAmount }) => {
   const booking = await Booking.findByPk(bookingId);
   if (!booking) {
     throw new Error("Booking not found");
   }
 
-  booking.status = status;
+  if (status !== undefined) booking.status = status;
+  if (advancePaid !== undefined) booking.advancePaid = advancePaid;
+  if (refundStatus !== undefined) booking.refundStatus = refundStatus;
+  if (refundAmount !== undefined) booking.refundAmount = refundAmount;
+  
   await booking.save();
 
   return booking;
@@ -339,4 +344,18 @@ export const getTechHealth = async () => {
     },
     system: systemMetrics,
   };
+};
+
+export const getActivityLogs = async ({ limit, offset, bookingId, userId, userType }) => {
+  const where = {};
+  if (bookingId) where.bookingId = Number(bookingId);
+  if (userId) where.userId = Number(userId);
+  if (userType) where.userType = userType;
+
+  return ActivityLog.findAndCountAll({
+    where,
+    order: [["createdAt", "DESC"]],
+    limit,
+    offset,
+  });
 };

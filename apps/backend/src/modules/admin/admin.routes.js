@@ -9,6 +9,7 @@ import {
   updateBookingStatusController,
   verifyArtistController,
   getTechHealthController,
+  getActivityLogsController,
 } from "./admin.controller.js";
 import { protectAdmin } from "../../middleware/adminAuth.js";
 
@@ -19,6 +20,7 @@ router.put("/password", protectAdmin, changeAdminPasswordController);
 
 router.get("/dashboard", protectAdmin, getDashboardAnalyticsController);
 router.get("/tech-health", protectAdmin, getTechHealthController);
+router.get("/activity-logs", protectAdmin, getActivityLogsController);
 
 router.get("/customers", protectAdmin, listCustomersController);
 router.get("/artists", protectAdmin, listArtistsController);

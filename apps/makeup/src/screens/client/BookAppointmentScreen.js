@@ -55,6 +55,11 @@ const BookAppointmentScreen = ({ navigation, route }) => {
       return;
     }
 
+    const serviceObj = services.find(s => s.name === selectedService) || {
+      name: selectedService,
+      price: '₹2,000',
+    };
+
     if (route.params?.selectedDate && route.params?.selectedTime) {
       const parsedDate = new Date(route.params.selectedDate);
       const dateStr = parsedDate.toLocaleDateString('en-IN', {
@@ -66,7 +71,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
 
       navigation.navigate('AddOns', {
         artist,
-        selectedService,
+        selectedService: serviceObj,
         selectedLocation,
         selectedDate: route.params.selectedDate,
         selectedTime: route.params.selectedTime,
@@ -77,7 +82,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
 
     navigation.navigate('SelectDateTime', {
       artist,
-      selectedService,
+      selectedService: serviceObj,
       selectedLocation,
     });
   };

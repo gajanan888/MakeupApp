@@ -136,8 +136,10 @@ const BookingConfirmationScreen = ({ navigation, route }) => {
         {/* Service */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Service</Text>
-          <Text style={styles.detail}>{selectedService?.name || 'N/A'}</Text>
-          <Text style={styles.price}>₹{servicePrice}</Text>
+          <Text style={styles.detail}>
+            {selectedService?.name || (typeof selectedService === 'string' ? selectedService : 'N/A')}
+          </Text>
+          <Text style={styles.price}>₹{numericServicePrice}</Text>
         </View>
         {/* Location */}
         <View style={styles.section}>
