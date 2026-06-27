@@ -12,14 +12,15 @@ import {
   Alert,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { createCustomerBooking, payCustomerBookingAdvance } from '../../api/auth';
+import RazorpayCheckout from 'react-native-razorpay';
+import { 
+  createCustomerBooking, 
+  createRazorpayOrder, 
+  verifyRazorpayPayment 
+} from '../../api/auth';
 
 const PAYMENT_METHODS = [
-  { id: 'card', name: 'Credit / Debit Card', icon: 'card-outline', color: '#FF4F87' },
-  { id: 'upi', name: 'UPI', icon: 'cash-outline', color: '#4CAF50' },
-  { id: 'paypal', name: 'PayPal', icon: 'logo-paypal', color: '#003087' },
-  { id: 'apple_pay', name: 'Apple Pay', icon: 'logo-apple', color: '#000000' },
-  { id: 'google_pay', name: 'Google Pay', icon: 'logo-google', color: '#DB4437' },
+  { id: 'razorpay', name: 'Pay with Razorpay', icon: 'card-outline', color: '#3395FF' },
 ];
 
 const PaymentScreen = ({ navigation, route }) => {
@@ -49,14 +50,40 @@ const PaymentScreen = ({ navigation, route }) => {
   
   const total = isAdvancePayment ? advanceAmount : (numericServicePrice + numericAddonsTotal);
 
-  const [selectedMethod, setSelectedMethod] = useState('card');
+  const [selectedMethod, setSelectedMethod] = useState('razorpay');
   const [loading, setLoading] = useState(false);
 
   const handlePay = async () => {
     try {
       setLoading(true);
       if (isAdvancePayment) {
-        await payCustomerBookingAdvance(bookingId);
+        // 1. Create Order
+        const orderData = await createRazorpayOrder(bookingId);
+        if (!orderData || !orderData.orderId) {
+          throw new Error('Failed to retrieve order ID from server.');
+        }
+
+        // 2. Open Razorpay Checkout
+        const options = {
+          description: 'Booking Advance Payment',
+          image: 'https://res.cloudinary.com/djonmzyiu/image/upload/v1/logo',
+          currency: orderData.currency,
+          key: orderData.keyId,
+          amount: orderData.amount * 100,
+          name: 'MakeupApp',
+          order_id: orderData.orderId,
+          theme: { color: '#FF4F87' },
+        };
+
+        const data = await RazorpayCheckout.open(options);
+
+        // 3. Verify Payment
+        await verifyRazorpayPayment(bookingId, {
+          razorpayOrderId: data.razorpay_order_id,
+          razorpayPaymentId: data.razorpay_payment_id,
+          razorpaySignature: data.razorpay_signature,
+        });
+
         Alert.alert(
           'Payment Successful',
           'Your 10% advance payment has been processed. The booking is now confirmed!',
@@ -130,10 +157,20 @@ const PaymentScreen = ({ navigation, route }) => {
       });
     } catch (error) {
       console.warn('Booking/Payment failed', error);
-      const errMsg = error.response?.data?.message || 
-                     (error.response?.data?.data?.errors && error.response.data.data.errors.join('\n')) ||
-                     error.message || 
-                     'There was an error processing your payment. Please try again.';
+      let errMsg = 'There was an error processing your payment. Please try again.';
+      
+      if (error.isAxiosError || error.response) {
+        // Backend / API Error
+        errMsg = error.response?.data?.message || 
+                 (error.response?.data?.data?.errors && error.response.data.data.errors.join('\n')) ||
+                 error.message || errMsg;
+      } else if (error.code) {
+        // Razorpay SDK error (e.g. user cancelled)
+        errMsg = error.description || error.error?.description || 'Payment cancelled or failed.';
+      } else {
+        errMsg = error.message || errMsg;
+      }
+      
       Alert.alert('Payment Failed', errMsg);
     } finally {
       setLoading(false);

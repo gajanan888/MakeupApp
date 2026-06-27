@@ -2,6 +2,8 @@ import { Op } from "sequelize";
 import Booking from "../../models/Booking.js";
 import Artist from "../../models/Artist.js";
 import Customer from "../../models/Customer.js";
+import sequelize from "../../config/db.js";
+import { getRazorpayInstance } from "../../utils/razorpay.js";
 
 // Helper to auto-expire bookings that missed their payment deadline
 export const checkAndExpireBookings = async () => {
@@ -147,6 +149,7 @@ export const rejectBooking = async ({ bookingId, artistId, reason }) => {
 };
 
 export const payAdvance = async ({ bookingId, customerId }) => {
+  console.warn("DEPRECATED: payAdvance is being called. It should be replaced with Razorpay checkout.");
   const booking = await Booking.findOne({
     where: { id: bookingId, customerId },
   });
@@ -166,6 +169,177 @@ export const payAdvance = async ({ bookingId, customerId }) => {
   await booking.save();
 
   return booking;
+};
+
+export const createRazorpayOrderService = async ({ bookingId, customerId }) => {
+  const booking = await Booking.findOne({
+    where: { id: bookingId, customerId },
+  });
+
+  if (!booking) {
+    throw new Error("Booking not found");
+  }
+  if (booking.status !== "accepted") {
+    throw new Error("Payment can only be made for accepted bookings");
+  }
+  if (booking.paymentStatus === "paid") {
+    throw new Error("Booking is already paid");
+  }
+
+  const razorpay = getRazorpayInstance();
+  const advanceAmount = Math.round((booking.price || 0) * 0.10);
+  
+  if (advanceAmount <= 0) {
+    throw new Error("Invalid payment amount");
+  }
+
+  // Check if order exists and is valid
+  if (booking.razorpayOrderId) {
+    try {
+      const existingOrder = await razorpay.orders.fetch(booking.razorpayOrderId);
+      if (existingOrder && existingOrder.status === "created" && existingOrder.amount === advanceAmount * 100) {
+        return {
+          orderId: booking.razorpayOrderId,
+          keyId: process.env.RAZORPAY_KEY_ID,
+          amount: advanceAmount,
+          currency: "INR"
+        };
+      }
+    } catch (error) {
+      console.warn("[PaymentService] Existing order fetch failed, creating new one.", error.message);
+    }
+  }
+
+  const orderOptions = {
+    amount: advanceAmount * 100, // Amount in paise
+    currency: "INR",
+    receipt: `receipt_booking_${booking.id}`,
+  };
+
+  const order = await razorpay.orders.create(orderOptions);
+
+  booking.razorpayOrderId = order.id;
+  booking.paymentStatus = "order_created";
+  await booking.save();
+
+  return {
+    orderId: order.id,
+    keyId: process.env.RAZORPAY_KEY_ID,
+    amount: advanceAmount,
+    currency: "INR"
+  };
+};
+
+export const verifyPaymentService = async ({ bookingId, customerId, razorpayOrderId, razorpayPaymentId, isWebhook = false }) => {
+  const whereClause = { id: bookingId };
+  if (customerId) whereClause.customerId = customerId;
+
+  const booking = await Booking.findOne({ where: whereClause });
+  
+  if (!booking) {
+    throw new Error("Booking not found");
+  }
+
+  if (booking.paymentStatus === "paid") {
+    console.log(`[PaymentService] Idempotency hit: Booking ${bookingId} is already paid.`);
+    return booking; // Idempotent
+  }
+
+  if (booking.razorpayOrderId !== razorpayOrderId) {
+    throw new Error("Order ID mismatch");
+  }
+
+  const razorpay = getRazorpayInstance();
+  const paymentDetails = await razorpay.payments.fetch(razorpayPaymentId);
+
+  if (!paymentDetails || paymentDetails.status !== "captured") {
+    throw new Error("Payment not captured in Razorpay");
+  }
+  
+  if (paymentDetails.order_id !== razorpayOrderId) {
+    throw new Error("Razorpay payment does not match the order ID");
+  }
+  
+  if (paymentDetails.currency !== "INR") {
+    throw new Error("Invalid currency");
+  }
+
+  const expectedAmount = Math.round((booking.price || 0) * 0.10) * 100;
+  if (paymentDetails.amount !== expectedAmount) {
+    throw new Error("Amount mismatch");
+  }
+
+  // Use a transaction to ensure atomicity
+  const transaction = await sequelize.transaction();
+  try {
+    // Lock the row to prevent concurrent updates
+    const lockedBooking = await Booking.findOne({ 
+      where: { id: booking.id }, 
+      transaction, 
+      lock: transaction.LOCK.UPDATE 
+    });
+
+    if (lockedBooking.paymentStatus === "paid") {
+      await transaction.rollback();
+      return lockedBooking;
+    }
+
+    lockedBooking.status = "confirmed";
+    lockedBooking.advancePaid = true;
+    lockedBooking.totalPaid = (lockedBooking.totalPaid || 0) + (lockedBooking.advanceAmount || 0);
+    lockedBooking.paymentStatus = "paid";
+    lockedBooking.razorpayPaymentId = razorpayPaymentId;
+    lockedBooking.paymentMethod = paymentDetails.method;
+    lockedBooking.paidAt = new Date();
+    lockedBooking.paymentDeadline = null;
+
+    await lockedBooking.save({ transaction });
+
+    // Assuming synchronous activity logging using models could go here,
+    // but usually activity log requires userId/userName. If it's webhook, 
+    // we might need to fetch the customer. Let's do it in the controller if needed.
+
+    await transaction.commit();
+    return lockedBooking;
+  } catch (error) {
+    await transaction.rollback();
+    console.error(`[PaymentService] Rollback executed for booking ${bookingId}:`, error.message);
+    throw new Error("Transaction failed during payment verification");
+  }
+};
+
+export const handleRazorpayWebhookService = async (event, payload) => {
+  if (event !== "payment.captured" && event !== "order.paid") {
+    // Ignore unsupported events
+    return { ignored: true };
+  }
+
+  const paymentDetails = payload.payment?.entity || payload.order?.entity;
+  if (!paymentDetails) {
+    throw new Error("Missing entity in webhook payload");
+  }
+
+  const razorpayOrderId = paymentDetails.order_id;
+  const razorpayPaymentId = paymentDetails.id;
+
+  const booking = await Booking.findOne({ where: { razorpayOrderId } });
+  if (!booking) {
+    console.warn(`[PaymentService] Webhook received for unknown order: ${razorpayOrderId}`);
+    return { ignored: true };
+  }
+
+  if (booking.paymentStatus === "paid") {
+    return { ignored: true, message: "Already paid" };
+  }
+
+  await verifyPaymentService({
+    bookingId: booking.id,
+    razorpayOrderId,
+    razorpayPaymentId,
+    isWebhook: true
+  });
+  
+  return { success: true };
 };
 
 export const declineAdvancePayment = async ({ bookingId, customerId }) => {

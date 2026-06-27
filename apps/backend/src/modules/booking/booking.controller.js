@@ -9,7 +9,11 @@ import {
   completeBooking,
   payAdvance,
   declineAdvancePayment,
+  createRazorpayOrderService,
+  verifyPaymentService,
+  handleRazorpayWebhookService,
 } from "./booking.service.js";
+import { verifyWebhookSignature } from "../../utils/razorpay.js";
 import {
   getPagination,
   validateCreateBooking,
@@ -263,7 +267,7 @@ export const payAdvanceController = async (req, res) => {
       userName: req.customer.name,
       action: "PAYMENT_ADVANCE",
       bookingId: booking.id,
-      details: `Successfully paid advance amount of ₹${booking.advanceAmount || 0} for booking.`,
+      details: `Successfully paid advance amount of ₹${booking.advanceAmount || 0} for booking (Legacy).`,
       req,
     });
 
@@ -278,6 +282,125 @@ export const payAdvanceController = async (req, res) => {
       message: error.message || "Advance payment failed",
       data: null,
     });
+  }
+};
+
+export const createRazorpayOrderController = async (req, res) => {
+  try {
+    const bookingId = Number(req.params.id);
+    if (!Number.isInteger(bookingId) || bookingId <= 0) {
+      return res.status(400).json({ success: false, message: "Invalid booking id" });
+    }
+
+    const orderData = await createRazorpayOrderService({
+      bookingId,
+      customerId: req.customer.id,
+    });
+
+    await logActivity({
+      userId: req.customer.id,
+      userType: "customer",
+      userName: req.customer.name,
+      action: "RAZORPAY_ORDER_CREATED",
+      bookingId,
+      details: `Created or reused Razorpay order ${orderData.orderId} for ₹${orderData.amount}`,
+      req,
+    });
+
+    res.json({
+      success: true,
+      message: "Razorpay order created successfully",
+      data: orderData,
+    });
+  } catch (error) {
+    const errorMsg = error.error?.description || error.description || error.message || "Failed to create Razorpay order";
+    res.status(400).json({
+      success: false,
+      message: errorMsg,
+    });
+  }
+};
+
+export const verifyPaymentController = async (req, res) => {
+  try {
+    const bookingId = Number(req.params.id);
+    if (!Number.isInteger(bookingId) || bookingId <= 0) {
+      return res.status(400).json({ success: false, message: "Invalid booking id" });
+    }
+
+    const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+    if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+      return res.status(400).json({ success: false, message: "Missing payment details in request body" });
+    }
+
+    // Since we're using createHmac with secret directly in Razorpay's verify signature,
+    // we need to verify the signature first.
+    // The verifyRazorpaySignature is exported from utils/razorpay.js
+    // We already have it, let's just import it or just call verifyRazorpaySignature.
+    // Actually, I didn't export it in this file. Let me import it at the top.
+    const { verifyRazorpaySignature } = await import("../../utils/razorpay.js");
+    
+    if (!verifyRazorpaySignature(razorpayOrderId, razorpayPaymentId, razorpaySignature)) {
+      return res.status(400).json({ success: false, message: "Invalid payment signature" });
+    }
+
+    const booking = await verifyPaymentService({
+      bookingId,
+      customerId: req.customer.id,
+      razorpayOrderId,
+      razorpayPaymentId,
+    });
+
+    await logActivity({
+      userId: req.customer.id,
+      userType: "customer",
+      userName: req.customer.name,
+      action: "RAZORPAY_PAYMENT_VERIFIED",
+      bookingId: booking.id,
+      details: `Successfully verified Razorpay payment ${razorpayPaymentId}. Booking confirmed.`,
+      req,
+    });
+
+    res.json({
+      success: true,
+      message: "Payment verified successfully",
+      data: booking,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message || "Failed to verify payment",
+    });
+  }
+};
+
+export const razorpayWebhookController = async (req, res) => {
+  try {
+    const signature = req.headers["x-razorpay-signature"];
+    if (!signature) {
+      return res.status(401).json({ success: false, message: "Missing signature" });
+    }
+
+    const bodyString = JSON.stringify(req.body);
+    if (!verifyWebhookSignature(bodyString, signature)) {
+      return res.status(401).json({ success: false, message: "Invalid signature" });
+    }
+
+    const event = req.body.event;
+    const result = await handleRazorpayWebhookService(event, req.body.payload);
+
+    if (result.ignored) {
+      console.log(`[PaymentService] Webhook ignored: ${result.message || event}`);
+    } else {
+      console.log(`[PaymentService] Webhook processed successfully for event ${event}`);
+    }
+
+    res.status(200).send("OK");
+  } catch (error) {
+    console.error("[PaymentService] Webhook processing failed:", error.message);
+    // Return 200 so razorpay doesn't retry unnecessarily for non-transient errors, 
+    // unless it's a DB issue. We will just return 200 to acknowledge.
+    res.status(200).send("OK");
   }
 };
 

@@ -83,6 +83,37 @@ const Booking = sequelize.define("Booking", {
     allowNull: false,
     defaultValue: "none", // "none", "pending", "refunded"
   },
+  razorpayOrderId: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  razorpayPaymentId: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    unique: true,
+  },
+  paymentStatus: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: "unpaid",
+  },
+  paymentMethod: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  paidAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  paymentFailureReason: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  paymentGateway: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: "razorpay",
+  },
 });
 
 Customer.hasMany(Booking, { foreignKey: "customerId", as: "bookings" });

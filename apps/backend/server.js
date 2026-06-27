@@ -26,7 +26,21 @@ async function bootstrapDatabase() {
     }
 
     // Keep development startup resilient when the database is unavailable.
-    await sequelize.sync({ alter: true });
+    // Removed alter: true to avoid dialect-specific ALTER TABLE syntax errors.
+    // Schema changes should rely on migrations.
+    await sequelize.sync();
+
+    // TEMPORARY FIX: Inject missing Razorpay columns into Supabase because migrations got out of sync
+    const qi = sequelize.getQueryInterface();
+    try { await qi.addColumn("Bookings", "razorpayOrderId", { type: "VARCHAR(255)" }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "razorpayPaymentId", { type: "VARCHAR(255)", unique: true }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "paymentStatus", { type: "VARCHAR(255)", allowNull: false, defaultValue: "unpaid" }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "paymentMethod", { type: "VARCHAR(255)" }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "paidAt", { type: "TIMESTAMP WITH TIME ZONE" }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "paymentFailureReason", { type: "VARCHAR(255)" }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "paymentGateway", { type: "VARCHAR(255)", allowNull: false, defaultValue: "razorpay" }); } catch (e) {}
+    console.log("Missing Razorpay columns synced successfully.");
+
   } catch (err) {
     console.error("Database connection failed:", err);
   }

@@ -111,6 +111,8 @@ export const getCustomerBookings   = async () => {
 };
 export const cancelCustomerBooking = async (id) => (await api.patch(`/api/booking/${id}/cancel`))?.data;
 export const payCustomerBookingAdvance = async (id) => (await api.post(`/api/booking/${id}/pay-advance`))?.data;
+export const createRazorpayOrder = async (id) => (await api.post(`/api/booking/${id}/razorpay-order`))?.data?.data;
+export const verifyRazorpayPayment = async (id, data) => (await api.post(`/api/booking/${id}/verify-payment`, data))?.data?.data;
 export const declineCustomerBookingAdvance = async (id) => (await api.post(`/api/booking/${id}/decline-advance`))?.data;
 
 // ─────────────────────────────────────────────────────────────────────────────
