@@ -10,6 +10,7 @@ import {
   SafeAreaView,
   Platform,
   StatusBar,
+  TextInput,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import ScreenHeader from '../../components/ScreenHeader';
@@ -43,6 +44,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
 
   const [selectedService, setSelectedService] = useState(matchingService ? matchingService.name : '');
   const [selectedLocation, setSelectedLocation] = useState('');
+  const [clientAddress, setClientAddress] = useState('');
 
   const handleNext = () => {
     if (!selectedService) {
@@ -55,9 +57,21 @@ const BookAppointmentScreen = ({ navigation, route }) => {
       return;
     }
 
+    if (selectedLocation === 'home' && !clientAddress.trim()) {
+      Alert.alert('Required', 'Please enter your address for the home service.');
+      return;
+    }
+
     const serviceObj = services.find(s => s.name === selectedService) || {
       name: selectedService,
       price: '₹2,000',
+    };
+
+    const locationData = {
+      type: selectedLocation,
+      address: selectedLocation === 'home' 
+        ? clientAddress.trim() 
+        : (artist.profile?.parlourAddress || 'At Artist Studio'),
     };
 
     if (route.params?.selectedDate && route.params?.selectedTime) {
@@ -72,7 +86,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
       navigation.navigate('AddOns', {
         artist,
         selectedService: serviceObj,
-        selectedLocation,
+        selectedLocation: locationData,
         selectedDate: route.params.selectedDate,
         selectedTime: route.params.selectedTime,
         dateStr,
@@ -83,7 +97,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
     navigation.navigate('SelectDateTime', {
       artist,
       selectedService: serviceObj,
-      selectedLocation,
+      selectedLocation: locationData,
     });
   };
 
@@ -184,36 +198,38 @@ const BookAppointmentScreen = ({ navigation, route }) => {
         <Text style={styles.sectionTitle}>Location</Text>
 
         {/* At Artist Studio Box */}
-        <TouchableOpacity
-          style={[
-            styles.locationCard,
-            selectedLocation === 'studio' && styles.locationCardActive,
-          ]}
-          onPress={() => setSelectedLocation('studio')}
-          activeOpacity={0.8}
-        >
-          <View
+        {artist.profile?.parlourName && artist.profile?.parlourAddress ? (
+          <TouchableOpacity
             style={[
-              styles.customRadio,
-              selectedLocation === 'studio' && styles.customRadioActive,
+              styles.locationCard,
+              selectedLocation === 'studio' && styles.locationCardActive,
             ]}
+            onPress={() => setSelectedLocation('studio')}
+            activeOpacity={0.8}
           >
-            {selectedLocation === 'studio' && (
-              <View style={styles.customRadioInner} />
-            )}
-          </View>
-          <View style={styles.locationTextCol}>
-            <Text
+            <View
               style={[
-                styles.locationHeading,
-                selectedLocation === 'studio' && styles.locationHeadingActive,
+                styles.customRadio,
+                selectedLocation === 'studio' && styles.customRadioActive,
               ]}
             >
-              At Artist Studio
-            </Text>
-            <Text style={styles.addressText}>123 Beauty Street, Pune</Text>
-          </View>
-        </TouchableOpacity>
+              {selectedLocation === 'studio' && (
+                <View style={styles.customRadioInner} />
+              )}
+            </View>
+            <View style={styles.locationTextCol}>
+              <Text
+                style={[
+                  styles.locationHeading,
+                  selectedLocation === 'studio' && styles.locationHeadingActive,
+                ]}
+              >
+                At Artist's Parlour ({artist.profile.parlourName})
+              </Text>
+              <Text style={styles.addressText}>{artist.profile.parlourAddress}</Text>
+            </View>
+          </TouchableOpacity>
+        ) : null}
 
         {/* At Your Location Box */}
         <TouchableOpacity
@@ -241,10 +257,25 @@ const BookAppointmentScreen = ({ navigation, route }) => {
                 selectedLocation === 'home' && styles.locationHeadingActive,
               ]}
             >
-              At Your Location
+              At Your Location (Home Service)
             </Text>
           </View>
         </TouchableOpacity>
+
+        {selectedLocation === 'home' && (
+          <View style={styles.addressInputContainer}>
+            <Text style={styles.addressInputLabel}>Enter Your Address</Text>
+            <TextInput
+              style={styles.addressTextInput}
+              placeholder="House/Flat No., Building, Street, Area, City..."
+              placeholderTextColor="#B7A9A1"
+              value={clientAddress}
+              onChangeText={setClientAddress}
+              multiline
+              numberOfLines={3}
+            />
+          </View>
+        )}
 
         {/* Next Trigger Button */}
         <TouchableOpacity
@@ -421,5 +452,27 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: '700',
+  },
+  addressInputContainer: {
+    marginTop: 4,
+    marginBottom: 14,
+    backgroundColor: '#FFF',
+    borderWidth: 1.5,
+    borderColor: '#FFD1E1',
+    borderRadius: 18,
+    padding: 12,
+  },
+  addressInputLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FF4F87',
+    marginBottom: 6,
+  },
+  addressTextInput: {
+    fontSize: 14,
+    color: '#333',
+    minHeight: 60,
+    textAlignVertical: 'top',
+    padding: 0,
   },
 });

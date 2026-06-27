@@ -26,8 +26,8 @@ export const checkAndExpireBookings = async () => {
 
 export const createBooking = async ({ customerId, artistId, date, time, category, price, location, addOns, totalPaid }) => {
   const artist = await Artist.findByPk(artistId);
-  if (!artist) {
-    throw new Error("Artist not found");
+  if (!artist || !artist.isVerified) {
+    throw new Error("Artist not found or not verified");
   }
 
   // Check conflicting booking that is pending, accepted, or confirmed/in_progress

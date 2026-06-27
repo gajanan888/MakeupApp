@@ -20,6 +20,7 @@ import ArtistOTPVerificationScreen from '../screens/artist/ArtistOTPVerification
 import ArtistRegistrationPendingScreen from '../screens/artist/ArtistRegistrationPendingScreen';
 import ArtistHomeScreen from '../screens/artist/ArtistHomeScreen';
 import ClientRegisterScreen from '../screens/client/ClientRegisterScreen';
+import ClientOTPVerificationScreen from '../screens/client/ClientOTPVerificationScreen';
 import ClientHomeScreen from '../screens/client/ClientHomeScreen';
 import ForgotPasswordScreen from '../screens/common/ForgotPasswordScreen';
 import OtpVerificationScreen from '../screens/common/OtpVerificationScreen';
@@ -90,8 +91,10 @@ const AppNavigator = () => {
                 setInitialRoute('ArtistRegistrationPending');
               }
             } catch (err) {
-              console.warn('Failed to fetch profile on startup, defaulting to pending:', err);
-              setInitialRoute('ArtistRegistrationPending');
+              console.warn('Failed to fetch profile on startup, clearing token:', err);
+              await AsyncStorage.removeItem('token');
+              await AsyncStorage.removeItem('userRole');
+              setInitialRoute('Onboarding');
             }
           } else if (role === 'client') {
             setInitialRoute('ClientHome');
@@ -126,6 +129,7 @@ const AppNavigator = () => {
         <Stack.Screen name="ArtistLogin" component={ArtistLoginScreen} />
 
         <Stack.Screen name="ClientRegister" component={ClientRegisterScreen} />
+        <Stack.Screen name="ClientOTPVerification" component={ClientOTPVerificationScreen} />
 
         <Stack.Screen name="ClientHome" component={ClientHomeScreen} />
 

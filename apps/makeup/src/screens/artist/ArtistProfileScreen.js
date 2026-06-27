@@ -37,6 +37,8 @@ const ArtistProfileScreen = ({ onBack }) => {
     bankName: '',
     accountNumber: '',
     ifscCode: '',
+    parlourName: '',
+    parlourAddress: '',
   });
 
   const [stats, setStats] = useState({
@@ -62,6 +64,8 @@ const ArtistProfileScreen = ({ onBack }) => {
 
   const [editBizName, setEditBizName] = useState('');
   const [editBizHours, setEditBizHours] = useState('');
+  const [editParlourName, setEditParlourName] = useState('');
+  const [editParlourAddress, setEditParlourAddress] = useState('');
 
   const [editBankName, setEditBankName] = useState('');
   const [editAccountNo, setEditAccountNo] = useState('');
@@ -89,6 +93,8 @@ const ArtistProfileScreen = ({ onBack }) => {
           accountNumber: data.payment?.accountNumber || '',
           ifscCode: data.payment?.ifscCode || '',
           profileImage: data.profile?.profileImage || '',
+          parlourName: data.profile?.parlourName || '',
+          parlourAddress: data.profile?.parlourAddress || '',
         };
         setProfile(mappedProfile);
 
@@ -99,6 +105,8 @@ const ArtistProfileScreen = ({ onBack }) => {
         setEditLocation(mappedProfile.location);
         setEditBizName(mappedProfile.businessName);
         setEditBizHours(mappedProfile.businessHours);
+        setEditParlourName(mappedProfile.parlourName);
+        setEditParlourAddress(mappedProfile.parlourAddress);
         setEditBankName(mappedProfile.bankName);
         setEditAccountNo(mappedProfile.accountNumber);
         setEditIfsc(mappedProfile.ifscCode);
@@ -153,11 +161,21 @@ const ArtistProfileScreen = ({ onBack }) => {
 
   // Handle Save business details
   const handleSaveBusiness = async () => {
+    if (editParlourName.trim() && !editParlourAddress.trim()) {
+      Alert.alert('Error', 'Please enter the parlour address if you specify a parlour name.');
+      return;
+    }
+    if (editParlourAddress.trim() && !editParlourName.trim()) {
+      Alert.alert('Error', 'Please enter the parlour name if you specify a parlour address.');
+      return;
+    }
     try {
       await updateArtistProfile({
         profile: {
           businessName: editBizName,
           businessHours: editBizHours,
+          parlourName: editParlourName.trim() || null,
+          parlourAddress: editParlourAddress.trim() || null,
         }
       });
       Alert.alert('Success', 'Business information updated.');
@@ -307,6 +325,25 @@ const ArtistProfileScreen = ({ onBack }) => {
               style={styles.textInput}
               value={editBizHours}
               onChangeText={setEditBizHours}
+            />
+
+            <Text style={styles.inputLabel}>Parlour Name (Optional)</Text>
+            <TextInput
+              style={styles.textInput}
+              value={editParlourName}
+              onChangeText={setEditParlourName}
+              placeholder="e.g. Blossom Beauty Parlour"
+              placeholderTextColor="#B7A9A1"
+            />
+
+            <Text style={styles.inputLabel}>Parlour Address (Optional)</Text>
+            <TextInput
+              style={[styles.textInput, { height: 80, textAlignVertical: 'top' }]}
+              value={editParlourAddress}
+              onChangeText={setEditParlourAddress}
+              placeholder="Full address of your parlour..."
+              placeholderTextColor="#B7A9A1"
+              multiline
             />
 
             <TouchableOpacity style={styles.modalSubmitButton} onPress={handleSaveBusiness}>

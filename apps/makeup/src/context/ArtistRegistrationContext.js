@@ -15,6 +15,8 @@ const initialState = {
     bio: '',
     location: '',
     experience: '',
+    parlourName: '',
+    parlourAddress: '',
   },
   specializations: [],
   certificates: [],
@@ -100,6 +102,8 @@ export const ArtistRegistrationProvider = ({ children }) => {
         bio: profileData.profile?.bio || '',
         location: profileData.profile?.location || '',
         experience: profileData.profile?.experience || '',
+        parlourName: profileData.profile?.parlourName || '',
+        parlourAddress: profileData.profile?.parlourAddress || '',
       },
       specializations: (profileData.specializations || []).map(s => s.name || s),
       certificates: (profileData.certificates || []).map(c => ({

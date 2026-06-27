@@ -58,7 +58,15 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
         {/* Content Card */}
 
         <View style={styles.contentContainer}>
-          <Text style={styles.artistName}>{artist.name}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <Text style={styles.artistName}>{artist.name}</Text>
+            {artist.trendingRank && (
+              <View style={styles.detailRankBadge}>
+                <Ionicons name="trophy" size={12} color="#B78103" />
+                <Text style={styles.detailRankBadgeText}>Rank #{artist.trendingRank} Trending in India</Text>
+              </View>
+            )}
+          </View>
 
           <Text style={styles.speciality}>
             {artist.speciality ||
@@ -69,7 +77,11 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
           <View style={styles.ratingRow}>
             <Ionicons name="star" size={14} color="#F5B301" />
 
-            <Text style={styles.ratingText}>{artist.rating || '4.8'}</Text>
+            <Text style={styles.ratingText}>
+              {artist.profile?.rating
+                ? artist.profile.rating.toFixed(1)
+                : artist.rating || '4.8'}
+            </Text>
 
             <Text style={styles.separator}>•</Text>
 
@@ -325,6 +337,24 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '800',
     color: '#111',
+  },
+
+  detailRankBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF8E7',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#FFE0B2',
+  },
+
+  detailRankBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#B78103',
   },
 
   speciality: {

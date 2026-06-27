@@ -19,6 +19,7 @@ import {
   rejectArtistBooking,
   startArtistBooking,
   completeArtistBooking,
+  cancelArtistBooking,
 } from '../../api/auth';
 
 const STYLE_PREFERENCES = [
@@ -33,8 +34,23 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
   const [updating, setUpdating] = useState(false);
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
   const [rejectionReasonText, setRejectionReasonText] = useState('');
+  const [dialogType, setDialogType] = useState('reject'); // 'reject' or 'cancel'
 
   if (!booking) return null;
+
+  const checkTimeReached = () => {
+    if (!booking.rawDate || !booking.rawTime) return true;
+    try {
+      const [year, month, day] = booking.rawDate.split('-').map(Number);
+      const [hours, minutes] = booking.rawTime.split(':').map(Number);
+      const scheduled = new Date(year, month - 1, day, hours, minutes);
+      const now = new Date();
+      return now >= scheduled;
+    } catch (e) {
+      return true;
+    }
+  };
+  const isTimeReached = checkTimeReached();
 
   const handleAction = async (apiCall, successMsg) => {
     try {
@@ -74,8 +90,9 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
       visible={visible}
       onRequestClose={onClose}
     >
-      <Pressable style={styles.modalOverlay} onPress={onClose}>
-        <View style={styles.sheetContainer} onStartShouldSetResponder={() => true}>
+      <View style={styles.modalOverlay}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={styles.sheetContainer}>
           {/* DRAG HANDLE INDICATOR */}
           <View style={styles.dragHandle} />
 
@@ -94,37 +111,21 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
             
-            {/* CONTACT QUICK SHORTCUTS */}
-            <View style={styles.contactContainer}>
-              <TouchableOpacity 
-                style={styles.contactBubble} 
-                onPress={() => Linking.openURL(`tel:${clientPhone}`)}
-              >
-                <Ionicons name="call" size={20} color="#FF4F8F" />
-                <Text style={styles.contactLabel}>Call</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.contactBubble} 
-                onPress={() => Linking.openURL(`sms:${clientPhone}`)}
-              >
-                <Ionicons name="chatbox-ellipses" size={20} color="#FF4F8F" />
-                <Text style={styles.contactLabel}>SMS</Text>
-              </TouchableOpacity>
-
-              {['confirmed', 'in_progress'].includes(booking?.rawStatus) && (
+            {/* IN-APP CHAT SHORTCUT */}
+            {['accepted', 'in_progress'].includes(booking?.rawStatus) && (
+              <View style={styles.contactContainer}>
                 <TouchableOpacity 
-                  style={styles.contactBubble} 
+                  style={styles.chatBubbleFull} 
                   onPress={() => {
                     onClose();
                     if (onChatPress) onChatPress(booking);
                   }}
                 >
                   <Ionicons name="chatbubbles" size={20} color="#FF4F8F" />
-                  <Text style={styles.contactLabel}>Chat Log</Text>
+                  <Text style={styles.contactLabel}>Chat with Client</Text>
                 </TouchableOpacity>
-              )}
-            </View>
+              </View>
+            )}
 
             {/* STYLE INSPIRATION PHOTOS */}
             <Text style={styles.sectionTitle}>STYLE & PREFERENCES</Text>
@@ -141,7 +142,6 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
                 <Ionicons name="location-sharp" size={16} color="#FF4F8F" />
                 <Text style={styles.locationText}>{displayAddress}</Text>
               </View>
-              <Image source={{ uri: MAP_PREVIEW }} style={styles.mapImage} />
             </View>
 
             {/* PAYMENT INVOICE BREAKDOWN */}
@@ -240,6 +240,7 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
                     <TouchableOpacity 
                       style={[styles.actionBtn, styles.declineBtn]}
                       onPress={() => {
+                        setDialogType('reject');
                         setRejectionReasonText('');
                         setRejectModalVisible(true);
                       }}
@@ -250,34 +251,68 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
                 )}
 
                 {booking.rawStatus === 'accepted' && (
-                  <TouchableOpacity 
-                    style={[styles.actionBtn, styles.startBtn]}
-                    onPress={() => handleAction(startArtistBooking, 'Service started successfully.')}
-                  >
-                    <Text style={styles.actionBtnText}>Start Service</Text>
-                  </TouchableOpacity>
+                  <View style={styles.doubleActions}>
+                    {isTimeReached ? (
+                      <TouchableOpacity 
+                        style={[styles.actionBtn, styles.startBtn]}
+                        onPress={() => handleAction(startArtistBooking, 'Service started successfully.')}
+                      >
+                        <Text style={styles.actionBtnText}>Start Service</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <View style={[styles.actionBtn, styles.disabledBtn]}>
+                        <Text style={styles.disabledBtnText}>Starts {booking.rawTime}</Text>
+                      </View>
+                    )}
+                    <TouchableOpacity 
+                      style={[styles.actionBtn, styles.declineBtn]}
+                      onPress={() => {
+                        setDialogType('cancel');
+                        setRejectionReasonText('');
+                        setRejectModalVisible(true);
+                      }}
+                    >
+                      <Text style={[styles.actionBtnText, styles.declineText]}>Cancel</Text>
+                    </TouchableOpacity>
+                  </View>
                 )}
 
                 {booking.rawStatus === 'in_progress' && (
-                  <TouchableOpacity 
-                    style={[styles.actionBtn, styles.completeBtn]}
-                    onPress={() => handleAction(completeArtistBooking, 'Service marked as completed.')}
-                  >
-                    <Text style={styles.actionBtnText}>Complete Service</Text>
-                  </TouchableOpacity>
+                  <View style={styles.doubleActions}>
+                    <TouchableOpacity 
+                      style={[styles.actionBtn, styles.completeBtn]}
+                      onPress={() => handleAction(completeArtistBooking, 'Service marked as completed.')}
+                    >
+                      <Text style={styles.actionBtnText}>Complete Service</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.actionBtn, styles.declineBtn]}
+                      onPress={() => {
+                        setDialogType('cancel');
+                        setRejectionReasonText('');
+                        setRejectModalVisible(true);
+                      }}
+                    >
+                      <Text style={[styles.actionBtnText, styles.declineText]}>Cancel</Text>
+                    </TouchableOpacity>
+                  </View>
                 )}
               </>
             )}
           </View>
         </View>
-      </Pressable>
+      </View>
 
-      {/* Reject Booking Dialog Modal */}
+      {/* Reject/Cancel Booking Dialog Modal */}
       <Modal visible={rejectModalVisible} transparent animationType="fade">
         <View style={styles.dialogOverlay}>
           <View style={styles.dialogContainer}>
-            <Text style={styles.dialogTitle}>Decline Request</Text>
-            <Text style={styles.dialogLabel}>Please provide a reason for declining this request:</Text>
+            <Text style={styles.dialogTitle}>{dialogType === 'cancel' ? 'Cancel Booking' : 'Decline Request'}</Text>
+            <Text style={styles.dialogLabel}>
+              {dialogType === 'cancel' 
+                ? 'Please provide a reason for cancelling this booking:' 
+                : 'Please provide a reason for declining this request:'}
+            </Text>
             <TextInput
               style={styles.dialogInput}
               placeholder="E.g. Slot unavailable / Personal emergency..."
@@ -306,19 +341,24 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
                   try {
                     setUpdating(true);
                     setRejectModalVisible(false);
-                    await rejectArtistBooking(booking.id, rejectionReasonText.trim());
+                    if (dialogType === 'cancel') {
+                      await cancelArtistBooking(booking.id, rejectionReasonText.trim());
+                      Alert.alert('Success', 'Booking cancelled.');
+                    } else {
+                      await rejectArtistBooking(booking.id, rejectionReasonText.trim());
+                      Alert.alert('Success', 'Booking declined.');
+                    }
                     setRejectionReasonText('');
-                    Alert.alert('Success', 'Booking declined.');
                     if (onStatusUpdate) await onStatusUpdate();
                     onClose();
                   } catch (err) {
-                    Alert.alert('Error', err.message || 'Failed to reject booking.');
+                    Alert.alert('Error', err.message || 'Failed to process action.');
                   } finally {
                     setUpdating(false);
                   }
                 }}
               >
-                <Text style={styles.dialogSubmitText}>Decline</Text>
+                <Text style={styles.dialogSubmitText}>{dialogType === 'cancel' ? 'Cancel' : 'Decline'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -406,6 +446,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     marginHorizontal: 4,
+  },
+  chatBubbleFull: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFEBF3',
+    paddingVertical: 12,
+    borderRadius: 12,
   },
   contactLabel: {
     fontSize: 11,
@@ -556,9 +605,24 @@ const styles = StyleSheet.create({
   },
   startBtn: {
     backgroundColor: '#FF4F8F',
+    flex: 1,
+    marginRight: 10,
   },
   completeBtn: {
     backgroundColor: '#389E0D',
+    flex: 1,
+    marginRight: 10,
+  },
+  disabledBtn: {
+    backgroundColor: '#E0D8DB',
+    flex: 1,
+    marginRight: 10,
+  },
+  disabledBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#8A7D77',
+    fontFamily: 'serif',
   },
   dialogContainer: {
     backgroundColor: '#FFF',

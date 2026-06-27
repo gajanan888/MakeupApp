@@ -147,43 +147,7 @@ const ArtistLoginScreen = ({ navigation }) => {
                 )}
             </TouchableOpacity>
 
-            <View style={styles.dividerContainer}>
-                <View style={styles.divider} />
 
-                <Text style={styles.dividerText}>
-                    or continue with
-                </Text>
-
-                <View style={styles.divider} />
-            </View>
-
-            <View style={styles.socialContainer}>
-
-                <TouchableOpacity style={styles.socialButton}>
-                    <Ionicons
-                        name="logo-google"
-                        size={24}
-                        color="#EA4335"
-                    />
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.socialButton}>
-                    <Ionicons
-                        name="logo-apple"
-                        size={28}
-                        color="#111"
-                    />
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.socialButton}>
-                    <Ionicons
-                        name="logo-facebook"
-                        size={24}
-                        color="#1877F2"
-                    />
-                </TouchableOpacity>
-
-            </View>
 
             <View style={styles.signupContainer}>
                 <Text style={styles.signupText}>

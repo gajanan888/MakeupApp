@@ -76,13 +76,15 @@ const ArtistBookingScreen = ({ onBack }) => {
           name: b.customer?.name || 'Client',
           category: b.category || 'Makeup Service',
           date: formattedDate,
-          location: 'At Client Location',
+          location: b.location || 'At Client Location',
           price: `₹${b.price || 0}`,
           status: mappedStatus,
           rawStatus: b.status,
           phone: b.customer?.phone || '',
-          address: b.customer?.profile?.location || 'At Client Location',
+          address: b.location || 'At Client Location',
           avatar,
+          rawDate: b.date,
+          rawTime: b.time,
         };
       });
 

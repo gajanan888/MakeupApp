@@ -84,15 +84,21 @@ export const getArtists = async (filters = {}) => {
   return response?.data?.data ?? response?.data ?? [];
 };
 
+export const getTrendingArtists = async () => {
+  const response = await api.get('/api/customer/trending-artists');
+  return response?.data?.data ?? response?.data ?? [];
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ARTIST BOOKINGS
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const getArtistBookings    = async ()           => (await api.get('/api/booking/artist'))?.data?.data?.items || (await api.get('/api/booking/artist'))?.data?.data || [];
 export const acceptArtistBooking  = async (id)         => (await api.patch(`/api/booking/${id}/accept`))?.data;
-export const rejectArtistBooking  = async (id)         => (await api.patch(`/api/booking/${id}/reject`))?.data;
+export const rejectArtistBooking  = async (id, reason) => (await api.patch(`/api/booking/${id}/reject`, { reason }))?.data;
 export const startArtistBooking   = async (id)         => (await api.patch(`/api/booking/${id}/start`))?.data;
 export const completeArtistBooking = async (id)        => (await api.patch(`/api/booking/${id}/complete`))?.data;
+export const cancelArtistBooking  = async (id, reason) => (await api.patch(`/api/booking/${id}/cancel`, { reason }))?.data;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CUSTOMER BOOKINGS

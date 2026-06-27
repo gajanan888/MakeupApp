@@ -8,7 +8,7 @@ const Navbar = ({ onAdminClick }) => {
 
   useEffect(() => {
     const handleScroll = () => {
-      if (window.scrollY > lastScrollY) {
+      if (window.scrollY > lastScrollY && window.scrollY > 100) {
         setShow(false); // scroll down → hide
       } else {
         setShow(true); // scroll up → show
@@ -17,29 +17,32 @@ const Navbar = ({ onAdminClick }) => {
     };
 
     window.addEventListener("scroll", handleScroll);
-
     return () => window.removeEventListener("scroll", handleScroll);
   }, [lastScrollY]);
 
+  const scrollToSection = (id) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   return (
     <div className={`navbar ${show ? "show" : "hide"}`}>
-      <div className="logo">
-        {" "}
-        <img src="/Images/logo.png" alt="Logo" />{" "}
+      <div className="logo" onClick={() => scrollToSection("home")} style={{ cursor: "pointer" }}>
+        <img src="/Images/logo.png" alt="GlamAI Logo" />
       </div>
 
       <div className="navlinks">
-        <h3>Home</h3>
-        <h3>How it Works</h3>
-        <h3>About Us</h3>
-        <h3>Features</h3>
-        <h3>Artist</h3>
+        <span onClick={() => scrollToSection("home")}>Home</span>
+        <span onClick={() => scrollToSection("features")}>Features</span>
+        <span onClick={() => scrollToSection("advantages")}>Advantages</span>
+        <span onClick={() => scrollToSection("how-it-works")}>How It Works</span>
       </div>
 
-      <div className="user" style={{ display: "flex", gap: "20px", alignItems: "center" }}>
-        <h3 onClick={onAdminClick} style={{ cursor: "pointer", color: "var(--primary, #ff4f8f)", fontSize: "14px" }}>Admin Portal</h3>
-        <h3>Download App</h3>
-        <div></div>
+      <div className="nav-actions">
+         
+        <button className="download-btn" onClick={() => scrollToSection("download")}>Download</button>
       </div>
     </div>
   );

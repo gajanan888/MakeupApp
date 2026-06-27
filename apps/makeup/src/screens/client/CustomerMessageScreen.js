@@ -51,7 +51,7 @@ const requestPermissions = async () => {
   return true;
 };
 
-const CustomerMessageScreen = () => {
+const CustomerMessageScreen = ({ isTab = false }) => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
@@ -321,7 +321,7 @@ const CustomerMessageScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, isTab && { paddingTop: 0 }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
@@ -354,7 +354,7 @@ const CustomerMessageScreen = () => {
               />
             )}
 
-            <BottomNavigation navigation={navigation} activeTab="Chat" />
+            {!isTab && <BottomNavigation navigation={navigation} activeTab="Chat" />}
           </View>
         ) : !activeContact ? (
           /* PRE-RESOLVING DOCK OVERLAY */

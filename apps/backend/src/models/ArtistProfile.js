@@ -23,6 +23,22 @@ const ArtistProfile = sequelize.define("ArtistProfile", {
   experience: {
     type: DataTypes.STRING,
   },
+  parlourName: {
+    type: DataTypes.STRING,
+  },
+  parlourAddress: {
+    type: DataTypes.TEXT,
+  },
+  rating: {
+    type: DataTypes.FLOAT,
+    allowNull: false,
+    defaultValue: 4.5,
+  },
+  reviewCount: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 0,
+  },
 });
 
 Artist.hasOne(ArtistProfile, { foreignKey: "artistId", as: "profile" });

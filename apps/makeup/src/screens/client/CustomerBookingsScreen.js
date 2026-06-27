@@ -38,7 +38,7 @@ const CountdownTimer = ({ deadline, onExpire }) => {
     updateTimer();
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
-  }, [deadline]);
+  }, [deadline, onExpire]);
 
   return (
     <View style={styles.timerRow}>
@@ -48,7 +48,7 @@ const CountdownTimer = ({ deadline, onExpire }) => {
   );
 };
 
-const CustomerBookingsScreen = ({ navigation }) => {
+const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
   const [activeTab, setActiveTab] = useState('Upcoming'); // 'Upcoming' | 'Past' | 'Cancelled'
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -73,9 +73,9 @@ const CustomerBookingsScreen = ({ navigation }) => {
     return diffHours >= 36;
   };
 
-  const fetchBookings = async () => {
+  const fetchBookings = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const data = await getCustomerBookings();
       try {
         const prof = await getCustomerProfile();
@@ -139,17 +139,24 @@ const CustomerBookingsScreen = ({ navigation }) => {
     } catch (error) {
       console.warn('Failed to fetch customer bookings:', error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchBookings();
 
+    const interval = setInterval(() => {
+      fetchBookings(true);
+    }, 30 * 1000); // 30 seconds
+
     const unsubscribe = navigation.addListener('focus', () => {
       fetchBookings();
     });
-    return unsubscribe;
+    return () => {
+      clearInterval(interval);
+      unsubscribe();
+    };
   }, [navigation]);
 
   const handleDeclineAdvance = async (bookingId) => {
@@ -226,7 +233,7 @@ const CustomerBookingsScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       {/* HEADER */}
-      <View style={styles.header}>
+      <View style={[styles.header, isTab && { paddingTop: 10, height: 60 }]}>
         <View style={styles.headerSpacer} />
         <Text style={styles.headerTitle}>My Bookings</Text>
         <TouchableOpacity style={styles.headerButton}>
@@ -402,7 +409,7 @@ const CustomerBookingsScreen = ({ navigation }) => {
       )}
 
       {/* BOTTOM NAVIGATION */}
-      <BottomNavigation navigation={navigation} activeTab="Bookings" />
+      {!isTab && <BottomNavigation navigation={navigation} activeTab="Bookings" />}
     </View>
   );
 };

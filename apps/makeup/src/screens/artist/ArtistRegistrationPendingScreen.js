@@ -11,15 +11,43 @@ import {
   ActivityIndicator,
   Image,
   ImageBackground,
+  Alert,
 } from 'react-native';
 
 import Ionicons from '@react-native-vector-icons/ionicons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useArtistRegistration } from '../../context/ArtistRegistrationContext';
 import { getArtistProfile } from '../../api/auth';
 
 const CompleteProfileScreen = ({navigation}) => {
   const { data, loadProfileData } = useArtistRegistration();
   const [isLoading, setIsLoading] = useState(false);
+
+  const handleBack = () => {
+    Alert.alert(
+      'Log Out',
+      'Are you sure you want to log out and exit profile completion?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Log Out', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await AsyncStorage.removeItem('token');
+              await AsyncStorage.removeItem('userRole');
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Onboarding' }],
+              });
+            } catch (err) {
+              console.warn('Failed to log out:', err);
+            }
+          }
+        }
+      ]
+    );
+  };
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -181,7 +209,7 @@ const CompleteProfileScreen = ({navigation}) => {
             {/* Floating Back Button */}
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => navigation.goBack()}
+              onPress={handleBack}
               accessibilityRole="button"
               accessibilityLabel="Go back"
             >

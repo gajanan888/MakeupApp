@@ -1,6 +1,6 @@
 import validator from "validator";
 import Customer from "../../models/Customer.js";
-import { getArtists } from "./customer.service.js";
+import { getArtists, getTrendingArtists } from "./customer.service.js";
 
 export const getProfile = async (req, res) => {
   try {
@@ -85,5 +85,20 @@ export const getArtistsController = async (req, res) => {
     res
       .status(500)
       .json({ message: error.message || "Failed to fetch artists" });
+  }
+};
+
+export const getTrendingArtistsController = async (req, res) => {
+  try {
+    const artists = await getTrendingArtists();
+    res.json({
+      success: true,
+      message: "Trending artists fetched successfully",
+      data: artists,
+    });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: error.message || "Failed to fetch trending artists" });
   }
 };

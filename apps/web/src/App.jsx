@@ -30,16 +30,11 @@ const App = () => {
   };
 
   useEffect(() => {
-    if (!token) {
-      if (path !== "/admin") {
-        navigateTo("/admin");
-      }
-    } else {
-      if (path === "/") {
-        navigateTo("/admin");
-      }
+    // If the path is not '/' or '/admin', redirect to '/'
+    if (path !== "/" && path !== "/admin") {
+      navigateTo("/");
     }
-  }, [token, path]);
+  }, [path]);
 
   const handleLoginSuccess = (newToken, userDetails) => {
     setToken(newToken);

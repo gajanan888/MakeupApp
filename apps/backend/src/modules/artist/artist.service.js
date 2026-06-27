@@ -110,6 +110,8 @@ export const updateArtistProfile = async (artistId, data) => {
     bio: data?.bio,
     location: data?.location,
     experience: data?.experience,
+    parlourName: data?.parlourName,
+    parlourAddress: data?.parlourAddress,
   };
 
   const specializations = data?.specializations;
@@ -136,6 +138,8 @@ export const updateArtistProfile = async (artistId, data) => {
           bio: profilePayload.bio,
           location: profilePayload.location,
           experience: profilePayload.experience,
+          parlourName: profilePayload.parlourName,
+          parlourAddress: profilePayload.parlourAddress,
         },
         { transaction },
       );

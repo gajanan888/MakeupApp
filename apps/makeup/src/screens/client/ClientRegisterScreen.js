@@ -12,7 +12,7 @@ import {
     ActivityIndicator,
     Alert,
 } from 'react-native';
-import { registerClient } from '../../api/auth';
+import { registerClient, sendOtp } from '../../api/auth';
 
 const ClientRegisterScreen = ({ navigation }) => {
     const [fullName, setFullName] = useState('');
@@ -98,19 +98,37 @@ const ClientRegisterScreen = ({ navigation }) => {
 
         try {
             setLoading(true);
-            await registerClient({
-                name: fullName.trim(),
-                email: email.trim(),
+            const response = await sendOtp(phone.trim());
+
+            if (
+                response?.Status &&
+                String(response.Status).toLowerCase() !== 'success'
+            ) {
+                throw new Error(response?.Details || 'Failed to send OTP');
+            }
+
+            const sessionId =
+                response?.Details ||
+                response?.details ||
+                response?.sessionId ||
+                response?.session_id;
+
+            if (!sessionId) {
+                throw new Error(
+                    'Did not receive a valid session ID. Please try again.',
+                );
+            }
+
+            navigation.navigate('ClientOTPVerification', {
+                sessionId,
                 phone: phone.trim(),
+                email: email.trim(),
+                fullName: fullName.trim(),
                 password,
             });
-            navigation.reset({
-                index: 0,
-                routes: [{ name: 'ClientHome' }],
-            });
         } catch (err) {
-            const msg = err?.response?.data?.message || err?.message || 'Registration failed';
-            Alert.alert('Registration Failed', msg);
+            const msg = err?.response?.data?.message || err?.message || 'Failed to send verification code';
+            Alert.alert('Verification Error', msg);
         } finally {
             setLoading(false);
         }

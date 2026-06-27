@@ -41,7 +41,7 @@ const FAQs = [
   },
 ];
 
-const ProfileScreen = ({ navigation }) => {
+const ProfileScreen = ({ navigation, isTab = false }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -67,9 +67,9 @@ const ProfileScreen = ({ navigation }) => {
   // FAQ Accordion State
   const [expandedFaqIndex, setExpandedFaqIndex] = useState(null);
 
-  const fetchProfile = async () => {
+  const fetchProfile = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const data = await getCustomerProfile();
       if (data) {
         setProfile(data);
@@ -79,14 +79,20 @@ const ProfileScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.warn('Failed to load customer profile:', error);
-      Alert.alert('Error', 'Could not load your profile details.');
+      if (!silent) Alert.alert('Error', 'Could not load your profile details.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchProfile();
+
+    const interval = setInterval(() => {
+      fetchProfile(true);
+    }, 30 * 1000); // 30 seconds
+
+    return () => clearInterval(interval);
   }, []);
 
   const handleUpdateProfile = async () => {
@@ -214,12 +220,16 @@ const ProfileScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, isTab && { paddingTop: 0 }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#111" />
-        </TouchableOpacity>
+        {isTab ? (
+          <View style={{ width: 40 }} />
+        ) : (
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#111" />
+          </TouchableOpacity>
+        )}
         <Text style={styles.headerTitle}>My Profile</Text>
         <TouchableOpacity style={styles.settingsBtn}>
           <Ionicons name="settings-outline" size={24} color="#111" />
@@ -480,7 +490,7 @@ const ProfileScreen = ({ navigation }) => {
         </View>
       </Modal>
 
-      <BottomNavigation navigation={navigation} activeTab="Profile" />
+      {!isTab && <BottomNavigation navigation={navigation} activeTab="Profile" />}
     </SafeAreaView>
   );
 };

@@ -71,6 +71,8 @@ const ProfileSetupScreen = ({ navigation, route }) => {
   );
   const [bio, setBio] = useState(data.profile.bio || '');
   const [location, setLocation] = useState(data.profile.location || '');
+  const [parlourName, setParlourName] = useState(data.profile.parlourName || '');
+  const [parlourAddress, setParlourAddress] = useState(data.profile.parlourAddress || '');
   const [selectedLocations, setSelectedLocations] = useState(
     data.profile.location
       ? data.profile.location
@@ -416,11 +418,43 @@ const ProfileSetupScreen = ({ navigation, route }) => {
             )}
           </View>
 
+          {/* OWNED PARLOUR DETAILS */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Parlour Name (Optional)</Text>
+            <TextInput
+              placeholder="e.g. Blossom Beauty Parlour"
+              placeholderTextColor="#B7A9A1"
+              value={parlourName}
+              onChangeText={setParlourName}
+              style={styles.input}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Parlour Address (Optional)</Text>
+            <TextInput
+              placeholder="Full address of your parlour..."
+              placeholderTextColor="#B7A9A1"
+              value={parlourAddress}
+              onChangeText={setParlourAddress}
+              style={[styles.input, styles.bioInput]}
+              multiline
+            />
+          </View>
+
           {/* BUTTON */}
           <TouchableOpacity
             style={[styles.button, isSubmitting && { opacity: 0.7 }]}
             onPress={async () => {
               Keyboard.dismiss();
+              if (parlourName.trim() && !parlourAddress.trim()) {
+                Alert.alert('Validation Error', 'Please enter the parlour address if you specify a parlour name.');
+                return;
+              }
+              if (parlourAddress.trim() && !parlourName.trim()) {
+                Alert.alert('Validation Error', 'Please enter the parlour name if you specify a parlour address.');
+                return;
+              }
               try {
                 setIsSubmitting(true);
                 const profilePayload = {
@@ -429,6 +463,8 @@ const ProfileSetupScreen = ({ navigation, route }) => {
                   bio,
                   location,
                   experience: selectedExperience,
+                  parlourName: parlourName.trim() || undefined,
+                  parlourAddress: parlourAddress.trim() || undefined,
                 };
                 
                 await updateArtistProfile({ profile: profilePayload });

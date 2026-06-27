@@ -198,6 +198,7 @@ async function seed() {
         email: data.email,
         phone: data.phone,
         password: hashedPassword,
+        isVerified: true,
       });
 
       // Create profile
