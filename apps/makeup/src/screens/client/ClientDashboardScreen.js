@@ -278,7 +278,12 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
                 { label: 'Bridal', icon: 'person-outline' },
                 { label: 'Party', icon: 'sparkles-outline' },
                 { label: 'Engagement', icon: 'diamond-outline' },
+                { label: 'HD Makeup', icon: 'star-outline' },
+                { label: 'Airbrush', icon: 'color-wand-outline' },
+                { label: 'Celebrity', icon: 'ribbon-outline' },
+                { label: 'Reception', icon: 'wine-outline' },
                 { label: 'Photoshoot', icon: 'camera-outline' },
+                { label: 'Minimal', icon: 'happy-outline' },
                 { label: 'Creative', icon: 'color-palette-outline' },
               ].map(item => (
                 <TouchableOpacity
