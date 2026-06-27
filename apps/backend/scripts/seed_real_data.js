@@ -49,8 +49,8 @@ const sampleArtists = [
     },
     specializations: ["Bridal", "HD Makeup", "Airbrush", "Fashion"],
     services: [
-      { specialization: "Bridal Makeup", duration: "3 hrs", timeRange: "8 AM - 12 PM", priceRange: "₹12,000 - ₹18,000" },
-      { specialization: "HD Makeup", duration: "2 hrs", timeRange: "10 AM - 6 PM", priceRange: "₹7,000 - ₹9,500" },
+      { specialization: "Bridal Makeup", duration: "3 hrs", timeRange: "8 AM - 12 PM", priceRange: "₹12,000" },
+      { specialization: "HD Makeup", duration: "2 hrs", timeRange: "10 AM - 6 PM", priceRange: "₹7,000" },
     ],
     portfolio: [
       {
@@ -93,8 +93,8 @@ const sampleArtists = [
     },
     specializations: ["High Fashion", "Editorial", "Bridal", "Airbrush"],
     services: [
-      { specialization: "Editorial Makeup", duration: "2.5 hrs", timeRange: "9 AM - 5 PM", priceRange: "₹10,000 - ₹15,000" },
-      { specialization: "Bridal Airbrush", duration: "3.5 hrs", timeRange: "6 AM - 11 AM", priceRange: "₹18,000 - ₹25,000" },
+      { specialization: "Editorial Makeup", duration: "2.5 hrs", timeRange: "9 AM - 5 PM", priceRange: "₹10,000" },
+      { specialization: "Bridal Airbrush", duration: "3.5 hrs", timeRange: "6 AM - 11 AM", priceRange: "₹18,000" },
     ],
     portfolio: [
       {
@@ -137,8 +137,8 @@ const sampleArtists = [
     },
     specializations: ["Bridal", "HD Makeup", "Hairstyling", "Saree Draping"],
     services: [
-      { specialization: "South Indian Bridal", duration: "4 hrs", timeRange: "5 AM - 9 AM", priceRange: "₹15,000 - ₹22,000" },
-      { specialization: "HD Party Glow", duration: "1.5 hrs", timeRange: "11 AM - 8 PM", priceRange: "₹5,000 - ₹7,500" },
+      { specialization: "South Indian Bridal", duration: "4 hrs", timeRange: "5 AM - 9 AM", priceRange: "₹15,000" },
+      { specialization: "HD Party Glow", duration: "1.5 hrs", timeRange: "11 AM - 8 PM", priceRange: "₹5,000" },
     ],
     portfolio: [
       {
@@ -181,8 +181,8 @@ const sampleArtists = [
     },
     specializations: ["Nude Makeup", "Cocktail Party", "HD Makeup"],
     services: [
-      { specialization: "Cocktail Glam", duration: "2 hrs", timeRange: "12 PM - 7 PM", priceRange: "₹6,000 - ₹8,500" },
-      { specialization: "Minimalist Nude Look", duration: "1 hr", timeRange: "9 AM - 6 PM", priceRange: "₹4,000 - ₹5,500" },
+      { specialization: "Cocktail Glam", duration: "2 hrs", timeRange: "12 PM - 7 PM", priceRange: "₹6,000" },
+      { specialization: "Minimalist Nude Look", duration: "1 hr", timeRange: "9 AM - 6 PM", priceRange: "₹4,000" },
     ],
     portfolio: [
       {
@@ -225,8 +225,8 @@ const sampleArtists = [
     },
     specializations: ["Temple Bridal", "Matte Look", "Hairstyling"],
     services: [
-      { specialization: "Temple Bridal Gold", duration: "3.5 hrs", timeRange: "4 AM - 8 AM", priceRange: "₹14,000 - ₹19,000" },
-      { specialization: "Matte Event Makeup", duration: "1.5 hrs", timeRange: "10 AM - 7 PM", priceRange: "₹4,500 - ₹6,500" },
+      { specialization: "Temple Bridal Gold", duration: "3.5 hrs", timeRange: "4 AM - 8 AM", priceRange: "₹14,000" },
+      { specialization: "Matte Event Makeup", duration: "1.5 hrs", timeRange: "10 AM - 7 PM", priceRange: "₹4,500" },
     ],
     portfolio: [
       {
@@ -269,8 +269,8 @@ const sampleArtists = [
     },
     specializations: ["Nizami Bridal", "Heavy Glam", "Airbrush"],
     services: [
-      { specialization: "Nizami Bridal Royale", duration: "4 hrs", timeRange: "7 AM - 12 PM", priceRange: "₹20,000 - ₹28,000" },
-      { specialization: "Heavy Glitter Glam", duration: "2 hrs", timeRange: "3 PM - 9 PM", priceRange: "₹8,000 - ₹11,000" },
+      { specialization: "Nizami Bridal Royale", duration: "4 hrs", timeRange: "7 AM - 12 PM", priceRange: "₹20,000" },
+      { specialization: "Heavy Glitter Glam", duration: "2 hrs", timeRange: "3 PM - 9 PM", priceRange: "₹8,000" },
     ],
     portfolio: [
       {
@@ -313,8 +313,8 @@ const sampleArtists = [
     },
     specializations: ["Traditional Bengali", "Kohl Eyes", "Saree Draping"],
     services: [
-      { specialization: "Bengali Bridal Chandan", duration: "3.5 hrs", timeRange: "12 PM - 6 PM", priceRange: "₹12,000 - ₹16,000" },
-      { specialization: "Kohl-Eye Party Look", duration: "1.5 hrs", timeRange: "11 AM - 9 PM", priceRange: "₹4,000 - ₹6,000" },
+      { specialization: "Bengali Bridal Chandan", duration: "3.5 hrs", timeRange: "12 PM - 6 PM", priceRange: "₹12,000" },
+      { specialization: "Kohl-Eye Party Look", duration: "1.5 hrs", timeRange: "11 AM - 9 PM", priceRange: "₹4,000" },
     ],
     portfolio: [
       {
@@ -357,8 +357,8 @@ const sampleArtists = [
     },
     specializations: ["Rajputi Bridal", "Smokey Eyes", "Jewelry Styling"],
     services: [
-      { specialization: "Rajputi Royal Bridal", duration: "4 hrs", timeRange: "7 AM - 11 AM", priceRange: "₹17,000 - ₹22,000" },
-      { specialization: "Royal Smokey Event", duration: "2 hrs", timeRange: "1 PM - 8 PM", priceRange: "₹6,500 - ₹9,000" },
+      { specialization: "Rajputi Royal Bridal", duration: "4 hrs", timeRange: "7 AM - 11 AM", priceRange: "₹17,000" },
+      { specialization: "Royal Smokey Event", duration: "2 hrs", timeRange: "1 PM - 8 PM", priceRange: "₹6,500" },
     ],
     portfolio: [
       {
@@ -401,8 +401,8 @@ const sampleArtists = [
     },
     specializations: ["Garba Glam", "Bridal", "Heavy Glitter"],
     services: [
-      { specialization: "Navratri Garba Special", duration: "1.5 hrs", timeRange: "3 PM - 10 PM", priceRange: "₹3,500 - ₹5,000" },
-      { specialization: "Gujarati Panetar Bridal", duration: "3 hrs", timeRange: "9 AM - 2 PM", priceRange: "₹11,000 - ₹15,000" },
+      { specialization: "Navratri Garba Special", duration: "1.5 hrs", timeRange: "3 PM - 10 PM", priceRange: "₹3,500" },
+      { specialization: "Gujarati Panetar Bridal", duration: "3 hrs", timeRange: "9 AM - 2 PM", priceRange: "₹11,000" },
     ],
     portfolio: [
       {
@@ -445,8 +445,8 @@ const sampleArtists = [
     },
     specializations: ["Kerala Kasavu Bridal", "Natural Glow", "Flowery Hairdo"],
     services: [
-      { specialization: "Kasavu Golden Bridal", duration: "3.5 hrs", timeRange: "5 AM - 9 AM", priceRange: "₹13,000 - ₹17,000" },
-      { specialization: "Pastel Engagement Look", duration: "2 hrs", timeRange: "10 AM - 6 PM", priceRange: "₹5,500 - ₹7,500" },
+      { specialization: "Kasavu Golden Bridal", duration: "3.5 hrs", timeRange: "5 AM - 9 AM", priceRange: "₹13,000" },
+      { specialization: "Pastel Engagement Look", duration: "2 hrs", timeRange: "10 AM - 6 PM", priceRange: "₹5,500" },
     ],
     portfolio: [
       {
@@ -489,8 +489,8 @@ const sampleArtists = [
     },
     specializations: ["Punjabi Bridal", "Heavy Contour", "Glitter Eyes"],
     services: [
-      { specialization: "Punjabi Heavy Bridal", duration: "3.5 hrs", timeRange: "6 AM - 12 PM", priceRange: "₹16,000 - ₹20,000" },
-      { specialization: "Shimmery Party Glam", duration: "2 hrs", timeRange: "12 PM - 9 PM", priceRange: "₹6,000 - ₹8,000" },
+      { specialization: "Punjabi Heavy Bridal", duration: "3.5 hrs", timeRange: "6 AM - 12 PM", priceRange: "₹16,000" },
+      { specialization: "Shimmery Party Glam", duration: "2 hrs", timeRange: "12 PM - 9 PM", priceRange: "₹6,000" },
     ],
     portfolio: [
       {
@@ -533,8 +533,8 @@ const sampleArtists = [
     },
     specializations: ["Awadhi Bridal", "Nude Look", "Classic Liner"],
     services: [
-      { specialization: "Awadhi Royal Bridal", duration: "4 hrs", timeRange: "8 AM - 1 PM", priceRange: "₹15,000 - ₹20,000" },
-      { specialization: "Classic Nawabi Look", duration: "1.5 hrs", timeRange: "10 AM - 8 PM", priceRange: "₹5,000 - ₹7,000" },
+      { specialization: "Awadhi Royal Bridal", duration: "4 hrs", timeRange: "8 AM - 1 PM", priceRange: "₹15,000" },
+      { specialization: "Classic Nawabi Look", duration: "1.5 hrs", timeRange: "10 AM - 8 PM", priceRange: "₹5,000" },
     ],
     portfolio: [
       {
@@ -577,8 +577,8 @@ const sampleArtists = [
     },
     specializations: ["Beach Wedding", "Sun-kissed Glam", "Waterproof Makeup"],
     services: [
-      { specialization: "Beach Destination Bridal", duration: "3 hrs", timeRange: "1 PM - 6 PM", priceRange: "₹18,000 - ₹24,000" },
-      { specialization: "Sun-kissed Bronze Party", duration: "1.5 hrs", timeRange: "12 PM - 8 PM", priceRange: "₹7,000 - ₹9,500" },
+      { specialization: "Beach Destination Bridal", duration: "3 hrs", timeRange: "1 PM - 6 PM", priceRange: "₹18,000" },
+      { specialization: "Sun-kissed Bronze Party", duration: "1.5 hrs", timeRange: "12 PM - 8 PM", priceRange: "₹7,000" },
     ],
     portfolio: [
       {
@@ -621,8 +621,8 @@ const sampleArtists = [
     },
     specializations: ["Festive Glam", "Bridal", "Hair Braiding"],
     services: [
-      { specialization: "Malwa Bridal Special", duration: "3 hrs", timeRange: "8 AM - 1 PM", priceRange: "₹10,000 - ₹14,000" },
-      { specialization: "Festive Family Look", duration: "1.5 hrs", timeRange: "10 AM - 9 PM", priceRange: "₹4,500 - ₹6,000" },
+      { specialization: "Malwa Bridal Special", duration: "3 hrs", timeRange: "8 AM - 1 PM", priceRange: "₹10,000" },
+      { specialization: "Festive Family Look", duration: "1.5 hrs", timeRange: "10 AM - 9 PM", priceRange: "₹4,500" },
     ],
     portfolio: [
       {
@@ -665,8 +665,8 @@ const sampleArtists = [
     },
     specializations: ["Pahadi Bridal", "Matte Look", "Winter Hydration"],
     services: [
-      { specialization: "Garhwali Pahadi Bridal", duration: "3.5 hrs", timeRange: "7 AM - 11 AM", priceRange: "₹12,000 - ₹16,000" },
-      { specialization: "Dewy Winter Glow", duration: "2 hrs", timeRange: "10 AM - 6 PM", priceRange: "₹5,000 - ₹7,000" },
+      { specialization: "Garhwali Pahadi Bridal", duration: "3.5 hrs", timeRange: "7 AM - 11 AM", priceRange: "₹12,000" },
+      { specialization: "Dewy Winter Glow", duration: "2 hrs", timeRange: "10 AM - 6 PM", priceRange: "₹5,000" },
     ],
     portfolio: [
       {

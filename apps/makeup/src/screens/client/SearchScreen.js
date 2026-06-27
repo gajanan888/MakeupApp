@@ -337,7 +337,7 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
                 </View>
 
                 <Text style={styles.artistPrice}>
-                  From ₹{artist.services?.[0]?.price || 1500}
+                  {artist.services?.[0]?.priceRange || '₹1,500'}
                 </Text>
               </View>
 

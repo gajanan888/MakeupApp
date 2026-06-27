@@ -104,15 +104,18 @@ const BookAppointmentScreen = ({ navigation, route }) => {
   const getPriceRange = () => {
     if (artist.services && artist.services.length > 0) {
       const prices = artist.services
-        .map(s => parseFloat(s.price) || 0)
+        .map(s => {
+          const val = s.price || s.priceRange || '';
+          return parseFloat(String(val).replace(/[^0-9]/g, '')) || 0;
+        })
         .filter(p => p > 0);
       if (prices.length > 0) {
         const min = Math.min(...prices);
         const max = Math.max(...prices);
-        return min === max ? `₹${min}` : `₹${min} - ₹${max}`;
+        return min === max ? `₹${min.toLocaleString('en-IN')}` : `₹${min.toLocaleString('en-IN')} - ₹${max.toLocaleString('en-IN')}`;
       }
     }
-    return artist.profile?.priceRange || '₹1,500 - ₹3,000';
+    return '₹1,500';
   };
 
   return (

@@ -131,7 +131,7 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
 
                 <View style={styles.infoRow}>
                   <Ionicons name="cash-outline" size={18} color="#666" />
-                  <Text style={styles.infoLabel}>Price Range</Text>
+                  <Text style={styles.infoLabel}>Starting Price</Text>
 
                   <Text style={styles.infoValue}>
                     {artist.services?.[0]?.priceRange || 'Contact for pricing'}
