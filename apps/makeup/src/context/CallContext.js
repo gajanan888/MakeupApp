@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import SocketService from '../services/socketService';
 import WebRTCService from '../services/webrtcService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -151,7 +151,7 @@ export const CallProvider = ({ children }) => {
       SocketService.off('webrtc-answer', handleWebRTCAnswer);
       SocketService.off('webrtc-ice-candidate', handleIceCandidate);
     };
-  }, [callState, callData]);
+  }, [callState, callData, resetCall]);
 
   const startTimer = () => {
     setCallDuration(0);
@@ -167,7 +167,7 @@ export const CallProvider = ({ children }) => {
     }
   };
 
-  const resetCall = (terminalState = CALL_STATES.IDLE) => {
+  const resetCall = useCallback((terminalState = CALL_STATES.IDLE) => {
     setCallState(terminalState);
     stopTimer();
     WebRTCService.cleanup();
@@ -182,7 +182,7 @@ export const CallProvider = ({ children }) => {
     } else {
       setCallData(null);
     }
-  };
+  }, []);
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
