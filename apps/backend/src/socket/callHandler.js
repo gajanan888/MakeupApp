@@ -1,5 +1,7 @@
 import Booking from "../models/Booking.js";
 import CallLog from "../models/CallLog.js";
+import Customer from "../models/Customer.js";
+import Artist from "../models/Artist.js";
 
 /**
  * Validates if the caller is authorized to initiate a call for this booking.
@@ -73,12 +75,22 @@ export const registerCallHandlers = (io, socket) => {
         status: "initiated"
       });
 
+      // Fetch caller name
+      let callerName = "Unknown";
+      if (callerRole === "client") {
+        const c = await Customer.findByPk(callerId, { attributes: ["name"] });
+        if (c && c.name) callerName = c.name;
+      } else {
+        const a = await Artist.findByPk(callerId, { attributes: ["name"] });
+        if (a && a.name) callerName = a.name;
+      }
+
       // Forward the incoming call event
       io.to(targetRoom).emit("incoming-call", {
         bookingId,
         callerId,
         callerRole,
-        callerName: socket.handshake.auth.callerName || "Unknown",
+        callerName,
         callLogId: callLog.id // Pass log ID so client/other events can reference it
       });
 

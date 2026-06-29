@@ -186,10 +186,10 @@ export const CallProvider = ({ children }) => {
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
-  const initiateCall = async (bookingId, targetId, targetRole) => {
+  const initiateCall = async (bookingId, targetId, targetRole, targetName = 'Unknown') => {
     if (callState !== CALL_STATES.IDLE) return;
     
-    setCallData({ bookingId, targetId, targetRole, isIncoming: false });
+    setCallData({ bookingId, targetId, targetRole, isIncoming: false, callerName: targetName });
     setCallState(CALL_STATES.CALLING);
     
     SocketService.emit('initiate-call', { bookingId, targetId, targetRole });

@@ -114,13 +114,13 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
             
             {/* IN-APP CHAT AND CALL SHORTCUTS */}
-            {['accepted', 'in_progress'].includes(booking?.rawStatus) && (
+            {['accepted', 'in_progress', 'confirmed'].includes(booking?.rawStatus) && (
               <View style={styles.contactContainer}>
                 <TouchableOpacity 
                   style={[styles.chatBubbleFull, { marginRight: 5 }]} 
                   onPress={() => {
                     onClose();
-                    initiateCall(booking.id, booking.customerId, 'client');
+                    initiateCall(booking.id, booking.customerId, 'client', booking.name);
                   }}
                 >
                   <Ionicons name="call" size={20} color="#FF4F8F" />

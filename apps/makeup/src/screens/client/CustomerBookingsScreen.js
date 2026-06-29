@@ -384,7 +384,7 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
                         <View style={{ flex: 1, flexDirection: 'row', gap: 8, marginLeft: showCancelBtn ? 8 : 0 }}>
                           <TouchableOpacity
                             style={[styles.chatBtn, { flex: 1 }]}
-                            onPress={() => initiateCall(booking.id, booking.artistRaw?.id || booking.artistId, 'artist')}
+                            onPress={() => initiateCall(booking.id, booking.artistRaw?.id || booking.artistId, 'artist', booking.artistName)}
                           >
                             <Ionicons name="call-outline" size={16} color="#FFF" style={{ marginRight: 6 }} />
                             <Text style={styles.chatBtnText}>Call</Text>
