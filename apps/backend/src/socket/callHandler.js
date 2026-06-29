@@ -76,4 +76,43 @@ export const registerCallHandlers = (io, socket) => {
     }
   });
 
+  // ── Call Lifecycle Events ──────────────────────────────────────────────────
+
+  socket.on("accept-call", ({ targetId, targetRole, bookingId }) => {
+    if (process.env.NODE_ENV !== "production") console.log(`[Call] Accepted by ${callerRole}_${callerId}`);
+    io.to(`${targetRole}_${targetId}`).emit("call-accepted", { bookingId });
+  });
+
+  socket.on("reject-call", ({ targetId, targetRole, bookingId }) => {
+    if (process.env.NODE_ENV !== "production") console.log(`[Call] Rejected by ${callerRole}_${callerId}`);
+    io.to(`${targetRole}_${targetId}`).emit("call-rejected", { bookingId, reason: "declined" });
+  });
+
+  socket.on("user-busy", ({ targetId, targetRole, bookingId }) => {
+    if (process.env.NODE_ENV !== "production") console.log(`[Call] Busy - ${callerRole}_${callerId}`);
+    io.to(`${targetRole}_${targetId}`).emit("call-rejected", { bookingId, reason: "busy" });
+  });
+
+  socket.on("end-call", ({ targetId, targetRole, bookingId }) => {
+    if (process.env.NODE_ENV !== "production") console.log(`[Call] Ended by ${callerRole}_${callerId}`);
+    io.to(`${targetRole}_${targetId}`).emit("call-ended", { bookingId });
+  });
+
+  // ── WebRTC Signaling Events ────────────────────────────────────────────────
+
+  socket.on("webrtc-offer", ({ targetId, targetRole, sdp }) => {
+    if (process.env.NODE_ENV !== "production") console.log(`[WebRTC] Offer from ${callerRole}_${callerId}`);
+    io.to(`${targetRole}_${targetId}`).emit("webrtc-offer", { sdp });
+  });
+
+  socket.on("webrtc-answer", ({ targetId, targetRole, sdp }) => {
+    if (process.env.NODE_ENV !== "production") console.log(`[WebRTC] Answer from ${callerRole}_${callerId}`);
+    io.to(`${targetRole}_${targetId}`).emit("webrtc-answer", { sdp });
+  });
+
+  socket.on("webrtc-ice-candidate", ({ targetId, targetRole, candidate }) => {
+    // ICE candidates can be quite noisy, so logging is disabled or kept minimal
+    io.to(`${targetRole}_${targetId}`).emit("webrtc-ice-candidate", { candidate });
+  });
+
 };
