@@ -7,11 +7,12 @@ export const removeArtistFromWishlist = async (artistId) => api.post('/wishlist/
 export const fetchWishlist = async () => api.get('/wishlist');
 
 // Host Wi-Fi IP address: 10.145.106.179
-export const API_BASE_URLS = [
+const API_BASE_URLS = [
   'http://10.145.106.179:5000',       // adb reverse loopback (numeric, bypasses ROM DNS resolution)
   'http://localhost:5000',           // adb reverse localhost fallback
-  'http://10.145.106.179:5000',        // Stashed Wi-Fi IP fallback
-  'http://172.19.16.171:5000',        // Upstream Wi-Fi IP fallback
+  'http://172.19.20.151:5000',       // Previous Wi-Fi IP fallback
+  'http://172.19.16.171:5000',       // Previous Wi-Fi IP fallback
+  'http://10.55.133.172:5000',       // Previous Wi-Fi IP fallback
   'http://10.0.2.2:5000',            // Android Emulator loopback
   'http://192.168.56.1:5000',        // VirtualBox host-only adapter
 ];
