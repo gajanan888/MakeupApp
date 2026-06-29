@@ -7,11 +7,11 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
-  SafeAreaView,
-  Platform,
-  StatusBar,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import ScreenHeader from '../../components/ScreenHeader';
 
@@ -119,17 +119,23 @@ const BookAppointmentScreen = ({ navigation, route }) => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScreenHeader
         title="Book Your Appointment"
         onBack={() => navigation.goBack()}
       />
 
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
         {/* Artist Profile Info Segment */}
         <View style={styles.artistRow}>
           {artist.profile?.profileImage || artist.image ? (
@@ -200,39 +206,73 @@ const BookAppointmentScreen = ({ navigation, route }) => {
         {/* Locations Segment */}
         <Text style={styles.sectionTitle}>Location</Text>
 
-        {/* At Artist Studio Box */}
-        {artist.profile?.parlourName && artist.profile?.parlourAddress ? (
-          <TouchableOpacity
-            style={[
-              styles.locationCard,
-              selectedLocation === 'studio' && styles.locationCardActive,
-            ]}
-            onPress={() => setSelectedLocation('studio')}
-            activeOpacity={0.8}
-          >
-            <View
+        {/* At Artist's Parlour Box */}
+        {(() => {
+          const hasParlour = !!(artist.profile?.parlourName || artist.profile?.parlourAddress);
+          const parlourName = artist.profile?.parlourName || `${artist.name}'s Studio`;
+          const parlourAddress = artist.profile?.parlourAddress || artist.profile?.location || null;
+
+          return (
+            <TouchableOpacity
               style={[
-                styles.customRadio,
-                selectedLocation === 'studio' && styles.customRadioActive,
+                styles.locationCard,
+                selectedLocation === 'studio' && styles.locationCardActive,
+                !hasParlour && styles.locationCardDisabled,
               ]}
+              onPress={() => hasParlour && setSelectedLocation('studio')}
+              activeOpacity={hasParlour ? 0.8 : 1}
+              disabled={!hasParlour}
             >
-              {selectedLocation === 'studio' && (
-                <View style={styles.customRadioInner} />
-              )}
-            </View>
-            <View style={styles.locationTextCol}>
-              <Text
+              <View
                 style={[
-                  styles.locationHeading,
-                  selectedLocation === 'studio' && styles.locationHeadingActive,
+                  styles.customRadio,
+                  selectedLocation === 'studio' && styles.customRadioActive,
+                  !hasParlour && styles.customRadioDisabled,
                 ]}
               >
-                At Artist's Parlour ({artist.profile.parlourName})
-              </Text>
-              <Text style={styles.addressText}>{artist.profile.parlourAddress}</Text>
-            </View>
-          </TouchableOpacity>
-        ) : null}
+                {selectedLocation === 'studio' && hasParlour && (
+                  <View style={styles.customRadioInner} />
+                )}
+              </View>
+              <View style={styles.locationTextCol}>
+                <View style={styles.locationLabelRow}>
+                  <Ionicons
+                    name="storefront-outline"
+                    size={14}
+                    color={!hasParlour ? '#CCC' : selectedLocation === 'studio' ? '#FF4F87' : '#888'}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text
+                    style={[
+                      styles.locationHeading,
+                      selectedLocation === 'studio' && hasParlour && styles.locationHeadingActive,
+                      !hasParlour && styles.locationHeadingDisabled,
+                    ]}
+                  >
+                    At Artist's Parlour
+                  </Text>
+                  {!hasParlour && (
+                    <View style={styles.noParlourBadge}>
+                      <Text style={styles.noParlourBadgeText}>Not Available</Text>
+                    </View>
+                  )}
+                </View>
+                {hasParlour ? (
+                  <>
+                    <Text style={styles.parlourNameText}>{parlourName}</Text>
+                    {parlourAddress && (
+                      <Text style={styles.addressText}>{parlourAddress}</Text>
+                    )}
+                  </>
+                ) : (
+                  <Text style={styles.noParlourSubtext}>
+                    This artist hasn't registered a parlour location yet.
+                  </Text>
+                )}
+              </View>
+            </TouchableOpacity>
+          );
+        })()}
 
         {/* At Your Location Box */}
         <TouchableOpacity
@@ -288,7 +328,8 @@ const BookAppointmentScreen = ({ navigation, route }) => {
         >
           <Text style={styles.nextButtonText}>Next</Text>
         </TouchableOpacity>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -299,7 +340,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#FCFCFC',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
   },
   container: {
     flex: 1,
@@ -437,6 +477,49 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#888',
     marginTop: 4,
+  },
+  locationLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  parlourNameText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#333',
+    marginTop: 2,
+  },
+  locationCardDisabled: {
+    backgroundColor: '#F9F9F9',
+    borderColor: '#E8E8E8',
+    opacity: 0.75,
+  },
+  customRadioDisabled: {
+    borderColor: '#DDD',
+    backgroundColor: '#F2F2F2',
+  },
+  locationHeadingDisabled: {
+    color: '#AAA',
+  },
+  noParlourBadge: {
+    marginLeft: 8,
+    backgroundColor: '#FFF0F0',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: '#FFCCD5',
+  },
+  noParlourBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#E05070',
+  },
+  noParlourSubtext: {
+    fontSize: 12,
+    color: '#BBB',
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   nextButton: {
     backgroundColor: '#FF4F87',

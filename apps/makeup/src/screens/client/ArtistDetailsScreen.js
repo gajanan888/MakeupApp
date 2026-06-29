@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import {
   View,
@@ -9,9 +11,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   Modal,
+  StatusBar,
+  Platform,
 } from 'react-native';
 
 const ArtistDetailsScreen = ({ route, navigation }) => {
+  const insets = useSafeAreaInsets();
   const [showImageModal, setShowImageModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -22,8 +27,51 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
     artist.profile?.profileImage ||
     (typeof artist.image === 'string' ? artist.image : artist.image?.uri);
 
+  const buttonTop = 16;
+  const contentPaddingBottom = route.params?.fromBookingFlow
+    ? 110
+    : 40;
+
+  useEffect(() => {
+    const checkFavorite = async () => {
+      try {
+        const stored = await AsyncStorage.getItem('client_favorites');
+        if (stored) {
+          const list = JSON.parse(stored);
+          if (Array.isArray(list) && list.includes(artist.id)) {
+            setLiked(true);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to check favorite status:', err);
+      }
+    };
+    checkFavorite();
+  }, [artist.id]);
+
+  const toggleLike = async () => {
+    const newLiked = !liked;
+    setLiked(newLiked);
+    try {
+      const stored = await AsyncStorage.getItem('client_favorites');
+      let list = stored ? JSON.parse(stored) : [];
+      if (!Array.isArray(list)) list = [];
+      if (newLiked) {
+        if (!list.includes(artist.id)) {
+          list.push(artist.id);
+        }
+      } else {
+        list = list.filter(id => id !== artist.id);
+      }
+      await AsyncStorage.setItem('client_favorites', JSON.stringify(list));
+    } catch (err) {
+      console.warn('Failed to update favorite status:', err);
+    }
+  };
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Hero Image */}
 
@@ -37,15 +85,15 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
           )}
 
           <TouchableOpacity
-            style={styles.backButton}
+            style={[styles.backButton, { top: buttonTop }]}
             onPress={() => navigation.goBack()}
           >
             <Ionicons name="chevron-back" size={24} color="#111" />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.favoriteButton}
-            onPress={() => setLiked(!liked)}
+            style={[styles.favoriteButton, { top: buttonTop }]}
+            onPress={toggleLike}
           >
             <Ionicons
               name={liked ? 'heart' : 'heart-outline'}
@@ -57,7 +105,7 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
 
         {/* Content Card */}
 
-        <View style={styles.contentContainer}>
+        <View style={[styles.contentContainer, { paddingBottom: contentPaddingBottom }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
             <Text style={styles.artistName}>{artist.name}</Text>
             {artist.trendingRank && (
@@ -234,7 +282,7 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
       </ScrollView>
 
       <Modal visible={showImageModal} transparent={false} animationType="fade">
-        <View style={styles.imageModalContainer}>
+        <SafeAreaView style={styles.imageModalContainer} edges={['top', 'bottom']}>
           <Text style={styles.imageCounter}>
             {selectedIndex + 1} / {artist.portfolio?.length || 0}
           </Text>
@@ -251,23 +299,25 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
             style={styles.fullScreenImage}
             resizeMode="contain"
           />
-        </View>
+        </SafeAreaView>
       </Modal>
 
-      <View style={styles.bottomContainer}>
-        <TouchableOpacity
-          style={styles.bookButton}
-          onPress={() => navigation.navigate('BookAppointment', {
-            artist,
-            selectedDate: route.params?.selectedDate,
-            selectedTime: route.params?.selectedTime,
-            selectedCategory: route.params?.selectedCategory,
-          })}
-        >
-          <Text style={styles.bookButtonText}>Book Now</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+      {route.params?.fromBookingFlow && (
+        <View style={[styles.bottomContainer, { paddingBottom: (insets.bottom || 0) + 16 }]}>
+          <TouchableOpacity
+            style={styles.bookButton}
+            onPress={() => navigation.navigate('BookAppointment', {
+              artist,
+              selectedDate: route.params?.selectedDate,
+              selectedTime: route.params?.selectedTime,
+              selectedCategory: route.params?.selectedCategory,
+            })}
+          >
+            <Text style={styles.bookButtonText}>Book Now</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </SafeAreaView>
   );
 };
 
@@ -526,7 +576,7 @@ const styles = StyleSheet.create({
 
   imageCounter: {
     position: 'absolute',
-    top: 60,
+    top: 16,
     left: 20,
 
     color: '#FFF',
@@ -544,7 +594,7 @@ const styles = StyleSheet.create({
 
   closeButton: {
     position: 'absolute',
-    top: 60,
+    top: 16,
     right: 25,
     zIndex: 10,
   },
@@ -558,7 +608,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
 
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingTop: 16,
+    // paddingBottom is set dynamically in JSX using insets.bottom
 
     borderTopWidth: 1,
     borderTopColor: '#F1F1F1',

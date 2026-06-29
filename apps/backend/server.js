@@ -41,6 +41,13 @@ async function bootstrapDatabase() {
     try { await qi.addColumn("Bookings", "paymentGateway", { type: "VARCHAR(255)", allowNull: false, defaultValue: "razorpay" }); } catch (e) {}
     console.log("Missing Razorpay columns synced successfully.");
 
+    // Inject missing ArtistProfiles columns
+    try { await qi.addColumn("ArtistProfiles", "parlourName", { type: "VARCHAR(255)" }); } catch (e) {}
+    try { await qi.addColumn("ArtistProfiles", "parlourAddress", { type: "TEXT" }); } catch (e) {}
+    try { await qi.addColumn("ArtistProfiles", "rating", { type: "DOUBLE PRECISION", allowNull: false, defaultValue: 4.5 }); } catch (e) {}
+    try { await qi.addColumn("ArtistProfiles", "reviewCount", { type: "INTEGER", allowNull: false, defaultValue: 0 }); } catch (e) {}
+    console.log("Missing ArtistProfiles columns synced successfully.");
+
   } catch (err) {
     console.error("Database connection failed:", err);
   }

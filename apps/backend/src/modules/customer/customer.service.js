@@ -4,6 +4,7 @@ import ArtistProfile from "../../models/ArtistProfile.js";
 import ArtistSpecialization from "../../models/ArtistSpecialization.js";
 import ArtistService from "../../models/ArtistService.js";
 import Booking from "../../models/Booking.js";
+import ArtistPortfolio from "../../models/ArtistPortfolio.js";
 
 export const getArtists = async ({ minPrice, maxPrice, experience, location }) => {
   const where = { isVerified: true };
@@ -36,6 +37,11 @@ export const getArtists = async ({ minPrice, maxPrice, experience, location }) =
         as: "services",
         attributes: ["id", "specialization", "duration", "timeRange", "priceRange"],
       },
+      {
+        model: ArtistPortfolio,
+        as: "portfolio",
+        attributes: ["id", "beforeImageUrl", "afterImageUrl", "tag", "description"],
+      },
     ],
     order: [["createdAt", "DESC"]],
     limit: 30,
@@ -60,6 +66,11 @@ export const getTrendingArtists = async () => {
         model: ArtistService,
         as: "services",
         attributes: ["id", "specialization", "duration", "timeRange", "priceRange"],
+      },
+      {
+        model: ArtistPortfolio,
+        as: "portfolio",
+        attributes: ["id", "beforeImageUrl", "afterImageUrl", "tag", "description"],
       },
       {
         model: Booking,

@@ -18,9 +18,9 @@ export const fetchWishlist = async () => api.get('/wishlist');
  * Current machine WiFi IP: 172.19.20.153
  */
 const API_BASE_URLS = [
-  'http://172.19.13.83:5000', // ← Your computer's WiFi IP (physical Android device)
+  'http://localhost:5000',       // Standard local endpoint (works on physical devices with adb reverse, iOS, and emulators)
+  'http://172.19.16.171:5000', // Computer WiFi IP fallback
   'http://10.0.2.2:5000',       // Android Emulator loopback
-  'http://localhost:5000',       // iOS Simulator / browser
   'http://192.168.56.1:5000',   // VirtualBox host-only adapter
 ];
 

@@ -30,6 +30,9 @@ const ClientHomeScreen = ({ navigation, route }) => {
 
   useEffect(() => {
     const backAction = () => {
+      if (!navigation.isFocused()) {
+        return false;
+      }
       if (activeTab !== 'Home') {
         handleNavigate('Home', null);
         return true;
@@ -43,7 +46,7 @@ const ClientHomeScreen = ({ navigation, route }) => {
     );
 
     return () => backHandler.remove();
-  }, [activeTab]);
+  }, [activeTab, navigation]);
 
   const tabs = [
     { id: 'Home', label: 'Home', activeIcon: 'home', inactiveIcon: 'home-outline' },

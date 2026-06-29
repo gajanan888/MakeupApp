@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import BottomNavigation from '../../components/BottomNavigation';
+import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
@@ -19,10 +20,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { getArtists } from '../../api/auth';
 import ScreenHeader from '../../components/ScreenHeader';
 
+const LOCATIONIQ_API_KEY = 'pk.30df6c1f1ec752495ea504fe88556693'; // LocationIQ API access token
+
 const SearchScreen = ({ navigation, route, isTab = false }) => {
   const initialCategory = route?.params?.category || 'All';
   const [searchText, setSearchText] = useState('');
   const [favorites, setFavorites] = useState([]);
+  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
+  const [showInlineLocation, setShowInlineLocation] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [showFilter, setShowFilter] = useState(false);
   const [selectedRating, setSelectedRating] = useState(null);
@@ -30,6 +35,24 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [artists, setArtists] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const loadFavorites = async () => {
+        try {
+          const stored = await AsyncStorage.getItem('client_favorites');
+          if (stored) {
+            setFavorites(JSON.parse(stored));
+          } else {
+            setFavorites([]);
+          }
+        } catch (err) {
+          console.warn('Failed to load favorites:', err);
+        }
+      };
+      loadFavorites();
+    }, [])
+  );
 
   // Quick select modal visibility states
   const [showLocationModal, setShowLocationModal] = useState(false);
@@ -42,6 +65,61 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
   const [tempDate, setTempDate] = useState(null);
   const [tempTime, setTempTime] = useState(null);
   const [showDateTimeModal, setShowDateTimeModal] = useState(false);
+
+  const [locationText, setLocationText] = useState(selectedLocation || '');
+  const [locationSuggestions, setLocationSuggestions] = useState([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+
+  useEffect(() => {
+    setLocationText(selectedLocation || '');
+  }, [selectedLocation]);
+
+  const fetchLocationSuggestions = async (text) => {
+    setLocationText(text);
+    if (!text || text.trim().length < 2) {
+      setLocationSuggestions([]);
+      return;
+    }
+
+    try {
+      setLoadingSuggestions(true);
+      const response = await fetch(
+        `https://us1.locationiq.com/v1/autocomplete?key=${LOCATIONIQ_API_KEY}&q=${encodeURIComponent(text)}&limit=5&dedupe=1`
+      );
+      if (!response.ok) {
+        throw new Error('LocationIQ query failed');
+      }
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        const suggestions = data.map(item => {
+          const address = item.address || {};
+          const city = address.city || address.town || address.village || address.city_district || address.state || item.display_name;
+          return {
+            displayName: item.display_name,
+            cityName: city,
+          };
+        });
+
+        // Filter duplicates by cityName
+        const unique = [];
+        const seen = new Set();
+        for (const sugg of suggestions) {
+          if (sugg.cityName && !seen.has(sugg.cityName.toLowerCase())) {
+            seen.add(sugg.cityName.toLowerCase());
+            unique.push(sugg);
+          }
+        }
+        setLocationSuggestions(unique);
+      } else {
+        setLocationSuggestions([]);
+      }
+    } catch (error) {
+      console.warn('LocationIQ autocomplete failed:', error);
+      setLocationSuggestions([]);
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  };
 
   const getNext14Days = () => {
     const days = [];
@@ -93,12 +171,7 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
 
     fetchArtists();
 
-    // Pre-populate city filter if detected
-    AsyncStorage.getItem('detectedCity').then(city => {
-      if (city) {
-        setSelectedLocation(city);
-      }
-    });
+
 
     const interval = setInterval(() => {
       fetchArtists(true);
@@ -113,25 +186,61 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
     }
   }, [route?.params?.category]);
 
-  const toggleFavorite = artistId => {
+  const toggleFavorite = async (artistId) => {
+    let updated;
     if (favorites.includes(artistId)) {
-      setFavorites(favorites.filter(id => id !== artistId));
+      updated = favorites.filter(id => id !== artistId);
     } else {
-      setFavorites([...favorites, artistId]);
+      updated = [...favorites, artistId];
+    }
+    setFavorites(updated);
+    try {
+      await AsyncStorage.setItem('client_favorites', JSON.stringify(updated));
+    } catch (err) {
+      console.warn('Failed to save favorites:', err);
     }
   };
 
-  const filteredArtists = artists.filter(artist => {
-    const artistSpecialization =
-      artist.specializations?.[0]?.name?.toLowerCase() || '';
+  // Flatten all portfolio items from all artists, creating a fallback if they have no portfolio items
+  const allPortfolioItems = [];
+  artists.forEach(artist => {
+    if (artist.portfolio && artist.portfolio.length > 0) {
+      artist.portfolio.forEach(item => {
+        allPortfolioItems.push({
+          ...item,
+          artist,
+        });
+      });
+    } else {
+      // Fallback look using the artist profile image
+      allPortfolioItems.push({
+        id: `fallback-${artist.id}`,
+        beforeImageUrl: null,
+        afterImageUrl: artist.profile?.profileImage || null,
+        tag: artist.specializations?.[0]?.name || 'Signature Look',
+        description: artist.profile?.bio || 'Professional makeup look',
+        artist,
+      });
+    }
+  });
+
+  // Filter the portfolio items list
+  const filteredLooks = allPortfolioItems.filter(item => {
+    const artist = item.artist;
+    const artistSpecialization = artist.specializations?.[0]?.name?.toLowerCase() || '';
     const artistLocation = artist.profile?.location?.toLowerCase() || '';
     const artistName = artist.name?.toLowerCase() || '';
     const artistRating = Number(artist.profile?.rating || artist.rating || 4.7);
-    const artistPrice = Number(artist.services?.[0]?.price || 1500);
+
+    // Parse price from services
+    const artistPrice = artist.services?.[0]?.priceRange
+      ? parseInt(artist.services[0].priceRange.replace(/[^\d]/g, ''), 10)
+      : 1500;
 
     const matchesCategory =
       selectedCategory === 'All' ||
-      artistSpecialization.includes(selectedCategory.toLowerCase());
+      artistSpecialization.includes(selectedCategory.toLowerCase()) ||
+      (item.tag && item.tag.toLowerCase().includes(selectedCategory.toLowerCase()));
 
     const matchesLocation =
       !selectedLocation ||
@@ -148,12 +257,18 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
       matchesPrice = artistPrice > 5000;
     }
 
+    const searchLower = searchText.toLowerCase().trim();
     const matchesSearch =
-      !searchText.trim() ||
-      artistName.includes(searchText.toLowerCase()) ||
-      artistSpecialization.includes(searchText.toLowerCase());
+      !searchLower ||
+      artistName.includes(searchLower) ||
+      artistSpecialization.includes(searchLower) ||
+      (item.tag && item.tag.toLowerCase().includes(searchLower)) ||
+      (item.description && item.description.toLowerCase().includes(searchLower)) ||
+      (artist.services && artist.services.some(svc => svc.specialization?.toLowerCase().includes(searchLower)));
 
-    return matchesCategory && matchesLocation && matchesRating && matchesPrice && matchesSearch;
+    const matchesFavorites = !showOnlyFavorites || favorites.includes(artist.id);
+
+    return matchesCategory && matchesLocation && matchesRating && matchesPrice && matchesSearch && matchesFavorites;
   });
 
   const mainContent = (
@@ -182,18 +297,23 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
 
         <TouchableOpacity
           style={styles.filterButton}
-          onPress={() => setShowFilter(true)}
+          onPress={() => setShowOnlyFavorites(!showOnlyFavorites)}
         >
-          <Ionicons name="funnel-outline" size={20} color="#444" />
+          <Ionicons
+            name={showOnlyFavorites ? 'heart' : 'heart-outline'}
+            size={22}
+            color={showOnlyFavorites ? '#FF4F87' : '#999'}
+          />
         </TouchableOpacity>
       </View>
 
       {/* Horizontal Filter Chips */}
-      <View style={{ height: 46, marginBottom: 8 }}>
+      <View style={{ height: 46, marginBottom: 4, justifyContent: 'center' }}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 20 }}
+          style={{ flexGrow: 0 }}
+          contentContainerStyle={{ paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center' }}
         >
           {/* Master Filters Chip */}
           <TouchableOpacity
@@ -204,20 +324,35 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
             <Text style={styles.filtersChipText}>Filters</Text>
           </TouchableOpacity>
 
-          {/* Location Chip */}
+          {/* Location Chip - inline expandable */}
           <TouchableOpacity
-            style={[styles.filterPill, !!selectedLocation && styles.filterPillActive]}
-            onPress={() => setShowLocationModal(true)}
+            style={[styles.filterPill, (!!selectedLocation || showInlineLocation) && styles.filterPillActive]}
+            onPress={() => setShowInlineLocation(!showInlineLocation)}
           >
-            <Text style={[styles.filterPillText, !!selectedLocation && styles.filterPillTextActive]}>
-              {selectedLocation ? `Location: ${selectedLocation}` : 'Location'}
+            <Ionicons name="location-outline" size={13} color={(selectedLocation || showInlineLocation) ? '#FF4F87' : '#666'} style={{ marginRight: 4 }} />
+            <Text style={[styles.filterPillText, (!!selectedLocation || showInlineLocation) && styles.filterPillTextActive]}>
+              {selectedLocation ? selectedLocation : 'Location'}
             </Text>
-            <Ionicons
-              name="chevron-down"
-              size={12}
-              color={selectedLocation ? '#FF4F87' : '#666'}
-              style={{ marginLeft: 4 }}
-            />
+            {selectedLocation ? (
+              <TouchableOpacity
+                onPress={() => {
+                  setSelectedLocation(null);
+                  setLocationText('');
+                  setLocationSuggestions([]);
+                  setShowInlineLocation(false);
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close-circle" size={14} color="#FF4F87" style={{ marginLeft: 4 }} />
+              </TouchableOpacity>
+            ) : (
+              <Ionicons
+                name={showInlineLocation ? 'chevron-up' : 'chevron-down'}
+                size={12}
+                color={(selectedLocation || showInlineLocation) ? '#FF4F87' : '#666'}
+                style={{ marginLeft: 4 }}
+              />
+            )}
           </TouchableOpacity>
 
           {/* Price Chip */}
@@ -251,109 +386,171 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
               style={{ marginLeft: 4 }}
             />
           </TouchableOpacity>
-
-          {/* Schedule Chip */}
-          <TouchableOpacity
-            style={[styles.filterPill, !!selectedDate && styles.filterPillActive]}
-            onPress={() => {
-              setTempDate(selectedDate || new Date());
-              setTempTime(selectedTime || '09:00 AM');
-              setShowDateTimeModal(true);
-            }}
-          >
-            <Text style={[styles.filterPillText, !!selectedDate && styles.filterPillTextActive]}>
-              {selectedDate && selectedTime
-                ? `${selectedDate.toLocaleDateString('en-IN', {
-                    day: 'numeric',
-                    month: 'short',
-                  })} at ${selectedTime}`
-                : 'Schedule'}
-            </Text>
-            <Ionicons
-              name="calendar-outline"
-              size={12}
-              color={selectedDate ? '#FF4F87' : '#666'}
-              style={{ marginLeft: 4 }}
-            />
-          </TouchableOpacity>
         </ScrollView>
       </View>
 
-      {/* Artists Scroll List */}
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.artistSection}>
+      {/* Inline Location Search (expanded below filter chips) */}
+      {showInlineLocation && (
+        <View>
+          {/* Input row */}
+          <View style={styles.inlineLocationWrapper}>
+            <View style={styles.inlineLocationInputRow}>
+              <Ionicons name="location-outline" size={18} color="#FF4F87" style={{ marginRight: 8 }} />
+              <TextInput
+                style={styles.inlineLocationInput}
+                placeholder="Search city..."
+                placeholderTextColor="#999"
+                value={locationText}
+                onChangeText={fetchLocationSuggestions}
+                autoFocus
+              />
+              {locationText ? (
+                <TouchableOpacity
+                  onPress={() => {
+                    setLocationText('');
+                    setSelectedLocation(null);
+                    setLocationSuggestions([]);
+                  }}
+                >
+                  <Ionicons name="close-circle" size={18} color="#CCC" />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          </View>
+
+          {/* Suggestions rendered OUTSIDE the wrapper to avoid overflow clipping */}
+          {loadingSuggestions && (
+            <ActivityIndicator color="#FF4F87" size="small" style={{ marginVertical: 6, alignSelf: 'flex-start', marginLeft: 28 }} />
+          )}
+          {locationSuggestions.length > 0 && (
+            <View style={styles.inlineSuggestionsContainer}>
+              {locationSuggestions.map((item, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={styles.inlineSuggestionItem}
+                  onPress={() => {
+                    setSelectedLocation(item.cityName);
+                    setLocationText(item.cityName);
+                    setLocationSuggestions([]);
+                    setShowInlineLocation(false);
+                  }}
+                >
+                  <Ionicons name="location" size={15} color="#FF4F87" style={{ marginRight: 8 }} />
+                  <Text style={styles.inlineSuggestionText} numberOfLines={1}>{item.displayName}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Looks/Portfolios Scroll List */}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.looksSection}>
         {loading ? (
           <ActivityIndicator
             color="#FF4F87"
             size="large"
             style={{ marginVertical: 60 }}
           />
-        ) : filteredArtists.length === 0 ? (
+        ) : filteredLooks.length === 0 ? (
           <View style={{ alignItems: 'center', marginVertical: 60 }}>
             <Ionicons name="search-outline" size={48} color="#CCC" />
             <Text style={{ color: '#999', marginTop: 12, fontSize: 16 }}>
-              No artists found
+              No looks found
             </Text>
           </View>
         ) : (
-          filteredArtists.map(artist => (
-            <TouchableOpacity
-              key={artist.id}
-              style={styles.artistCard}
-              onPress={() => navigation.navigate('ArtistDetails', {
-                artist,
-                selectedDate: selectedDate ? selectedDate.toISOString() : null,
-                selectedTime,
-                selectedCategory,
-              })}
-            >
-              {artist.profile?.profileImage || artist.image ? (
-                <Image
-                  source={{
-                    uri: artist.profile?.profileImage || artist.image,
-                  }}
-                  style={styles.artistImage}
-                />
-              ) : (
-                <View style={styles.artistImagePlaceholder}>
-                  <Ionicons name="person" size={32} color="#FF4F87" />
-                </View>
-              )}
-
-              <View style={styles.artistInfo}>
-                <Text style={styles.artistName} numberOfLines={1}>{artist.name}</Text>
-
-                <Text style={styles.artistSpeciality} numberOfLines={1}>
-                  {artist.specializations?.[0]?.name || 'Makeup Artist'}
-                </Text>
-
-                <View style={styles.ratingRow}>
-                  <Ionicons name="star" size={13} color="#F5B301" style={{ marginRight: 4 }} />
-                  <Text style={styles.ratingText}>
-                    {artist.profile?.rating || '4.8'} ({Number(artist.id) % 80 + 80})
-                  </Text>
-                  <Text style={styles.distanceText}>
-                    {" • "}{(Number(artist.id) % 8) + 2} km
-                  </Text>
-                </View>
-
-                <Text style={styles.artistPrice}>
-                  {artist.services?.[0]?.priceRange || '₹1,500'}
-                </Text>
-              </View>
-
+          filteredLooks.map(look => {
+            const artist = look.artist;
+            return (
               <TouchableOpacity
-                style={styles.favoriteButton}
-                onPress={() => toggleFavorite(artist.id)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                key={`${artist.id}-${look.id}`}
+                style={styles.lookCard}
+                onPress={() => navigation.navigate('ArtistDetails', {
+                  artist,
+                  selectedDate: selectedDate ? selectedDate.toISOString() : null,
+                  selectedTime,
+                  selectedCategory,
+                })}
               >
-                <Ionicons
-                  name={favorites.includes(artist.id) ? 'heart' : 'heart-outline'}
-                  size={22}
-                  color={favorites.includes(artist.id) ? '#FF4F87' : '#999'}
-                />
+                <View style={styles.imageContainer}>
+                  {look.afterImageUrl ? (
+                    <Image
+                      source={{ uri: look.afterImageUrl }}
+                      style={styles.lookImage}
+                    />
+                  ) : (
+                    <View style={styles.lookImagePlaceholder}>
+                      <Ionicons name="image-outline" size={40} color="#FF4F87" />
+                    </View>
+                  )}
+
+                  {/* Look/Tag Badge */}
+                  <View style={styles.lookTagBadge}>
+                    <Text style={styles.lookTagText}>{look.tag || 'Makeup Look'}</Text>
+                  </View>
+
+                  {/* Rating Badge */}
+                  <View style={styles.ratingBadge}>
+                    <Ionicons name="star" size={12} color="#FFB800" style={{ marginRight: 2 }} />
+                    <Text style={styles.ratingBadgeText}>
+                      {artist.profile?.rating || '4.8'}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.lookInfo}>
+                  <View style={styles.artistRow}>
+                    <View style={styles.artistProfileThumb}>
+                      {artist.profile?.profileImage ? (
+                        <Image
+                          source={{ uri: artist.profile.profileImage }}
+                          style={styles.artistThumbImage}
+                        />
+                      ) : (
+                        <Text style={styles.artistThumbInitials}>
+                          {artist.name?.charAt(0)?.toUpperCase()}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.artistNameText} numberOfLines={1}>
+                        {artist.name}
+                      </Text>
+                      <Text style={styles.artistSpecText} numberOfLines={1}>
+                        {artist.specializations?.[0]?.name || 'Makeup Artist'} • {artist.profile?.location || 'India'}
+                      </Text>
+                    </View>
+
+                    <TouchableOpacity
+                      style={styles.favoriteButton}
+                      onPress={() => toggleFavorite(artist.id)}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      <Ionicons
+                        name={favorites.includes(artist.id) ? 'heart' : 'heart-outline'}
+                        size={22}
+                        color={favorites.includes(artist.id) ? '#FF4F87' : '#999'}
+                      />
+                    </TouchableOpacity>
+                  </View>
+
+                  {look.description ? (
+                    <Text style={styles.lookDescriptionText} numberOfLines={2}>
+                      {look.description}
+                    </Text>
+                  ) : null}
+
+                  <View style={styles.priceRow}>
+                    <Text style={styles.priceLabelText}>Starting Service Price:</Text>
+                    <Text style={styles.priceValueText}>
+                      {artist.services?.[0]?.priceRange || '₹1,500'}
+                    </Text>
+                  </View>
+                </View>
               </TouchableOpacity>
-            </TouchableOpacity>
-          ))
+            );
+          })
         )}
       </ScrollView>
 
@@ -429,22 +626,51 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
 
               {/* Location Filter */}
               <Text style={styles.filterLabel}>Location</Text>
-              <View style={styles.filterRow}>
-                {['Pune', 'Mumbai', 'Delhi', 'Bangalore'].map(loc => {
-                  const isSelected = selectedLocation === loc;
-                  return (
-                    <TouchableOpacity
-                      key={loc}
-                      style={[styles.filterChip, isSelected && styles.selectedChip]}
-                      onPress={() => setSelectedLocation(isSelected ? null : loc)}
-                    >
-                      <Text style={[styles.filterChipText, isSelected && styles.selectedChipText]}>
-                        {loc}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+              <View style={styles.locationInputContainer}>
+                <Ionicons name="location-outline" size={20} color="#FF4F87" style={styles.locationInputIcon} />
+                <TextInput
+                  style={styles.locationTextInput}
+                  placeholder="Search city..."
+                  placeholderTextColor="#999"
+                  value={locationText}
+                  onChangeText={fetchLocationSuggestions}
+                />
+                {locationText ? (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setLocationText('');
+                      setSelectedLocation(null);
+                      setLocationSuggestions([]);
+                    }}
+                    style={{ padding: 4 }}
+                  >
+                    <Ionicons name="close-circle" size={18} color="#CCC" />
+                  </TouchableOpacity>
+                ) : null}
               </View>
+
+              {loadingSuggestions && (
+                <ActivityIndicator color="#FF4F87" size="small" style={{ marginVertical: 8, alignSelf: 'flex-start' }} />
+              )}
+
+              {locationSuggestions.length > 0 && (
+                <View style={styles.suggestionsContainer}>
+                  {locationSuggestions.map((item, idx) => (
+                    <TouchableOpacity
+                      key={idx}
+                      style={styles.suggestionItem}
+                      onPress={() => {
+                        setSelectedLocation(item.cityName);
+                        setLocationText(item.cityName);
+                        setLocationSuggestions([]);
+                      }}
+                    >
+                      <Ionicons name="location" size={16} color="#FF4F87" style={{ marginRight: 8 }} />
+                      <Text style={styles.suggestionText} numberOfLines={1}>{item.displayName}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
             </ScrollView>
 
             <View style={styles.buttonRow}>
@@ -455,6 +681,8 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
                   setSelectedRating(null);
                   setSelectedPrice(null);
                   setSelectedLocation(null);
+                  setLocationText('');
+                  setLocationSuggestions([]);
                 }}
               >
                 <Text style={styles.clearButtonText}>Clear All</Text>
@@ -471,35 +699,7 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
         </Pressable>
       </Modal>
 
-      {/* QUICK LOCATION MODAL */}
-      <Modal visible={showLocationModal} animationType="slide" transparent onRequestClose={() => setShowLocationModal(false)}>
-        <Pressable style={styles.modalOverlay} onPress={() => setShowLocationModal(false)}>
-          <View style={styles.bottomSheetContainer}>
-            <View style={styles.bottomSheetHeader}>
-              <Text style={styles.bottomSheetTitle}>Select Location</Text>
-              <TouchableOpacity onPress={() => setShowLocationModal(false)}>
-                <Ionicons name="close" size={24} color="#111" />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.bottomSheetContent}>
-              {['All Locations', 'Pune', 'Mumbai', 'Delhi', 'Bangalore'].map(loc => (
-                <TouchableOpacity
-                  key={loc}
-                  style={[styles.bottomSheetOption, (loc === 'All Locations' ? !selectedLocation : selectedLocation === loc) && styles.bottomSheetOptionActive]}
-                  onPress={() => {
-                    setSelectedLocation(loc === 'All Locations' ? null : loc);
-                    setShowLocationModal(false);
-                  }}
-                >
-                  <Text style={[styles.bottomSheetOptionText, (loc === 'All Locations' ? !selectedLocation : selectedLocation === loc) && styles.bottomSheetOptionTextActive]}>
-                    {loc}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </Pressable>
-      </Modal>
+
 
       {/* QUICK PRICE MODAL */}
       <Modal visible={showPriceModal} animationType="slide" transparent onRequestClose={() => setShowPriceModal(false)}>
@@ -985,6 +1185,238 @@ const styles = StyleSheet.create({
   },
   dayCardLabelSelected: {
     color: '#FFF',
+  },
+  looksSection: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 80,
+  },
+  lookCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    overflow: 'hidden',
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#F1F1F1',
+    elevation: 3,
+    shadowColor: '#FF4F87',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+  },
+  imageContainer: {
+    width: '100%',
+    height: 230,
+    backgroundColor: '#F9F9F9',
+    position: 'relative',
+  },
+  lookImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  lookImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFEBF0',
+  },
+  lookTagBadge: {
+    position: 'absolute',
+    bottom: 12,
+    left: 12,
+    backgroundColor: 'rgba(255, 79, 135, 0.9)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  lookTagText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  ratingBadge: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    elevation: 1,
+  },
+  ratingBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#222',
+  },
+  lookInfo: {
+    padding: 16,
+  },
+  artistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  artistProfileThumb: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: '#FFEBF0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#FFEBF0',
+  },
+  artistThumbImage: {
+    width: '100%',
+    height: '100%',
+  },
+  artistThumbInitials: {
+    color: '#FF4F87',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  artistNameText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111',
+  },
+  artistSpecText: {
+    fontSize: 12,
+    color: '#777',
+    marginTop: 1,
+  },
+  lookDescriptionText: {
+    fontSize: 13,
+    color: '#555',
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F5F5F5',
+  },
+  priceLabelText: {
+    fontSize: 13,
+    color: '#777',
+    fontWeight: '500',
+  },
+  priceValueText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FF4F87',
+  },
+  locationInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8F8F8',
+    borderWidth: 1,
+    borderColor: '#ECECEC',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    height: 48,
+    marginBottom: 8,
+  },
+  locationInputIcon: {
+    marginRight: 8,
+  },
+  locationTextInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#111',
+    fontWeight: '600',
+    paddingVertical: 0,
+  },
+  suggestionsContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#ECECEC',
+    paddingVertical: 6,
+    marginBottom: 16,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5F5F5',
+  },
+  suggestionText: {
+    fontSize: 13,
+    color: '#444',
+    flex: 1,
+  },
+
+  // Inline Location Input (below the filter chips)
+  inlineLocationWrapper: {
+    marginHorizontal: 20,
+    marginBottom: 4,
+    borderRadius: 14,
+    backgroundColor: '#FFF',
+    borderWidth: 1.5,
+    borderColor: '#FF4F87',
+    elevation: 3,
+    shadowColor: '#FF4F87',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  inlineLocationInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    height: 48,
+  },
+  inlineLocationInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#111',
+    fontWeight: '600',
+    paddingVertical: 0,
+  },
+  inlineSuggestionsContainer: {
+    marginHorizontal: 20,
+    marginBottom: 6,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#FFD6E5',
+    elevation: 6,
+    shadowColor: '#FF4F87',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    zIndex: 999,
+  },
+  inlineSuggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#FFF5F8',
+  },
+  inlineSuggestionText: {
+    fontSize: 13,
+    color: '#444',
+    flex: 1,
   },
 });
 

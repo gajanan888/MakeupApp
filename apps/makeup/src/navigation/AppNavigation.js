@@ -48,6 +48,8 @@ import AddOnsScreen from '../screens/client/AddOnsScreen';
 import BookingConfirmationScreen from '../screens/client/BookingConfirmationScreen';
 import PaymentScreen from '../screens/client/PaymentScreen';
 import BookingSuccessScreen from '../screens/client/BookingSuccessScreen';
+import SelectLocationScreen from '../screens/client/SelectLocationScreen';
+import ArtistsListByLocationScreen from '../screens/client/ArtistsListByLocationScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -243,6 +245,8 @@ const AppNavigator = () => {
         />
         <Stack.Screen name="Payment" component={PaymentScreen} />
         <Stack.Screen name="BookingSuccess" component={BookingSuccessScreen} />
+        <Stack.Screen name="SelectLocation" component={SelectLocationScreen} />
+        <Stack.Screen name="ArtistsListByLocation" component={ArtistsListByLocationScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

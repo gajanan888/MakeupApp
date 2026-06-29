@@ -24,6 +24,48 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
   const [loadingTrending, setLoadingTrending] = useState(true);
   const [locationName, setLocationName] = useState('Detecting location...');
   const [loadingLocation, setLoadingLocation] = useState(true);
+  const [favorites, setFavorites] = useState([]);
+
+  // Load favorites from AsyncStorage on mount
+  useEffect(() => {
+    const loadFavorites = async () => {
+      try {
+        const stored = await AsyncStorage.getItem('client_favorites');
+        if (stored) {
+          setFavorites(JSON.parse(stored));
+        }
+      } catch (err) {
+        console.warn('Failed to load favorites:', err);
+      }
+    };
+    loadFavorites();
+  }, []);
+
+  const toggleFavorite = async (artistId) => {
+    let updated;
+    setFavorites(prev => {
+      if (prev.includes(artistId)) {
+        updated = prev.filter(id => id !== artistId);
+      } else {
+        updated = [...prev, artistId];
+      }
+      return updated;
+    });
+    // Persist after state update using a slight delay to get the latest value
+    try {
+      const stored = await AsyncStorage.getItem('client_favorites');
+      let list = stored ? JSON.parse(stored) : [];
+      if (!Array.isArray(list)) list = [];
+      if (list.includes(artistId)) {
+        list = list.filter(id => id !== artistId);
+      } else {
+        list.push(artistId);
+      }
+      await AsyncStorage.setItem('client_favorites', JSON.stringify(list));
+    } catch (err) {
+      console.warn('Failed to save favorites:', err);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -246,7 +288,7 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
               <Text style={styles.aiTitle}>AI Match</Text>
 
               <Text style={styles.aiDescription}>
-                Find your perfect makeup artist with AI recommendations
+                Find Your Perfect Makeup Artist with AI Recommendations
               </Text>
 
               <TouchableOpacity
@@ -305,12 +347,26 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
             </ScrollView>
           </View>
 
+          {/* Book An Artist Now Button */}
+          <TouchableOpacity
+            style={styles.bookNowCard}
+            activeOpacity={0.9}
+            onPress={() => navigation.navigate('SelectLocation')}
+          >
+            <View style={styles.bookNowIconBadge}>
+              <Ionicons name="sparkles" size={22} color="#FF4F87" />
+            </View>
+
+            <Text style={styles.bookNowCardText}>Book Artist Now!!</Text>
+
+            <View style={styles.bookNowArrowContainer}>
+              <Ionicons name="arrow-forward" size={24} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
+
           {/* Trending Artists */}
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Trending Makeup Artists</Text>
-            <TouchableOpacity onPress={() => onNavigate ? onNavigate('Search') : navigation.navigate('Search')}>
-              <Text style={styles.seeAllText}>See All</Text>
-            </TouchableOpacity>
           </View>
 
           {loadingTrending ? (
@@ -359,9 +415,17 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
                         : '4.5'}
                     </Text>
                   </View>
-                  {/* Heart button */}
-                  <TouchableOpacity style={styles.favoriteButton}>
-                    <Ionicons name="heart-outline" size={20} color="#FF4F87" />
+                  {/* Heart / Wishlist button */}
+                  <TouchableOpacity
+                    style={styles.favoriteButton}
+                    onPress={() => toggleFavorite(artist.id)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons
+                      name={favorites.includes(artist.id) ? 'heart' : 'heart-outline'}
+                      size={20}
+                      color="#FF4F87"
+                    />
                   </TouchableOpacity>
                   <View style={styles.artistInfo}>
                     <Text style={styles.artistName} numberOfLines={1}>
@@ -397,9 +461,6 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
           {/* Popular Artists */}
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Popular Near You</Text>
-            <TouchableOpacity onPress={() => onNavigate ? onNavigate('Search') : navigation.navigate('Search')}>
-              <Text style={styles.seeAllText}>See All</Text>
-            </TouchableOpacity>
           </View>
 
           {!loading &&
@@ -445,6 +506,17 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
                     {artist.profile?.experience || '4.5'}
                   </Text>
                 </View>
+                <TouchableOpacity
+                  style={styles.popularFavoriteButton}
+                  onPress={() => toggleFavorite(artist.id)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons
+                    name={favorites.includes(artist.id) ? 'heart' : 'heart-outline'}
+                    size={20}
+                    color="#FF4F87"
+                  />
+                </TouchableOpacity>
               </TouchableOpacity>
             ))}
         </View>
@@ -766,5 +838,49 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#333',
+  },
+  bookNowCard: {
+    backgroundColor: '#FF4F87',
+    borderRadius: 24,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    marginBottom: 28,
+    elevation: 6,
+    shadowColor: '#FF4F87',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+  },
+  bookNowIconBadge: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FFD1DF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  bookNowCardText: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: 16,
+    letterSpacing: 0.5,
+  },
+  bookNowArrowContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  popularFavoriteButton: {
+    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 4,
   },
 });

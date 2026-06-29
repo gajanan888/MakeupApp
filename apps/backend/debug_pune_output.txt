@@ -1,0 +1,49 @@
+DB connected
+Columns returned:
+[
+  {
+    "column_name": "artistId",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "bio",
+    "data_type": "text"
+  },
+  {
+    "column_name": "createdAt",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "column_name": "experience",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "gender",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "location",
+    "data_type": "text"
+  },
+  {
+    "column_name": "profileImage",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "updatedAt",
+    "data_type": "timestamp with time zone"
+  }
+]
+Calling getArtists...
+Error: column profile.rating does not exist
+Error
+    at Query.run (D:\rushikesh\project\MakeupApp\apps\backend\node_modules\sequelize\lib\dialects\postgres\query.js:50:25)
+    at D:\rushikesh\project\MakeupApp\apps\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async PostgresQueryInterface.select (D:\rushikesh\project\MakeupApp\apps\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async Artist.findAll (D:\rushikesh\project\MakeupApp\apps\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async run (file:///D:/rushikesh/project/MakeupApp/apps/backend/scripts/run_debug_pune.js:26:20)
