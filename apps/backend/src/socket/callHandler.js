@@ -1,4 +1,5 @@
 import Booking from "../models/Booking.js";
+import CallLog from "../models/CallLog.js";
 
 /**
  * Validates if the caller is authorized to initiate a call for this booking.
@@ -62,12 +63,23 @@ export const registerCallHandlers = (io, socket) => {
 
       const targetRoom = `${targetRole}_${targetId}`;
       
+      // Create initial CallLog record
+      const callLog = await CallLog.create({
+        bookingId,
+        callerId,
+        callerRole,
+        targetId,
+        targetRole,
+        status: "initiated"
+      });
+
       // Forward the incoming call event
       io.to(targetRoom).emit("incoming-call", {
         bookingId,
         callerId,
         callerRole,
-        callerName: socket.handshake.auth.callerName || "Unknown", // Can be provided by client
+        callerName: socket.handshake.auth.callerName || "Unknown",
+        callLogId: callLog.id // Pass log ID so client/other events can reference it
       });
 
     } catch (err) {
@@ -78,23 +90,69 @@ export const registerCallHandlers = (io, socket) => {
 
   // ── Call Lifecycle Events ──────────────────────────────────────────────────
 
-  socket.on("accept-call", ({ targetId, targetRole, bookingId }) => {
+  socket.on("accept-call", async ({ targetId, targetRole, bookingId, callLogId }) => {
     if (process.env.NODE_ENV !== "production") console.log(`[Call] Accepted by ${callerRole}_${callerId}`);
+    
+    if (callLogId) {
+      await CallLog.update(
+        { status: "connected", startedAt: new Date() },
+        { where: { id: callLogId } }
+      );
+    }
+    
     io.to(`${targetRole}_${targetId}`).emit("call-accepted", { bookingId });
   });
 
-  socket.on("reject-call", ({ targetId, targetRole, bookingId }) => {
+  socket.on("reject-call", async ({ targetId, targetRole, bookingId, callLogId }) => {
     if (process.env.NODE_ENV !== "production") console.log(`[Call] Rejected by ${callerRole}_${callerId}`);
+    
+    if (callLogId) {
+      await CallLog.update(
+        { status: "missed", failureReason: "declined", endedAt: new Date() },
+        { where: { id: callLogId } }
+      );
+    }
+
     io.to(`${targetRole}_${targetId}`).emit("call-rejected", { bookingId, reason: "declined" });
   });
 
-  socket.on("user-busy", ({ targetId, targetRole, bookingId }) => {
+  socket.on("user-busy", async ({ targetId, targetRole, bookingId, callLogId }) => {
     if (process.env.NODE_ENV !== "production") console.log(`[Call] Busy - ${callerRole}_${callerId}`);
+    
+    if (callLogId) {
+      await CallLog.update(
+        { status: "missed", failureReason: "busy", endedAt: new Date() },
+        { where: { id: callLogId } }
+      );
+    }
+
     io.to(`${targetRole}_${targetId}`).emit("call-rejected", { bookingId, reason: "busy" });
   });
 
-  socket.on("end-call", ({ targetId, targetRole, bookingId }) => {
+  socket.on("end-call", async ({ targetId, targetRole, bookingId, callLogId }) => {
     if (process.env.NODE_ENV !== "production") console.log(`[Call] Ended by ${callerRole}_${callerId}`);
+    
+    let logIdToUpdate = callLogId;
+    if (!logIdToUpdate && bookingId) {
+      // If the caller ends the call, they won't have the callLogId. Find the active log.
+      const activeLog = await CallLog.findOne({
+        where: { bookingId, status: ["initiated", "connected"] },
+        order: [["createdAt", "DESC"]]
+      });
+      if (activeLog) logIdToUpdate = activeLog.id;
+    }
+
+    if (logIdToUpdate) {
+      const log = await CallLog.findByPk(logIdToUpdate);
+      if (log && log.startedAt) {
+        const endedAt = new Date();
+        const durationSeconds = Math.floor((endedAt.getTime() - new Date(log.startedAt).getTime()) / 1000);
+        await log.update({ status: "ended", endedAt, durationSeconds });
+      } else if (log) {
+        await log.update({ status: "missed", endedAt: new Date() });
+      }
+    }
+
     io.to(`${targetRole}_${targetId}`).emit("call-ended", { bookingId });
   });
 
