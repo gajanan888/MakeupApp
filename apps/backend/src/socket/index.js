@@ -1,5 +1,6 @@
 import { Server } from "socket.io";
 import { socketAuthMiddleware } from "./auth.js";
+import { registerCallHandlers } from "./callHandler.js";
 
 let io;
 
@@ -22,6 +23,9 @@ export default function initSocketServer(server) {
     if (process.env.NODE_ENV !== "production") {
       console.log(`[Socket] Connected: ${socket.id} (Room: ${personalRoom})`);
     }
+
+    // Register handlers
+    registerCallHandlers(io, socket);
 
     socket.on("disconnect", () => {
       if (process.env.NODE_ENV !== "production") {
