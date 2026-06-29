@@ -14,6 +14,7 @@ import {
   TextInput,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { useCall } from '../../context/CallContext';
 import {
   acceptArtistBooking,
   rejectArtistBooking,
@@ -35,6 +36,7 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
   const [rejectionReasonText, setRejectionReasonText] = useState('');
   const [dialogType, setDialogType] = useState('reject'); // 'reject' or 'cancel'
+  const { initiateCall } = useCall();
 
   if (!booking) return null;
 
@@ -111,11 +113,22 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
             
-            {/* IN-APP CHAT SHORTCUT */}
+            {/* IN-APP CHAT AND CALL SHORTCUTS */}
             {['accepted', 'in_progress'].includes(booking?.rawStatus) && (
               <View style={styles.contactContainer}>
                 <TouchableOpacity 
-                  style={styles.chatBubbleFull} 
+                  style={[styles.chatBubbleFull, { marginRight: 5 }]} 
+                  onPress={() => {
+                    onClose();
+                    initiateCall(booking.id, booking.customerId, 'client');
+                  }}
+                >
+                  <Ionicons name="call" size={20} color="#FF4F8F" />
+                  <Text style={styles.contactLabel}>Call Client</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.chatBubbleFull, { marginLeft: 5 }]} 
                   onPress={() => {
                     onClose();
                     if (onChatPress) onChatPress(booking);

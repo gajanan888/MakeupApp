@@ -14,6 +14,7 @@ import {
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { getCustomerBookings, cancelCustomerBooking, declineCustomerBookingAdvance, getCustomerProfile } from '../../api/auth';
 import BottomNavigation from '../../components/BottomNavigation';
+import { useCall } from '../../context/CallContext';
 
 const CountdownTimer = ({ deadline, onExpire }) => {
   const [timeLeft, setTimeLeft] = useState('');
@@ -53,6 +54,7 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [customerProfile, setCustomerProfile] = useState(null);
+  const { initiateCall } = useCall();
 
   const canCancelBooking = (booking) => {
     if (!booking.dateRaw || !booking.timeRaw) return false;
@@ -379,17 +381,26 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
                       )}
 
                       {showChatBtn && (
-                        <TouchableOpacity
-                          style={[styles.chatBtn, showCancelBtn && { flex: 1, marginLeft: 8 }]}
-                          onPress={() => navigation.navigate('CustomerMessage', { 
-                            artistId: booking.artistRaw?.id || booking.artistId,
-                            artistName: booking.artistName,
-                            artistAvatar: booking.avatar
-                          })}
-                        >
-                          <Ionicons name="chatbubble-ellipses-outline" size={16} color="#FFF" style={{ marginRight: 6 }} />
-                          <Text style={styles.chatBtnText}>Chat</Text>
-                        </TouchableOpacity>
+                        <View style={{ flex: 1, flexDirection: 'row', gap: 8, marginLeft: showCancelBtn ? 8 : 0 }}>
+                          <TouchableOpacity
+                            style={[styles.chatBtn, { flex: 1 }]}
+                            onPress={() => initiateCall(booking.id, booking.artistRaw?.id || booking.artistId, 'artist')}
+                          >
+                            <Ionicons name="call-outline" size={16} color="#FFF" style={{ marginRight: 6 }} />
+                            <Text style={styles.chatBtnText}>Call</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.chatBtn, { flex: 1 }]}
+                            onPress={() => navigation.navigate('CustomerMessage', { 
+                              artistId: booking.artistRaw?.id || booking.artistId,
+                              artistName: booking.artistName,
+                              artistAvatar: booking.avatar
+                            })}
+                          >
+                            <Ionicons name="chatbubble-ellipses-outline" size={16} color="#FFF" style={{ marginRight: 6 }} />
+                            <Text style={styles.chatBtnText}>Chat</Text>
+                          </TouchableOpacity>
+                        </View>
                       )}
                     </View>
                   )}
