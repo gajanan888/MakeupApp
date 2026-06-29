@@ -44,7 +44,7 @@ export const getArtists = async ({ minPrice, maxPrice, experience, location }) =
       },
     ],
     order: [["createdAt", "DESC"]],
-    limit: 30,
+    limit: 200,
   });
 };
 

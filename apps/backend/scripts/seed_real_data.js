@@ -740,7 +740,113 @@ async function seed() {
     let artistsCreated = 0;
     let artistsUpdated = 0;
 
-    for (const artData of sampleArtists) {
+    const extraFirstNames = [
+      "Amit", "Sunita", "Rahul", "Kiran", "Vijay", "Aisha", "Sanjay", "Ritu", "Deepak", "Nisha",
+      "Rajesh", "Pooja", "Vikram", "Sneha", "Arjun", "Kriti", "Manish", "Divya", "Suresh", "Karan",
+      "Alok", "Rashmi", "Varun", "Simran", "Harish", "Preeti", "Ramesh", "Komal", "Aditya", "Riya"
+    ];
+    const extraLastNames = [
+      "Sharma", "Verma", "Gupta", "Mehta", "Patel", "Reddy", "Nair", "Joshi", "Kapoor", "Sen",
+      "Singh", "Yadav", "Hegde", "Malhotra", "Das", "Rathore", "Begum", "Menon", "Kaur", "Agrawal"
+    ];
+
+    const femaleImages = [
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
+      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150",
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150",
+      "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150",
+      "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=150",
+      "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?w=150",
+      "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=150"
+    ];
+    const maleImages = [
+      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150",
+      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150",
+      "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150",
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150",
+      "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150"
+    ];
+
+    const getRandomProfileImage = (index, gender) => {
+      if (gender === "Male") {
+        return maleImages[index % maleImages.length];
+      }
+      return femaleImages[index % femaleImages.length];
+    };
+
+    const allArtistsToSeed = [];
+    allArtistsToSeed.push(...sampleArtists);
+
+    sampleArtists.forEach((baseArtist, locIdx) => {
+      const location = baseArtist.profile.location;
+      for (let artIdx = 1; artIdx <= 4; artIdx++) {
+        const nameIndex = (locIdx * 4 + artIdx) % extraFirstNames.length;
+        const lastNameIndex = (locIdx * 4 + artIdx) % extraLastNames.length;
+        const firstName = extraFirstNames[nameIndex];
+        const lastName = extraLastNames[lastNameIndex];
+        const newName = `${firstName} ${lastName} Artistry`;
+        const newEmail = `${firstName.toLowerCase()}.${lastName.toLowerCase()}.${location.toLowerCase()}@makeupglam.in`;
+        const newPhone = `98200${String(locIdx).padStart(2, '0')}${String(artIdx).padStart(3, '0')}`;
+        
+        const rating = parseFloat((4.0 + Math.random() * 1.0).toFixed(1));
+        const reviewCount = Math.floor(10 + Math.random() * 150);
+        const experience = String(Math.floor(3 + Math.random() * 10));
+        
+        const newProfile = {
+          ...baseArtist.profile,
+          profileImage: getRandomProfileImage(artIdx, baseArtist.profile.gender),
+          bio: `Professional makeup artist in ${location} with ${experience} years of experience. Specializing in custom ${baseArtist.specializations[0]} and glamorous makeovers.`,
+          experience,
+          parlourName: `${firstName}'s Glamour Hub`,
+          parlourAddress: `Studio #${100 + artIdx}, Main Road, ${location}`,
+          rating,
+          reviewCount,
+        };
+        
+        const newServices = baseArtist.services.map(svc => {
+          const basePrice = parseInt(svc.priceRange.replace(/[^\d]/g, ''), 10);
+          const variedPrice = Math.round((basePrice * (0.8 + Math.random() * 0.4)) / 500) * 500;
+          return {
+            ...svc,
+            priceRange: `₹${variedPrice.toLocaleString('en-IN')}`,
+          };
+        });
+
+        const newPortfolio = baseArtist.portfolio.map(port => ({
+          ...port,
+          tag: `${baseArtist.specializations[0]} Glam`,
+          description: `Stunning ${baseArtist.specializations[0]} transformation done for a client in ${location}.`,
+        }));
+        
+        const newCertificate = {
+          ...baseArtist.certificate,
+          certificateNumber: `${location.substring(0, 3).toUpperCase()}-2022-${100 + locIdx * 4 + artIdx}`,
+          fileName: `${firstName.toLowerCase()}_cert.pdf`,
+        };
+        
+        const newPayment = {
+          accountHolder: `${firstName} ${lastName}`,
+          bankName: baseArtist.payment.bankName,
+          accountNumber: `${baseArtist.payment.accountNumber}${artIdx}`,
+          ifscCode: baseArtist.payment.ifscCode,
+          upiId: `${firstName.toLowerCase()}@ok${baseArtist.payment.bankName.substring(0, 4).toLowerCase()}`,
+        };
+
+        allArtistsToSeed.push({
+          name: newName,
+          email: newEmail,
+          phone: newPhone,
+          profile: newProfile,
+          specializations: baseArtist.specializations,
+          services: newServices,
+          portfolio: newPortfolio,
+          certificate: newCertificate,
+          payment: newPayment,
+        });
+      }
+    });
+
+    for (const artData of allArtistsToSeed) {
       let artist = await Artist.findOne({ where: { email: artData.email } });
 
       if (artist) {

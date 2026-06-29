@@ -8,6 +8,7 @@ import {
   Image,
   ActivityIndicator,
   Platform,
+  TextInput,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,19 +18,15 @@ const ArtistsListByLocationScreen = ({ navigation, route }) => {
   const { location } = route.params;
   const [artists, setArtists] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchText, setSearchText] = useState('');
 
   useEffect(() => {
     const fetchArtists = async () => {
       try {
         setLoading(true);
-        const data = await getArtists();
+        const data = await getArtists({ location });
         if (Array.isArray(data)) {
-          // Filter artists whose location matches the chosen city (case-insensitive)
-          const filtered = data.filter((artist) => {
-            const artistLoc = artist.profile?.location || '';
-            return artistLoc.toLowerCase().includes(location.toLowerCase());
-          });
-          setArtists(filtered);
+          setArtists(data);
         }
       } catch (err) {
         console.warn('Failed to load artists by location:', err);
@@ -93,6 +90,24 @@ const ArtistsListByLocationScreen = ({ navigation, route }) => {
     );
   };
 
+  const filteredArtists = artists.filter((artist) => {
+    const artistName = artist.name?.toLowerCase() || '';
+    const artistSpecialization = artist.specializations?.[0]?.name?.toLowerCase() || '';
+    const artistBio = artist.profile?.bio?.toLowerCase() || '';
+    const searchLower = searchText.toLowerCase().trim();
+
+    return (
+      !searchLower ||
+      artistName.includes(searchLower) ||
+      artistSpecialization.includes(searchLower) ||
+      artistBio.includes(searchLower) ||
+      (artist.services &&
+        artist.services.some((svc) =>
+          svc.specialization?.toLowerCase().includes(searchLower)
+        ))
+    );
+  });
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
@@ -105,6 +120,27 @@ const ArtistsListByLocationScreen = ({ navigation, route }) => {
           <Text style={styles.headerSubtitle}>Select an artist to continue booking</Text>
         </View>
       </View>
+
+      {/* Search Bar */}
+      {!loading && (artists.length > 0 || searchText) && (
+        <View style={styles.searchWrapper}>
+          <View style={styles.searchContainer}>
+            <Ionicons name="search-outline" size={20} color="#999" style={{ marginRight: 4 }} />
+            <TextInput
+              placeholder="Search artists, services..."
+              placeholderTextColor="#999"
+              value={searchText}
+              onChangeText={setSearchText}
+              style={styles.searchInput}
+            />
+            {searchText ? (
+              <TouchableOpacity onPress={() => setSearchText('')}>
+                <Ionicons name="close-circle" size={18} color="#CCC" />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        </View>
+      )}
 
       {loading ? (
         <View style={styles.centerContainer}>
@@ -127,9 +163,25 @@ const ArtistsListByLocationScreen = ({ navigation, route }) => {
             <Text style={styles.retryButtonText}>Try Another Location</Text>
           </TouchableOpacity>
         </View>
+      ) : filteredArtists.length === 0 ? (
+        <View style={styles.centerContainer}>
+          <View style={styles.emptyIconCircle}>
+            <Ionicons name="search-outline" size={40} color="#FF4F87" />
+          </View>
+          <Text style={styles.emptyText}>No Matching Artists</Text>
+          <Text style={styles.emptySubText}>
+            We couldn't find any artists matching "{searchText}" in {location}.
+          </Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => setSearchText('')}
+          >
+            <Text style={styles.retryButtonText}>Clear Search</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <FlatList
-          data={artists}
+          data={filteredArtists}
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={styles.listContainer}
           renderItem={renderArtistItem}
@@ -308,5 +360,32 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
+  },
+  searchWrapper: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    height: 46,
+    borderWidth: 1,
+    borderColor: '#EAEAEA',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#111111',
+    paddingVertical: 0,
   },
 });
