@@ -40,8 +40,6 @@ import FaceScanResultScreen from '../screens/client/FaceScanResultScreen';
 import FaceScanRecommendationsScreen from '../screens/client/FaceScanRecommendationsScreen';
 import LookDetailsScreen from '../screens/client/LookDetailsScreen';
 import TryThisLookScreen from '../screens/client/TryThisLookScreen';
-import TryThisLookEyeScreen from '../screens/client/TryThisLookEyeScreen';
-import TryThisLookFinalScreen from '../screens/client/TryThisLookFinalScreen';
 import BookLookArtistScreen from '../screens/client/BookLookArtistScreen';
 import SelectDateTimeScreen from '../screens/client/SelectDateTimeScreen';
 import AddOnsScreen from '../screens/client/AddOnsScreen';
@@ -231,11 +229,6 @@ const AppNavigator = () => {
         />
         <Stack.Screen name="LookDetails" component={LookDetailsScreen} />
         <Stack.Screen name="TryThisLook" component={TryThisLookScreen} />
-        <Stack.Screen name="TryThisLookEye" component={TryThisLookEyeScreen} />
-        <Stack.Screen
-          name="TryThisLookFinal"
-          component={TryThisLookFinalScreen}
-        />
         <Stack.Screen name="BookLookArtist" component={BookLookArtistScreen} />
         <Stack.Screen name="SelectDateTime" component={SelectDateTimeScreen} />
         <Stack.Screen name="AddOns" component={AddOnsScreen} />

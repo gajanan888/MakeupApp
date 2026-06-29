@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,46 +14,160 @@ import ScreenHeader from '../../components/ScreenHeader';
 
 const DEFAULT_PRODUCTS = ['Lip Tint', 'Mascara', 'Base', 'Brush'];
 
-const LookDetailsScreen = ({ navigation, route }) => {
-  const look = route?.params?.look || {
-    title: 'Soft Glam',
-    description: 'Enhances your natural features',
-    image: require('../../assets/images/model.jpeg'),
-    products: DEFAULT_PRODUCTS,
-  };
+const getLookImage = (lookId) => {
+  switch (lookId) {
+    case 'natural_glow':
+    case 'natural-glow':
+      return require('../../assets/images/model.jpeg');
+    case 'soft_glam':
+    case 'soft-glam':
+      return require('../../assets/images/portfolio1.jpg');
+    case 'bridal_radiance':
+    case 'bridal-radiance':
+      return require('../../assets/images/portfolio2.jpg');
+    case 'full_glam':
+    case 'full-glam':
+      return require('../../assets/images/portfolio3.jpg');
+    case 'party_makeup':
+    case 'party-makeup':
+      return require('../../assets/images/portfolio4.jpg');
+    default:
+      return require('../../assets/images/model.jpeg');
+  }
+};
 
-  const products = look.products || DEFAULT_PRODUCTS;
+const LookDetailsScreen = ({ navigation, route }) => {
+  const { look, image, beauty_profile } = route?.params || {};
+
+  const activeLook = useMemo(() => {
+    return look || {
+      id: 'soft-glam',
+      name: 'Soft Glam',
+      description: 'Enhances your natural features',
+      time_estimate: '30-45 min',
+      coverage: 'Medium Coverage',
+      long_description: 'This look is perfect for parties and special occasions.',
+      products: null,
+    };
+  }, [look]);
+
+  const products = useMemo(() => {
+    if (!activeLook.products) {
+      return [
+        { category: 'Lipstick', icon: '💄', value: 'Lip Tint' },
+        { category: 'Eyeshadow', icon: '👁️', value: 'Mascara' },
+        { category: 'Foundation', icon: '✨', value: 'Base' },
+        { category: 'Blush', icon: '🌸', value: 'Brush' },
+      ];
+    }
+    const { lipstick = [], blush = [], eyeshadow = [] } = activeLook.products;
+    
+    const combined = [
+      ...lipstick.map(p => ({ category: 'Lipstick', icon: '💄', value: p })),
+      ...blush.map(p => ({ category: 'Blush', icon: '🌸', value: p })),
+      ...eyeshadow.map(p => ({ category: 'Eyeshadow', icon: '👁️', value: p })),
+    ];
+    
+    // Add foundation if personalized recommendations exists
+    if (activeLook.personalized_recommendations?.foundation_shade) {
+      combined.push({
+        category: 'Foundation',
+        icon: '✨',
+        value: activeLook.personalized_recommendations.foundation_shade.split('(')[0].trim(),
+      });
+    }
+    
+    return combined.length > 0 ? combined : [
+      { category: 'Lipstick', icon: '💄', value: 'Lip Tint' },
+      { category: 'Eyeshadow', icon: '👁️', value: 'Mascara' },
+      { category: 'Foundation', icon: '✨', value: 'Base' },
+      { category: 'Blush', icon: '🌸', value: 'Brush' },
+    ];
+  }, [activeLook]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFF7FA" />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
 
-      <View style={styles.shell}>
-        <ScreenHeader title="Look Details" onBack={() => navigation.goBack()} />
+      <ScreenHeader title="Look Details" onBack={() => navigation.goBack()} />
 
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.content}
-        >
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+      >
           <View style={styles.topRow}>
-            <Image source={look.image} style={styles.heroImage} />
+            <Image source={getLookImage(activeLook.id)} style={styles.heroImage} />
 
             <View style={styles.topInfo}>
-              <Text style={styles.lookTitle}>{look.title}</Text>
-              <Text style={styles.lookSubtitle}>{look.description}</Text>
+              <Text style={styles.lookTitle}>{activeLook.name}</Text>
+              <Text style={styles.lookSubtitle}>{activeLook.description}</Text>
 
               <View style={styles.metaRow}>
-                <Text style={styles.metaText}>30-45 min</Text>
+                <Text style={styles.metaText}>{activeLook.time_estimate || '30-45 min'}</Text>
                 <Text style={styles.metaDot}>•</Text>
-                <Text style={styles.metaText}>Medium Coverage</Text>
+                <Text style={styles.metaText}>{activeLook.coverage || 'Medium Coverage'}</Text>
               </View>
 
               <Text style={styles.detailText}>
-                This look is perfect for parties and special occasions. It
-                enhances your natural beauty.
+                {activeLook.long_description || activeLook.description}
               </Text>
             </View>
           </View>
+
+          {activeLook.personalized_recommendations && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>AI Personalized Shades & Styles</Text>
+              <View style={styles.personalizedCard}>
+                <Text style={styles.personalTitle}>
+                  🎨 Color Season:{' '}
+                  <Text style={styles.personalValue}>
+                    {activeLook.personalized_recommendations.seasonal_profile}
+                  </Text>
+                </Text>
+                <View style={styles.divider} />
+                <View style={styles.personalGrid}>
+                  <Text style={styles.gridItem}>
+                    💄 Lipstick:{' '}
+                    <Text style={styles.gridValue}>
+                      {activeLook.personalized_recommendations.lipstick_color}
+                    </Text>
+                  </Text>
+                  <Text style={styles.gridItem}>
+                    ✨ Foundation:{' '}
+                    <Text style={styles.gridValue}>
+                      {activeLook.personalized_recommendations.foundation_shade}
+                    </Text>
+                  </Text>
+                  <Text style={styles.gridItem}>
+                    🌸 Blush:{' '}
+                    <Text style={styles.gridValue}>
+                      {activeLook.personalized_recommendations.blush_color}
+                    </Text>
+                  </Text>
+                  <Text style={styles.gridItem}>
+                    👁️ Eyeshadow:{' '}
+                    <Text style={styles.gridValue}>
+                      {activeLook.personalized_recommendations.eyeshadow_color}
+                    </Text>
+                  </Text>
+                </View>
+                <View style={styles.divider} />
+                <Text style={styles.personalTitle}>📐 Facial Geometry Correction</Text>
+                <Text style={styles.guidelineText}>
+                  • Brow Shape:{' '}
+                  <Text style={styles.gridValue}>
+                    {activeLook.personalized_recommendations.eyebrow_shape}
+                  </Text>
+                </Text>
+                <Text style={styles.guidelineText}>
+                  • Contour Placing:{' '}
+                  <Text style={styles.gridValue}>
+                    {activeLook.personalized_recommendations.contour_style}
+                  </Text>
+                </Text>
+              </View>
+            </View>
+          )}
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Recommended Products</Text>
@@ -63,9 +177,12 @@ const LookDetailsScreen = ({ navigation, route }) => {
               contentContainerStyle={styles.productRow}
             >
               {products.map((product, index) => (
-                <View key={`${product}-${index}`} style={styles.productCard}>
-                  <View style={styles.productPill} />
-                  <Text style={styles.productText}>{product}</Text>
+                <View key={`${product.value}-${index}`} style={styles.productCard}>
+                  <View style={styles.productIconCircle}>
+                    <Text style={{ fontSize: 16 }}>{product.icon}</Text>
+                  </View>
+                  <Text style={styles.productCategory}>{product.category}</Text>
+                  <Text style={styles.productShade} numberOfLines={2}>{product.value}</Text>
                 </View>
               ))}
             </ScrollView>
@@ -74,40 +191,32 @@ const LookDetailsScreen = ({ navigation, route }) => {
           <View style={styles.actionsRow}>
             <TouchableOpacity
               style={[styles.actionButton, styles.primaryButton]}
-              onPress={() => navigation.navigate('TryThisLook', { look })}
+              onPress={() => navigation.navigate('TryThisLook', { look: activeLook, image })}
             >
-              <Text style={styles.primaryButtonText}>Try This Look</Text>
+              <Text style={styles.primaryButtonText}>View AI Prescription</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.actionButton, styles.secondaryButton]}
-              onPress={() => navigation.navigate('BookLookArtist', { look })}
+              onPress={() =>
+                navigation.navigate('BookLookArtist', { look: activeLook, beauty_profile })
+              }
             >
               <Text style={styles.secondaryButtonText}>Book This Look</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
-      </View>
-    </SafeAreaView>
-  );
-};
+      </SafeAreaView>
+    );
+  };
 
 export default LookDetailsScreen;
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFF0F5',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
-  },
-  shell: {
-    flex: 1,
-    margin: 10,
-    borderRadius: 28,
     backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#FFD9E6',
-    overflow: 'hidden',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
   },
   content: {
     paddingHorizontal: 16,
@@ -171,25 +280,83 @@ const styles = StyleSheet.create({
     color: '#222',
     marginBottom: 8,
   },
+  personalizedCard: {
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: '#FFF5F8',
+    borderWidth: 1,
+    borderColor: '#FFE0EC',
+  },
+  personalTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FF4F87',
+    marginBottom: 8,
+  },
+  personalValue: {
+    color: '#333',
+    fontWeight: '700',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#FFE0EC',
+    marginVertical: 10,
+  },
+  personalGrid: {
+    gap: 8,
+  },
+  gridItem: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#666',
+  },
+  gridValue: {
+    color: '#222',
+    fontWeight: '800',
+  },
+  guidelineText: {
+    fontSize: 11.5,
+    lineHeight: 16,
+    color: '#555',
+    marginTop: 4,
+    fontWeight: '600',
+  },
   productRow: {
     gap: 10,
+    paddingBottom: 6,
   },
   productCard: {
-    width: 74,
-    alignItems: 'center',
-  },
-  productPill: {
-    width: 54,
-    height: 54,
-    borderRadius: 14,
-    backgroundColor: '#F8E4EB',
+    width: 84,
+    backgroundColor: '#FFF8FA',
     borderWidth: 1,
-    borderColor: '#F0CBD9',
+    borderColor: '#FFE0EC',
+    borderRadius: 14,
+    padding: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  productText: {
-    marginTop: 6,
+  productIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#FFF0F5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: '#FFE0EC',
+  },
+  productCategory: {
+    fontSize: 8.5,
+    fontWeight: '800',
+    color: '#8A5D6D',
+    textTransform: 'uppercase',
+  },
+  productShade: {
     fontSize: 10,
-    color: '#7A7A7A',
+    fontWeight: '800',
+    color: '#FF4F87',
+    marginTop: 2,
     textAlign: 'center',
   },
   actionsRow: {

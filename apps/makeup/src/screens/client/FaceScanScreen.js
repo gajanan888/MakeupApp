@@ -7,33 +7,96 @@ import {
   SafeAreaView,
   StatusBar,
   Platform,
+  PermissionsAndroid,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import ScreenHeader from '../../components/ScreenHeader';
+import LinearGradient from 'react-native-linear-gradient';
+
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 
 const FaceScanScreen = ({ navigation }) => {
-  const handleAction = () => {
-    navigation.navigate('FaceScanScanning');
+  const handleLiveCamera = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.CAMERA,
+          {
+            title: 'Camera Permission',
+            message: 'App needs access to your camera to scan your face.',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          }
+        );
+        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+          console.log('Camera permission denied');
+          return;
+        }
+      } catch (err) {
+        console.warn(err);
+        return;
+      }
+    }
+
+    const options = {
+      mediaType: 'photo',
+      cameraType: 'front',
+      quality: 0.8,
+    };
+
+    launchCamera(options, response => {
+      if (response.didCancel) {
+        console.log('User cancelled camera');
+      } else if (response.errorMessage) {
+        console.log('Camera Error: ', response.errorMessage);
+      } else if (response.assets && response.assets.length > 0) {
+        navigation.navigate('FaceScanScanning', { image: response.assets[0] });
+      }
+    });
   };
+
+  const handleUploadPhoto = () => {
+    const options = {
+      mediaType: 'photo',
+      quality: 0.8,
+    };
+
+    launchImageLibrary(options, response => {
+      if (response.didCancel) {
+        console.log('User cancelled image library');
+      } else if (response.errorMessage) {
+        console.log('Image Library Error: ', response.errorMessage);
+      } else if (response.assets && response.assets.length > 0) {
+        navigation.navigate('FaceScanScanning', { image: response.assets[0] });
+      }
+    });
+  };
+
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFF7FA" />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
 
-      <View style={styles.shell}>
-        <ScreenHeader title="AI Face Scan" onBack={() => navigation.goBack()} />
+      <ScreenHeader title="AI Face Scan" onBack={() => navigation.goBack()} />
 
-        <View style={styles.content}>
-          <Text style={styles.heading}>Let's analyze your face</Text>
-          <Text style={styles.subheading}>
-            Choose a method to scan your face
-          </Text>
+      <View style={styles.content}>
+        <Text style={styles.heading}>Let's analyze your face</Text>
+        <Text style={styles.subheading}>
+          Choose a method to scan your face
+        </Text>
 
-          <View style={styles.optionList}>
-            <TouchableOpacity
+        <View style={styles.optionList}>
+          <TouchableOpacity
+            style={styles.optionCardWrap}
+            activeOpacity={0.88}
+            onPress={handleLiveCamera}
+          >
+            <LinearGradient
+              colors={['#FFFBFD', '#FFF0F5']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
               style={styles.optionCard}
-              activeOpacity={0.85}
-              onPress={handleAction}
             >
               <View style={styles.iconCircle}>
                 <Ionicons name="camera" size={26} color="#FF4F87" />
@@ -42,12 +105,19 @@ const FaceScanScreen = ({ navigation }) => {
               <Text style={styles.optionText}>
                 Use your camera for real-time scan
               </Text>
-            </TouchableOpacity>
+            </LinearGradient>
+          </TouchableOpacity>
 
-            <TouchableOpacity
+          <TouchableOpacity
+            style={styles.optionCardWrap}
+            activeOpacity={0.88}
+            onPress={handleUploadPhoto}
+          >
+            <LinearGradient
+              colors={['#FFFBFD', '#FFF0F5']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
               style={styles.optionCard}
-              activeOpacity={0.85}
-              onPress={handleAction}
             >
               <View style={styles.iconCircle}>
                 <Ionicons
@@ -60,14 +130,14 @@ const FaceScanScreen = ({ navigation }) => {
               <Text style={styles.optionText}>
                 Upload a clear front-facing photo
               </Text>
-            </TouchableOpacity>
-          </View>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
 
-          <View style={styles.footerNote}>
-            <Text style={styles.footerNoteText}>
-              Make sure your face is clearly visible for best results.
-            </Text>
-          </View>
+        <View style={styles.footerNote}>
+          <Text style={styles.footerNoteText}>
+            Make sure your face is clearly visible for best results.
+          </Text>
         </View>
       </View>
     </SafeAreaView>
@@ -79,17 +149,8 @@ export default FaceScanScreen;
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFF0F5',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
-  },
-  shell: {
-    flex: 1,
-    margin: 10,
-    borderRadius: 28,
     backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#FFD9E6',
-    overflow: 'hidden',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
   },
   content: {
     flex: 1,
@@ -116,22 +177,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 18,
   },
+  optionCardWrap: {
+    width: '100%',
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#FF4F87',
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3,
+  },
   optionCard: {
     width: '100%',
     minHeight: 150,
     paddingVertical: 18,
     paddingHorizontal: 18,
     borderRadius: 24,
-    backgroundColor: '#FFF',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#FFE1EB',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#FF4F87',
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 3,
   },
   iconCircle: {
     width: 72,

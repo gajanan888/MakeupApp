@@ -23,3 +23,14 @@ android/app/.cxx/
 
 # Logs
 *.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.cache/
+venv/
+.venv/
+apps/ai-backend/venv/
+apps/ai-backend/.venv/

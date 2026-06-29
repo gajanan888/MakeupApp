@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,26 +8,52 @@ import {
   StatusBar,
   Platform,
   Image,
+  Animated,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import ScreenHeader from '../../components/ScreenHeader';
 
-const FaceScanScanningScreen = ({ navigation }) => {
+const FaceScanScanningScreen = ({ navigation, route }) => {
+  const image = route?.params?.image;
+  const scanAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Loop scanning laser line up and down
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(scanAnim, {
+          toValue: 1,
+          duration: 1200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scanAnim, {
+          toValue: 0,
+          duration: 1200,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, [scanAnim]);
+
+  useEffect(() => {
+    // Automatically transition to analyzing screen when image is loaded
+    if (image) {
+      const timer = setTimeout(() => {
+        navigation.navigate('FaceScanAnalyzing', { image });
+      }, 1800);
+
+      return () => clearTimeout(timer);
+    }
+  }, [image, navigation]);
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFF7FA" />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
 
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="chevron-back" size={24} color="#222" />
-        </TouchableOpacity>
-
-        <Text style={styles.headerTitle}>Scanning...</Text>
-
-        <View style={styles.headerSpacer} />
-      </View>
+      <ScreenHeader
+        title="Scanning Face..."
+        onBack={() => navigation.goBack()}
+      />
 
       <View style={styles.content}>
         <Text style={styles.title}>Position your face</Text>
@@ -36,13 +62,29 @@ const FaceScanScanningScreen = ({ navigation }) => {
         <View style={styles.faceFrameWrap}>
           <View style={styles.faceFrame}>
             <Image
-              source={require('../../assets/images/model.jpeg')}
+              source={image ? { uri: image.uri } : require('../../assets/images/model.jpeg')}
               style={styles.faceImage}
               resizeMode="cover"
             />
 
             <View style={styles.frameOverlay}>
-              <View style={styles.faceOval} />
+              <View style={styles.faceOval}>
+                <Animated.View
+                  style={[
+                    styles.scanLine,
+                    {
+                      transform: [
+                        {
+                          translateY: scanAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0, 206], // moves vertically within 214px oval height
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
+                />
+              </View>
             </View>
           </View>
         </View>
@@ -53,7 +95,7 @@ const FaceScanScanningScreen = ({ navigation }) => {
         <TouchableOpacity
           style={styles.scanButton}
           activeOpacity={0.85}
-          onPress={() => navigation.navigate('FaceScanAnalyzing')}
+          onPress={() => navigation.navigate('FaceScanAnalyzing', { image })}
         >
           <View style={styles.scanButtonOuter}>
             <View style={styles.scanButtonInner} />
@@ -150,6 +192,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.18,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 2 },
+    overflow: 'hidden',
+  },
+  scanLine: {
+    height: 4,
+    width: '100%',
+    backgroundColor: '#FF4F87',
+    shadowColor: '#FF4F87',
+    shadowOpacity: 0.9,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 4,
   },
   tipTitle: {
     marginTop: 14,
@@ -193,5 +246,10 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: '#FFF',
     backgroundColor: '#FF4F87',
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#FFF',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
   },
 });

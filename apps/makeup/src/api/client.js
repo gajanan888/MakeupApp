@@ -6,28 +6,32 @@ export const addArtistToWishlist = async (artistId) => api.post('/wishlist/add',
 export const removeArtistFromWishlist = async (artistId) => api.post('/wishlist/remove', { artistId });
 export const fetchWishlist = async () => api.get('/wishlist');
 
-/**
- * API_BASE_URLS — ordered by priority.
- * The app tries each one in sequence on network failure.
- *
- * HOW TO UPDATE THE IP:
- *   On Windows, run: ipconfig
- *   Find the "Wireless LAN adapter Wi-Fi" IPv4 address (e.g. 10.x.x.x or 192.168.x.x)
- *   Replace the first entry below with that IP.
- *
- * Current machine WiFi IP: 172.19.20.153
- */
+// Host Wi-Fi IP address: 172.19.20.151
 const API_BASE_URLS = [
-  'http://localhost:5000',       // Standard local endpoint (works on physical devices with adb reverse, iOS, and emulators)
-  'http://172.19.16.171:5000', // Computer WiFi IP fallback
-  'http://10.0.2.2:5000',       // Android Emulator loopback
-  'http://192.168.56.1:5000',   // VirtualBox host-only adapter
+
+
+  'http://172.19.20.151:5000',       // adb reverse loopback (numeric, bypasses ROM DNS resolution)
+  'http://localhost:5000',       // adb reverse localhost fallback
+  'http://10.55.133.172:5000',   // Current Wi-Fi IP fallback
+
+  'http://10.0.2.2:5000',        // Android Emulator loopback
+  'http://192.168.56.1:5000',    // VirtualBox host-only adapter
+
 ];
 
 const api = axios.create({
   baseURL: API_BASE_URLS[0],
   timeout: 10000,
 });
+
+// Dynamic base URL resolver callbacks to synchronize ports with AI backend
+let onBaseURLResolved = null;
+export const setBaseURLResolver = (cb) => {
+  onBaseURLResolved = cb;
+  if (api.defaults.baseURL) {
+    cb(api.defaults.baseURL);
+  }
+};
 
 // ── Attach JWT token to every request ────────────────────────────────────────
 api.interceptors.request.use(async (config) => {
@@ -42,16 +46,23 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-// ── Retry with next IP on network errors ─────────────────────────────────────
+// ── Retry with next IP on network errors and synchronize active host ──────────
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const baseURL = response?.config?.baseURL;
+    if (baseURL && api.defaults.baseURL !== baseURL) {
+      api.defaults.baseURL = baseURL;
+      console.log(`[API] Updated default baseURL to: ${baseURL}`);
+      if (onBaseURLResolved) {
+        onBaseURLResolved(baseURL);
+      }
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error?.config;
 
-    // Already exhausted all URLs — throw immediately
     if (!originalRequest) throw error;
-    const retryIndex = (originalRequest.__retryIndex ?? -1) + 1;
-    if (retryIndex >= API_BASE_URLS.length) throw error;
 
     // Only retry on network / timeout errors (not 4xx / 5xx)
     const isNetworkError =
@@ -62,10 +73,21 @@ api.interceptors.response.use(
 
     if (!isNetworkError) throw error;
 
-    originalRequest.__retryIndex = retryIndex;
-    originalRequest.baseURL = API_BASE_URLS[retryIndex];
+    const currentUrl = originalRequest.baseURL || api.defaults.baseURL;
+    let currentIndex = API_BASE_URLS.indexOf(currentUrl);
+    if (currentIndex === -1) currentIndex = 0;
 
-    console.log(`[API] Retrying with: ${API_BASE_URLS[retryIndex]}`);
+    const retryCount = (originalRequest.__retryCount ?? 0) + 1;
+    if (retryCount >= API_BASE_URLS.length) {
+      api.defaults.baseURL = API_BASE_URLS[0];
+      throw error;
+    }
+
+    const nextIndex = (currentIndex + 1) % API_BASE_URLS.length;
+    originalRequest.__retryCount = retryCount;
+    originalRequest.baseURL = API_BASE_URLS[nextIndex];
+
+    console.log(`[API] Retrying request (attempt ${retryCount}) with: ${API_BASE_URLS[nextIndex]}`);
     return api.request(originalRequest);
   }
 );

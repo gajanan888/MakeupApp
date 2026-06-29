@@ -369,6 +369,37 @@ const styles = StyleSheet.create({
     color: '#222',
     marginBottom: 8,
   },
+  lookSummaryCard: {
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#FFEBF1',
+    borderWidth: 1,
+    borderColor: '#FFD1E1',
+    marginBottom: 14,
+  },
+  lookSummaryTitle: {
+    fontSize: 11,
+    color: '#8A5D6D',
+    fontWeight: '700',
+  },
+  lookSummaryValue: {
+    fontSize: 15,
+    color: '#FF4F87',
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  matchReason: {
+    fontSize: 11,
+    color: '#E05E85',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#999',
+    fontSize: 13,
+    marginVertical: 20,
+  },
   inputBox: {
     marginBottom: 10,
   },

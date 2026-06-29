@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+python-multipart
+opencv-python
+mediapipe==0.10.21
+pydantic-settings
+sqlalchemy
+psycopg[binary]
+httpx2

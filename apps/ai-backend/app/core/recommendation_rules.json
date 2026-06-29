@@ -1,0 +1,139 @@
+{
+  "seasonal_profiles": {
+    "Warm": {
+      "light_profile": "Spring (Warm & Light)",
+      "deep_profile": "Autumn (Warm & Rich)"
+    },
+    "Cool": {
+      "light_profile": "Summer (Cool & Soft)",
+      "deep_profile": "Winter (Cool & Bright)"
+    },
+    "Neutral": {
+      "light_profile": "Neutral Light (Versatile & Soft)",
+      "deep_profile": "Neutral Deep (Versatile & Rich)"
+    }
+  },
+  "foundation_shades": {
+    "Spring": "Porcelain Warm / Warm Ivory",
+    "Summer": "Rose Alabaster / Cool Ivory",
+    "Autumn": {
+      "Medium": "Golden Beige / Honey",
+      "Tan": "Amber Caramel",
+      "Deep": "Chestnut Bronze",
+      "default": "Golden Warm Beige"
+    },
+    "Winter": {
+      "Medium": "Neutral Sand",
+      "Tan": "Rich Almond",
+      "Deep": "Rich Espresso / Cocoa",
+      "default": "Neutral Espresso"
+    },
+    "Neutral": {
+      "Fair": "Porcelain",
+      "Light": "Neutral Ivory",
+      "Medium": "Natural Beige",
+      "Tan": "Honey Tan",
+      "Deep": "Rich Cocoa",
+      "default": "Neutral Beige"
+    }
+  },
+  "lipstick_colors": {
+    "Spring": {
+      "glam": "Bright Coral Red",
+      "bridal": "Warm Peach Rose",
+      "default": "Peach Nude"
+    },
+    "Autumn": {
+      "glam": "Warm Terracotta / Brick Red",
+      "bridal": "Spiced Cinnamon / Nutmeg",
+      "default": "Warm Caramel Nude"
+    },
+    "Summer": {
+      "glam": "Vibrant Rosewood",
+      "bridal": "Soft Dusty Mauve",
+      "default": "Cool Pink Nude"
+    },
+    "Winter": {
+      "glam": "True Cherry Red / Deep Plum",
+      "bridal": "Soft Cranberry / Crimson",
+      "default": "Berry Nude"
+    },
+    "Neutral": {
+      "glam": "Dusty Mauve / Plum",
+      "bridal": "Rosewood / Tea Rose",
+      "default": "Dusty Rose"
+    }
+  },
+  "blush_colors": {
+    "Spring": {
+      "glam": "Bright Coral",
+      "bridal": "Soft Pink",
+      "default": "Warm Apricot"
+    },
+    "Autumn": {
+      "glam": "Terracotta",
+      "bridal": "Coral Pink",
+      "default": "Deep Peach"
+    },
+    "Summer": {
+      "glam": "Rose-Pink",
+      "bridal": "Soft Pink",
+      "default": "Soft Pastel Pink"
+    },
+    "Winter": {
+      "glam": "Plum Berry",
+      "bridal": "Rose",
+      "default": "Cool Rose"
+    },
+    "default": {
+      "glam": "Terracotta",
+      "bridal": "Coral Pink",
+      "default": "Dusty Rose"
+    }
+  },
+  "eyeshadow_palettes": {
+    "Spring": {
+      "glam": "Gold & Bronze",
+      "bridal": "Champagne Shimmer & Gold",
+      "default": "Soft Peach & Champagne"
+    },
+    "Autumn": {
+      "glam": "Rich Copper, Gold & Warm Earthy Brown",
+      "bridal": "Champagne Shimmer & Gold",
+      "default": "Soft Brown & Champagne"
+    },
+    "Summer": {
+      "glam": "Cool Slate Gray & Silver",
+      "bridal": "Taupe & Rose Gold",
+      "default": "Taupe & Soft Pink"
+    },
+    "Winter": {
+      "glam": "Icy Pearl, Charcoal & High-Shine Metallic Silver",
+      "bridal": "Taupe & Rose Gold",
+      "default": "Soft Slate & Champagne"
+    },
+    "default": {
+      "glam": "Gold & Smokey Bronze",
+      "bridal": "Champagne Shimmer & Rose Gold",
+      "default": "Soft Brown & Champagne"
+    }
+  },
+  "contour_placements": {
+    "Oval": "Subtle cheekbone shading to maintain natural oval symmetry.",
+    "Round": "Vertical contouring along the outer jawline and under cheekbones to slim round proportions.",
+    "Square": "Contouring at the outer temples and jaw corners to soften strong square angles.",
+    "Rectangle": "Contouring along the upper hairline and bottom chin boundary to visually shorten face height.",
+    "Heart": "Contouring at the outer temples and sides of forehead to balance the narrow pointed chin.",
+    "Diamond": "Contouring the outer cheekbones (zygomatic arch) and highlighting the chin/forehead center to soften width.",
+    "default": "Subtle contouring under the cheekbones to define structure."
+  },
+  "eyebrow_shapes": {
+    "Oval": "Softly curved arch with natural thickness (balanced arch correction)",
+    "Round": "High arched brow (visually elongates round face shape)",
+    "Square": "Softly curved arch (softens angular jawline)",
+    "Rectangle": "Flat, horizontal brow (visually shortens long face shape)",
+    "Heart": "Rounded, soft arch (balances pointed chin and wide forehead)",
+    "Diamond": "Soft angled or curved arch (minimizes wide cheekbone visual width)",
+    "default": "Softly curved arch with natural thickness"
+  }
+}
