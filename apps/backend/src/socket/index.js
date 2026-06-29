@@ -1,4 +1,5 @@
 import { Server } from "socket.io";
+import { socketAuthMiddleware } from "./auth.js";
 
 let io;
 
@@ -10,11 +11,22 @@ export default function initSocketServer(server) {
     },
   });
 
+  io.use(socketAuthMiddleware);
+
   io.on("connection", (socket) => {
-    console.log(`[Socket] Connected: ${socket.id}`);
+    const { id, role } = socket.user;
+    const personalRoom = `${role}_${id}`;
+    
+    socket.join(personalRoom);
+
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`[Socket] Connected: ${socket.id} (Room: ${personalRoom})`);
+    }
 
     socket.on("disconnect", () => {
-      console.log(`[Socket] Disconnected: ${socket.id}`);
+      if (process.env.NODE_ENV !== "production") {
+        console.log(`[Socket] Disconnected: ${socket.id} (Room: ${personalRoom})`);
+      }
     });
   });
 
