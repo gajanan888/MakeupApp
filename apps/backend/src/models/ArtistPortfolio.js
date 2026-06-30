@@ -16,6 +16,10 @@ const ArtistPortfolio = sequelize.define("ArtistPortfolio", {
   tag: {
     type: DataTypes.STRING,
   },
+  images: {
+    type: DataTypes.JSON,
+    allowNull: true,
+  },
   description: {
     type: DataTypes.TEXT,
   },

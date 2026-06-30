@@ -14,6 +14,7 @@ const config = {
       }
       return context.resolveRequest(context, moduleName, platform);
     },
+    unstable_enablePackageExports: false,
   },
 };
 

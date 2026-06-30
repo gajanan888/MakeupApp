@@ -231,9 +231,7 @@ const ProfileScreen = ({ navigation, isTab = false }) => {
           </TouchableOpacity>
         )}
         <Text style={styles.headerTitle}>My Profile</Text>
-        <TouchableOpacity style={styles.settingsBtn}>
-          <Ionicons name="settings-outline" size={24} color="#111" />
-        </TouchableOpacity>
+        <View style={{ width: 40 }} />
       </View>
 
       {loading ? (

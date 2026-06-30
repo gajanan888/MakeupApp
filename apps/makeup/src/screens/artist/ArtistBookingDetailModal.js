@@ -63,7 +63,7 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
       onClose();
     } catch (err) {
       console.warn(err);
-      Alert.alert('Error', err.message || 'Failed to update booking status.');
+      Alert.alert('Error', err.response?.data?.message || err.message || 'Failed to update booking status.');
     } finally {
       setUpdating(false);
     }
@@ -365,7 +365,7 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
                     if (onStatusUpdate) await onStatusUpdate();
                     onClose();
                   } catch (err) {
-                    Alert.alert('Error', err.message || 'Failed to process action.');
+                    Alert.alert('Error', err.response?.data?.message || err.message || 'Failed to process action.');
                   } finally {
                     setUpdating(false);
                   }
@@ -636,6 +636,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#8A7D77',
     fontFamily: 'serif',
+  },
+  dialogOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
   dialogContainer: {
     backgroundColor: '#FFF',

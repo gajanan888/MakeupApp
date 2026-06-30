@@ -206,6 +206,7 @@ export const updateArtistProfile = async (artistId, data) => {
           artistId,
           beforeImageUrl: item?.beforeImageUrl || item?.beforeImage,
           afterImageUrl: item?.afterImageUrl || item?.afterImage,
+          images: Array.isArray(item?.images) ? item.images : (item?.images ? [item.images] : []),
           tag: item?.tag,
           description: item?.description,
         }));
@@ -274,9 +275,13 @@ export const getArtistDashboardStats = async (artistId) => {
   const totalBookings = bookings.length;
   const completedBookings = bookings.filter((b) => b.status === "completed").length;
   const cancelledBookings = bookings.filter((b) => b.status === "cancelled").length;
-  const totalEarnings = bookings
+  const totalEarningsVal = bookings
     .filter((b) => b.status === "completed")
     .reduce((sum, b) => sum + (b.price || 0), 0);
+  const totalPenaltyVal = bookings
+    .filter((b) => b.status === "cancelled" && b.artistPenalty)
+    .reduce((sum, b) => sum + (b.artistPenalty || 0), 0);
+  const totalEarnings = Math.max(0, totalEarningsVal - totalPenaltyVal);
 
   const upcomingBookings = await Booking.findAll({
     where: {

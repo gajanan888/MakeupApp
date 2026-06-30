@@ -410,30 +410,43 @@ export const cancelBooking = async ({ bookingId, customerId, artistId, reason })
     const now = new Date();
     const diffHours = (serviceDate.getTime() - now.getTime()) / (1000 * 60 * 60);
 
+    if (customerId && diffHours < 36) {
+      throw new Error("Cancellation is only allowed up to 36 hours before the service time.");
+    }
+
+    const serviceCharge = Math.round((booking.price || 0) * 0.02);
+
     if (customerId) {
-      booking.status = "cancelled";
-      booking.cancelledBy = "client";
-      booking.refundStatus = "refunded";
+      // Cancelled by client
       if (diffHours >= 36) {
-        // Cancelled before 36 hours: free cancellation
-        booking.refundAmount = booking.advanceAmount || 0;
-        booking.cancellationReason = reason || "Client cancelled before 36h limit (free cancellation)";
+        booking.status = "cancelled";
+        booking.cancelledBy = "client";
+        booking.cancellationReason = reason || "Client cancelled before 36h limit";
+        booking.refundAmount = Math.max(0, (booking.advanceAmount || 0) - serviceCharge);
+        booking.refundStatus = "refunded";
       } else {
-        // Cancelled within 36 hours: 2% cancellation fee charged, rest refunded
-        const cancellationFee = Math.round((booking.price || 0) * 0.02);
-        booking.refundAmount = Math.max(0, (booking.advanceAmount || 0) - cancellationFee);
-        booking.cancellationReason = reason || `Client cancelled within 36h limit. Charged 2% cancellation fee of ₹${cancellationFee}.`;
+        booking.status = "cancelled";
+        booking.cancelledBy = "client";
+        booking.cancellationReason = reason || "Client cancelled within 36h limit (No refund)";
+        booking.refundAmount = 0;
+        booking.refundStatus = "none";
       }
     } else {
-      // Cancelled by artist (or from backend control panel)
-      booking.status = "cancelled";
-      booking.cancelledBy = "artist";
-      booking.refundAmount = booking.advanceAmount || 0; // Client gets full refund if artist cancels
-      booking.refundStatus = "refunded";
+      // Cancelled by artist
       if (diffHours >= 36) {
-        booking.cancellationReason = reason || "Artist cancelled before 36h limit.";
+        booking.status = "cancelled";
+        booking.cancelledBy = "artist";
+        booking.cancellationReason = reason || "Artist cancelled before 36h limit (No penalty)";
+        booking.refundAmount = booking.advanceAmount || 0;
+        booking.refundStatus = "refunded";
+        booking.artistPenalty = 0;
       } else {
-        booking.cancellationReason = reason || "Artist cancelled within 36h limit. Artist charged 2% fee.";
+        booking.status = "cancelled";
+        booking.cancelledBy = "artist";
+        booking.cancellationReason = reason || `Artist cancelled within 36h limit. Charged 2% penalty (₹${serviceCharge}).`;
+        booking.refundAmount = booking.advanceAmount || 0;
+        booking.refundStatus = "refunded";
+        booking.artistPenalty = serviceCharge; // 2% of booking price charged to the artist
       }
     }
 

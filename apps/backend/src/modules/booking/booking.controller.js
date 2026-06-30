@@ -110,7 +110,7 @@ export const cancelBookingController = async (req, res) => {
       });
     }
 
-    const isArtist = req.userRole === "artist";
+    const isArtist = !!req.artist;
     const booking = await cancelBooking({
       bookingId,
       customerId: isArtist ? null : req.customer.id,

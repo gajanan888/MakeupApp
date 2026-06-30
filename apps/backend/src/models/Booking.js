@@ -83,6 +83,11 @@ const Booking = sequelize.define("Booking", {
     allowNull: false,
     defaultValue: "none", // "none", "pending", "refunded"
   },
+  artistPenalty: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: 0,
+  },
   razorpayOrderId: {
     type: DataTypes.STRING,
     allowNull: true,
