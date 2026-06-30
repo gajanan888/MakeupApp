@@ -11,6 +11,7 @@ import otpRoutes from "../modules/otp/otp.routes.js";
 import uploadRoutes from "../modules/upload/upload.routes.js";
 import messageRoutes from "../modules/message/message.routes.js";
 import wishlistRoutes from "../modules/customer/wishlist.routes.js";
+import reviewRoutes from "../modules/review/review.routes.js";
 
 const router = express.Router();
 
@@ -19,6 +20,7 @@ router.use("/customer", customerRoutes);
 router.use("/artist/auth", artistAuthRoutes);
 router.use("/artist", artistRoutes);
 router.use("/booking", bookingRoutes);
+router.use("/booking", reviewRoutes);
 router.use("/admin/auth", adminAuthRoutes);
 router.use("/admin", adminRoutes);
 router.use("/otp", otpRoutes);

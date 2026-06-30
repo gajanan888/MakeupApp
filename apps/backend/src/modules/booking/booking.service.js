@@ -2,6 +2,7 @@ import { Op } from "sequelize";
 import Booking from "../../models/Booking.js";
 import Artist from "../../models/Artist.js";
 import Customer from "../../models/Customer.js";
+import Review from "../../models/Review.js";
 import sequelize from "../../config/db.js";
 import { getRazorpayInstance } from "../../utils/razorpay.js";
 
@@ -78,6 +79,11 @@ export const listCustomerBookings = async ({ customerId, offset, limit }) => {
         model: Artist,
         as: "artist",
         attributes: ["id", "name"],
+      },
+      {
+        model: Review,
+        as: "review",
+        required: false,
       },
     ],
     order: [

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import ScreenHeader from '../../components/ScreenHeader';
 
 const BookAppointmentScreen = ({ navigation, route }) => {
@@ -43,8 +44,19 @@ const BookAppointmentScreen = ({ navigation, route }) => {
   );
 
   const [selectedService, setSelectedService] = useState(matchingService ? matchingService.name : '');
-  const [selectedLocation, setSelectedLocation] = useState('');
-  const [clientAddress, setClientAddress] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState(route.params?.prefilledAddress ? 'home' : '');
+  const [clientAddress, setClientAddress] = useState(route.params?.prefilledAddress || '');
+  const [savedAddresses, setSavedAddresses] = useState([]);
+
+  useEffect(() => {
+    AsyncStorage.getItem('client_saved_addresses')
+      .then(stored => {
+        if (stored) {
+          setSavedAddresses(JSON.parse(stored));
+        }
+      })
+      .catch(err => console.warn('Failed to load saved addresses:', err));
+  }, []);
 
   const handleNext = () => {
     if (!selectedService) {
@@ -308,6 +320,41 @@ const BookAppointmentScreen = ({ navigation, route }) => {
         {selectedLocation === 'home' && (
           <View style={styles.addressInputContainer}>
             <Text style={styles.addressInputLabel}>Enter Your Address</Text>
+            
+            {savedAddresses.length > 0 && (
+              <View style={{ marginBottom: 12 }}>
+                <Text style={styles.quickSelectLabel}>Quick select from saved addresses:</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
+                  {savedAddresses.map(addr => {
+                    const isSelected = clientAddress === addr.addressLine;
+                    return (
+                      <TouchableOpacity
+                        key={addr.id}
+                        style={[
+                          styles.quickAddressChip,
+                          isSelected && styles.quickAddressChipActive
+                        ]}
+                        onPress={() => setClientAddress(addr.addressLine)}
+                      >
+                        <Ionicons 
+                          name={addr.label === 'Home' ? 'home-outline' : 'briefcase-outline'} 
+                          size={14} 
+                          color={isSelected ? '#FFF' : '#FF4F87'} 
+                          style={{ marginRight: 6 }}
+                        />
+                        <Text style={[
+                          styles.quickAddressChipText,
+                          isSelected && styles.quickAddressChipTextActive
+                        ]}>
+                          {addr.label} ({addr.name})
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+
             <TextInput
               style={styles.addressTextInput}
               placeholder="House/Flat No., Building, Street, Area, City..."
@@ -560,5 +607,34 @@ const styles = StyleSheet.create({
     minHeight: 60,
     textAlignVertical: 'top',
     padding: 0,
+  },
+  quickSelectLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666',
+    marginTop: 6,
+  },
+  quickAddressChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF0F5',
+    borderWidth: 1,
+    borderColor: '#FFCCD9',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 8,
+  },
+  quickAddressChipActive: {
+    backgroundColor: '#FF4F87',
+    borderColor: '#FF4F87',
+  },
+  quickAddressChipText: {
+    fontSize: 12,
+    color: '#FF4F87',
+    fontWeight: '600',
+  },
+  quickAddressChipTextActive: {
+    color: '#FFF',
   },
 });

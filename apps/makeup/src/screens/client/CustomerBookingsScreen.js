@@ -10,9 +10,11 @@ import {
   StatusBar,
   ActivityIndicator,
   Alert,
+  Modal,
+  TextInput,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { getCustomerBookings, cancelCustomerBooking, declineCustomerBookingAdvance, getCustomerProfile } from '../../api/auth';
+import { getCustomerBookings, cancelCustomerBooking, declineCustomerBookingAdvance, getCustomerProfile, submitBookingReview } from '../../api/auth';
 import BottomNavigation from '../../components/BottomNavigation';
 import { useCall } from '../../context/CallContext';
 
@@ -55,6 +57,46 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
   const [loading, setLoading] = useState(true);
   const [customerProfile, setCustomerProfile] = useState(null);
   const { initiateCall } = useCall();
+
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [selectedBookingForReview, setSelectedBookingForReview] = useState(null);
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+
+  const openReviewModal = (booking) => {
+    setSelectedBookingForReview(booking);
+    setRating(0);
+    setComment('');
+    setReviewModalVisible(true);
+  };
+
+  const closeReviewModal = () => {
+    setReviewModalVisible(false);
+    setSelectedBookingForReview(null);
+  };
+
+  const handleSubmitReview = async () => {
+    if (!selectedBookingForReview) return;
+    if (rating === 0) {
+      Alert.alert('Error', 'Please select a star rating.');
+      return;
+    }
+
+    try {
+      setSubmittingReview(true);
+      await submitBookingReview(selectedBookingForReview.id, rating, comment);
+      Alert.alert('Thank You', 'Your review has been successfully submitted.');
+      closeReviewModal();
+      await fetchBookings(true);
+    } catch (err) {
+      console.warn(err);
+      const errMsg = err.response?.data?.message || err.message || 'Failed to submit review.';
+      Alert.alert('Error', errMsg);
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
 
   const canCancelBooking = (booking) => {
     if (!booking.dateRaw || !booking.timeRaw) return false;
@@ -134,6 +176,7 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
           artistRaw: b.artist,
           dateRaw: b.date,
           timeRaw: b.time,
+          review: b.review,
         };
       });
 
@@ -404,6 +447,27 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
                       )}
                     </View>
                   )}
+
+                  {booking.rawStatus === 'completed' && (
+                    <View style={styles.cardFooter}>
+                      {booking.review ? (
+                        <View style={styles.reviewedRow}>
+                          <Ionicons name="checkmark-circle" size={16} color="#389E0D" />
+                          <Text style={styles.reviewedText}>
+                            Reviewed: {booking.review.rating} ★
+                          </Text>
+                        </View>
+                      ) : (
+                        <TouchableOpacity
+                          style={[styles.actionBtn, styles.payBtn, { marginLeft: 0 }]}
+                          onPress={() => openReviewModal(booking)}
+                        >
+                          <Ionicons name="star-outline" size={14} color="#FFF" style={{ marginRight: 6 }} />
+                          <Text style={styles.payBtnText}>Rate & Review</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
                 </View>
               );
             })
@@ -418,6 +482,91 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
           )}
         </ScrollView>
       )}
+
+      {/* REVIEW MODAL */}
+      <Modal
+        visible={reviewModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={closeReviewModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Rate & Review</Text>
+              <TouchableOpacity onPress={closeReviewModal} style={styles.closeModalBtn}>
+                <Ionicons name="close" size={24} color="#555" />
+              </TouchableOpacity>
+            </View>
+
+            {selectedBookingForReview && (
+              <ScrollView contentContainerStyle={styles.modalBody} showsVerticalScrollIndicator={false}>
+                <Image
+                  source={{ uri: selectedBookingForReview.avatar }}
+                  style={styles.reviewArtistAvatar}
+                />
+                <Text style={styles.reviewArtistName}>
+                  {selectedBookingForReview.artistName}
+                </Text>
+                <Text style={styles.reviewServiceCategory}>
+                  {selectedBookingForReview.category}
+                </Text>
+
+                <Text style={styles.ratingInstruction}>
+                  How was your experience?
+                </Text>
+
+                {/* Interactive Rating Stars */}
+                <View style={styles.starsContainer}>
+                  {[1, 2, 3, 4, 5].map(starNum => {
+                    const isSelected = starNum <= rating;
+                    return (
+                      <TouchableOpacity
+                        key={starNum}
+                        onPress={() => setRating(starNum)}
+                        style={styles.starTouch}
+                      >
+                        <Ionicons
+                          name={isSelected ? 'star' : 'star-outline'}
+                          size={36}
+                          color={isSelected ? '#F5B301' : '#D9D9D9'}
+                        />
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                <Text style={styles.commentLabel}>Write Feedback (Optional)</Text>
+                <TextInput
+                  style={styles.commentInput}
+                  placeholder="Share your detailed feedback about the service..."
+                  placeholderTextColor="#999"
+                  multiline={true}
+                  numberOfLines={4}
+                  value={comment}
+                  onChangeText={setComment}
+                  maxLength={500}
+                />
+
+                <TouchableOpacity
+                  style={[
+                    styles.submitReviewBtn,
+                    (rating === 0 || submittingReview) && styles.submitReviewBtnDisabled,
+                  ]}
+                  onPress={handleSubmitReview}
+                  disabled={rating === 0 || submittingReview}
+                >
+                  {submittingReview ? (
+                    <ActivityIndicator size="small" color="#FFF" />
+                  ) : (
+                    <Text style={styles.submitReviewBtnText}>Submit Feedback</Text>
+                  )}
+                </TouchableOpacity>
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       {/* BOTTOM NAVIGATION */}
       {!isTab && <BottomNavigation navigation={navigation} activeTab="Bookings" />}
@@ -721,6 +870,138 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#FFF',
     fontWeight: '700',
+    fontFamily: 'serif',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    width: '90%',
+    maxHeight: '80%',
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5F5F5',
+    paddingBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111',
+    fontFamily: 'serif',
+  },
+  closeModalBtn: {
+    padding: 4,
+  },
+  modalBody: {
+    alignItems: 'center',
+    paddingTop: 16,
+  },
+  reviewArtistAvatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#FFE6EF',
+    marginBottom: 10,
+  },
+  reviewArtistName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111',
+    fontFamily: 'serif',
+  },
+  reviewServiceCategory: {
+    fontSize: 13,
+    color: '#8A7D77',
+    fontFamily: 'serif',
+    marginTop: 2,
+  },
+  ratingInstruction: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 20,
+    marginBottom: 12,
+    fontFamily: 'serif',
+  },
+  starsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 20,
+    gap: 8,
+  },
+  starTouch: {
+    padding: 6,
+  },
+  commentLabel: {
+    alignSelf: 'flex-start',
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 8,
+    fontFamily: 'serif',
+    marginTop: 10,
+  },
+  commentInput: {
+    width: '100%',
+    height: 100,
+    borderWidth: 1,
+    borderColor: '#E2E2E2',
+    borderRadius: 14,
+    padding: 12,
+    fontSize: 14,
+    color: '#333',
+    textAlignVertical: 'top',
+    marginBottom: 20,
+  },
+  submitReviewBtn: {
+    backgroundColor: '#FF4F87',
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+  },
+  submitReviewBtnDisabled: {
+    backgroundColor: '#FFAEC7',
+  },
+  submitReviewBtnText: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '700',
+    fontFamily: 'serif',
+  },
+  reviewedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F6FFED',
+    borderColor: '#B7EB8F',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  reviewedText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#389E0D',
+    marginLeft: 6,
     fontFamily: 'serif',
   },
 });

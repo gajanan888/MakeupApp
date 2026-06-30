@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getArtistReviews } from '../../api/auth';
 
 import {
   View,
@@ -13,6 +14,7 @@ import {
   Modal,
   StatusBar,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 
 const ArtistDetailsScreen = ({ route, navigation }) => {
@@ -23,14 +25,31 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
   const [liked, setLiked] = useState(false);
   const { artist } = route.params;
   const [activeTab, setActiveTab] = useState('About');
+  const [reviews, setReviews] = useState([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'Reviews') {
+      const fetchReviews = async () => {
+        try {
+          setLoadingReviews(true);
+          const data = await getArtistReviews(artist.id);
+          setReviews(data);
+        } catch (err) {
+          console.warn('Failed to fetch reviews:', err);
+        } finally {
+          setLoadingReviews(false);
+        }
+      };
+      fetchReviews();
+    }
+  }, [activeTab, artist.id]);
   const heroImageUri =
     artist.profile?.profileImage ||
     (typeof artist.image === 'string' ? artist.image : artist.image?.uri);
 
   const buttonTop = 16;
-  const contentPaddingBottom = route.params?.fromBookingFlow
-    ? 110
-    : 40;
+  const contentPaddingBottom = 110;
 
   useEffect(() => {
     const checkFavorite = async () => {
@@ -233,27 +252,44 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
           )}
 
           {activeTab === 'Reviews' && (
-            <>
-              <View style={styles.reviewCard}>
-                <Text style={styles.reviewName}>Priya Sharma</Text>
+            <View style={{ minHeight: 150 }}>
+              {loadingReviews ? (
+                <ActivityIndicator size="large" color="#FF4F87" style={{ marginTop: 30 }} />
+              ) : reviews.length > 0 ? (
+                reviews.map(review => {
+                  const ratingStars = '⭐'.repeat(Math.round(review.rating));
+                  const reviewDate = review.createdAt ? new Date(review.createdAt).toLocaleDateString('en-IN', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                  }) : '';
 
-                <Text>⭐⭐⭐⭐⭐</Text>
-
-                <Text style={styles.reviewText}>
-                  Amazing bridal makeup and very professional.
-                </Text>
-              </View>
-
-              <View style={styles.reviewCard}>
-                <Text style={styles.reviewName}>Sneha Patil</Text>
-
-                <Text>⭐⭐⭐⭐⭐</Text>
-
-                <Text style={styles.reviewText}>
-                  Excellent service and beautiful finishing.
-                </Text>
-              </View>
-            </>
+                  return (
+                    <View key={review.id} style={styles.reviewCard}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text style={styles.reviewName}>
+                          {review.customer?.name || 'Verified Client'}
+                        </Text>
+                        <Text style={{ fontSize: 11, color: '#999', fontFamily: 'serif' }}>
+                          {reviewDate}
+                        </Text>
+                      </View>
+                      <Text style={{ marginTop: 4, fontSize: 13 }}>{ratingStars}</Text>
+                      {review.comment ? (
+                        <Text style={styles.reviewText}>{review.comment}</Text>
+                      ) : null}
+                    </View>
+                  );
+                })
+              ) : (
+                <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                  <Ionicons name="chatbox-ellipses-outline" size={48} color="#FFD1E1" />
+                  <Text style={{ fontSize: 14, color: '#888', marginTop: 10, fontFamily: 'serif' }}>
+                    No reviews yet. Be the first to review!
+                  </Text>
+                </View>
+              )}
+            </View>
           )}
 
           {activeTab === 'Portfolio' && (
@@ -302,21 +338,25 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
         </SafeAreaView>
       </Modal>
 
-      {route.params?.fromBookingFlow && (
-        <View style={[styles.bottomContainer, { paddingBottom: (insets.bottom || 0) + 16 }]}>
-          <TouchableOpacity
-            style={styles.bookButton}
-            onPress={() => navigation.navigate('BookAppointment', {
-              artist,
-              selectedDate: route.params?.selectedDate,
-              selectedTime: route.params?.selectedTime,
-              selectedCategory: route.params?.selectedCategory,
-            })}
-          >
-            <Text style={styles.bookButtonText}>Book Now</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      <View style={[styles.bottomContainer, { paddingBottom: (insets.bottom || 0) + 16 }]}>
+        <TouchableOpacity
+          style={styles.bookButton}
+          onPress={() => {
+            if (route.params?.fromBookingFlow) {
+              navigation.navigate('BookAppointment', {
+                artist,
+                selectedDate: route.params?.selectedDate,
+                selectedTime: route.params?.selectedTime,
+                selectedCategory: route.params?.selectedCategory,
+              });
+            } else {
+              navigation.navigate('EnterBookingAddress', { artist });
+            }
+          }}
+        >
+          <Text style={styles.bookButtonText}>Book Now</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 };

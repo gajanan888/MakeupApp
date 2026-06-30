@@ -130,3 +130,17 @@ export const getArtistConversations  = async ()     => (await api.get('/api/mess
 export const sendArtistMessage       = async (data) => (await api.post('/api/messages/artist/send', data))?.data?.data;
 export const getCustomerConversations = async ()    => (await api.get('/api/messages/customer/conversations'))?.data?.data || [];
 export const sendCustomerMessage     = async (data) => (await api.post('/api/messages/customer/send', data))?.data?.data;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REVIEWS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const submitBookingReview = async (bookingId, rating, comment) => {
+  const response = await api.post(`/api/booking/${bookingId}/review`, { rating, comment });
+  return response?.data;
+};
+
+export const getArtistReviews = async (artistId) => {
+  const response = await api.get(`/api/booking/artist/${artistId}/reviews`);
+  return response?.data?.data || [];
+};

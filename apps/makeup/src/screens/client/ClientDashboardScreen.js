@@ -6,7 +6,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
   ScrollView,
   Image,
   ActivityIndicator,
@@ -15,14 +14,17 @@ import {
 } from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
 import { getArtists, getTrendingArtists } from '../../api/auth';
+import { useIsFocused } from '@react-navigation/native';
 
 const ClientDashboardScreen = ({ navigation, onNavigate }) => {
+  const isFocused = useIsFocused();
   const [customerName, setCustomerName] = useState('');
   const [artists, setArtists] = useState([]);
   const [trendingArtists, setTrendingArtists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingTrending, setLoadingTrending] = useState(true);
   const [locationName, setLocationName] = useState('Detecting location...');
+  const [currentCity, setCurrentCity] = useState('Pune');
   const [loadingLocation, setLoadingLocation] = useState(true);
   const [favorites, setFavorites] = useState([]);
 
@@ -94,6 +96,21 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
     };
 
     const fetchLocation = async () => {
+      try {
+        const storedCity = await AsyncStorage.getItem('detectedCity');
+        if (storedCity) {
+          const storedLocName = await AsyncStorage.getItem('detectedLocationName');
+          if (active) {
+            setCurrentCity(storedCity);
+            setLocationName(storedLocName || storedCity);
+            setLoadingLocation(false);
+          }
+          return;
+        }
+      } catch (err) {
+        console.warn('Failed to retrieve stored city:', err);
+      }
+
       const hasPermission = await requestLocationPermission();
       if (!hasPermission) {
         if (active) {
@@ -128,6 +145,8 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
                 setLocationName(displayLoc);
                 if (city) {
                   AsyncStorage.setItem('detectedCity', city).catch(err => console.log('AsyncStorage error:', err));
+                  AsyncStorage.setItem('detectedLocationName', displayLoc).catch(err => console.log('AsyncStorage error:', err));
+                  setCurrentCity(city);
                 }
               } else {
                 setLocationName(
@@ -219,23 +238,25 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch location-based artists when location finishes loading
   useEffect(() => {
-    if (!loadingLocation) {
-      AsyncStorage.getItem('detectedCity')
-        .then(city => {
-          if (city) {
-            fetchArtists(city);
-          } else {
-            fetchArtists('Pune');
-          }
-        })
-        .catch(err => {
-          console.warn('Failed to get detected city from storage:', err);
-          fetchArtists('Pune');
-        });
+    const reloadLocationAndArtists = async () => {
+      try {
+        const storedCity = await AsyncStorage.getItem('detectedCity');
+        const activeCity = storedCity || 'Pune';
+        setCurrentCity(activeCity);
+        setLocationName(activeCity);
+        await fetchArtists(activeCity);
+      } catch (err) {
+        console.warn('Failed to reload location and artists:', err);
+      }
+    };
+
+    if (isFocused && !loadingLocation) {
+      reloadLocationAndArtists();
     }
-  }, [loadingLocation]);
+  }, [isFocused, loadingLocation]);
+
+  const displayedTrending = trendingArtists;
 
   return (
     <View style={{ flex: 1, backgroundColor: '#FAFAFA' }}>
@@ -246,12 +267,14 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
             Hello, {customerName || 'there'} 👋
           </Text>
 
-          <View
+          <TouchableOpacity
             style={{
               flexDirection: 'row',
               alignItems: 'center',
               marginTop: 4,
             }}
+            onPress={() => navigation.navigate('SelectLocation', { fromDashboard: true })}
+            activeOpacity={0.7}
           >
             {loadingLocation ? (
               <ActivityIndicator
@@ -267,8 +290,13 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
                 style={{ marginRight: 2 }}
               />
             )}
-            <Text style={styles.subGreeting}>{locationName}</Text>
-          </View>
+            <Text style={[styles.subGreeting, { marginRight: 4 }]}>{locationName}</Text>
+            <Ionicons
+              name="chevron-down"
+              size={12}
+              color="#FF4F87"
+            />
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity style={styles.notificationButton}>
@@ -375,15 +403,15 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
               size="large"
               style={{ marginVertical: 20 }}
             />
-          ) : trendingArtists.length === 0 ? (
+          ) : displayedTrending.length === 0 ? (
             <Text
               style={{ color: '#999', textAlign: 'center', marginVertical: 20 }}
             >
-              No trending artists found yet.
+              No trending artists found.
             </Text>
           ) : (
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {trendingArtists.map(artist => (
+              {displayedTrending.map(artist => (
                 <TouchableOpacity
                   key={artist.id}
                   style={styles.artistCard}
