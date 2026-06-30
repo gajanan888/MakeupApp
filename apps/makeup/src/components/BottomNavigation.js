@@ -6,6 +6,7 @@ import {
     TouchableOpacity,
     StyleSheet,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Ionicons from '@react-native-vector-icons/ionicons';
 
@@ -13,10 +14,12 @@ const BottomNavigation = ({
     navigation,
     activeTab,
 }) => {
+    const insets = useSafeAreaInsets();
+    const bottomPadding = insets.bottom > 0 ? insets.bottom + 6 : 18;
 
     return (
 
-        <View style={styles.bottomNav}>
+        <View style={[styles.bottomNav, { paddingBottom: bottomPadding }]}>
 
             <TouchableOpacity
                 style={styles.navItem}

@@ -4,14 +4,13 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   Platform,
   StatusBar,
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import Ionicons from '@react-native-vector-icons/ionicons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import ScreenHeader from '../../components/ScreenHeader';
 import { createCustomerBooking } from '../../api/auth';
 
@@ -98,7 +97,7 @@ const BookingConfirmationScreen = ({ navigation, route }) => {
             onPress: () => {
               navigation.reset({
                 index: 0,
-                routes: [{ name: 'CustomerBookings' }],
+                routes: [{ name: 'ClientHome', params: { activeTab: 'Bookings' } }],
               });
             },
           },
@@ -117,7 +116,7 @@ const BookingConfirmationScreen = ({ navigation, route }) => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
       <ScreenHeader
         title="Review & Confirm"

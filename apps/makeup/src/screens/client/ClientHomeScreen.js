@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Platform,
   BackHandler,
+  Keyboard,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
@@ -21,6 +22,23 @@ const ClientHomeScreen = ({ navigation, route }) => {
   const [activeTab, setActiveTab] = useState('Home');
   const [activeTabParams, setActiveTabParams] = useState(null);
   const [visitedTabs, setVisitedTabs] = useState({ Home: true });
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      () => setIsKeyboardVisible(true)
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardDidHide',
+      () => setIsKeyboardVisible(false)
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
 
   const handleNavigate = (tabId, params = null) => {
     setActiveTab(tabId);
@@ -47,6 +65,13 @@ const ClientHomeScreen = ({ navigation, route }) => {
 
     return () => backHandler.remove();
   }, [activeTab, navigation]);
+
+  useEffect(() => {
+    if (route.params?.activeTab) {
+      handleNavigate(route.params.activeTab);
+      navigation.setParams({ activeTab: null });
+    }
+  }, [route.params?.activeTab, navigation]);
 
   const tabs = [
     { id: 'Home', label: 'Home', activeIcon: 'home', inactiveIcon: 'home-outline' },
@@ -76,7 +101,7 @@ const ClientHomeScreen = ({ navigation, route }) => {
           )}
           {visitedTabs.Chat && (
             <View style={{ flex: 1, display: activeTab === 'Chat' ? 'flex' : 'none' }}>
-              <CustomerMessageScreen navigation={navigation} isTab={true} />
+              <CustomerMessageScreen navigation={navigation} isTab={true} activeTab={activeTab} />
             </View>
           )}
           {visitedTabs.Profile && (
@@ -87,30 +112,32 @@ const ClientHomeScreen = ({ navigation, route }) => {
         </View>
 
         {/* Bottom Tab Bar */}
-        <View style={[styles.tabBar, { paddingBottom: insets.bottom || 8, height: 56 + (insets.bottom || 8) }]}>
-          {tabs.map(tab => {
-            const isActive = activeTab === tab.id;
-            return (
-              <TouchableOpacity
-                key={tab.id}
-                style={styles.tabItem}
-                onPress={() => handleNavigate(tab.id, null)}
-              >
-                <Ionicons
-                  name={isActive ? tab.activeIcon : tab.inactiveIcon}
-                  size={22}
-                  color={isActive ? '#FF4F87' : '#999'}
-                />
-                <Text style={[
-                  styles.tabLabel,
-                  { color: isActive ? '#FF4F87' : '#999' }
-                ]}>
-                  {tab.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        {!isKeyboardVisible && (
+          <View style={[styles.tabBar, { paddingBottom: insets.bottom || 8, height: 56 + (insets.bottom || 8) }]}>
+            {tabs.map(tab => {
+              const isActive = activeTab === tab.id;
+              return (
+                <TouchableOpacity
+                  key={tab.id}
+                  style={styles.tabItem}
+                  onPress={() => handleNavigate(tab.id, null)}
+                >
+                  <Ionicons
+                    name={isActive ? tab.activeIcon : tab.inactiveIcon}
+                    size={22}
+                    color={isActive ? '#FF4F87' : '#999'}
+                  />
+                  <Text style={[
+                    styles.tabLabel,
+                    { color: isActive ? '#FF4F87' : '#999' }
+                  ]}>
+                    {tab.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );

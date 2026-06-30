@@ -48,6 +48,8 @@ const BookAppointmentScreen = ({ navigation, route }) => {
   const [clientAddress, setClientAddress] = useState(route.params?.prefilledAddress || '');
   const [savedAddresses, setSavedAddresses] = useState([]);
 
+  const artistCity = artist.profile?.location || 'Pune';
+
   useEffect(() => {
     AsyncStorage.getItem('client_saved_addresses')
       .then(stored => {
@@ -57,6 +59,38 @@ const BookAppointmentScreen = ({ navigation, route }) => {
       })
       .catch(err => console.warn('Failed to load saved addresses:', err));
   }, []);
+
+  const validateAddressCity = (addressText, originalAddressObj = null) => {
+    let city = originalAddressObj?.city;
+    if (!city && addressText) {
+      const addrText = addressText.toLowerCase();
+      const cities = ['pune', 'mumbai', 'delhi', 'bangalore', 'kolkata', 'chennai', 'hyderabad', artistCity.toLowerCase()];
+      for (const c of cities) {
+        if (addrText.includes(c)) {
+          city = c.charAt(0).toUpperCase() + c.slice(1);
+          break;
+        }
+      }
+    }
+    if (!city) {
+      if (addressText && addressText.toLowerCase().includes(artistCity.toLowerCase())) {
+        city = artistCity;
+      }
+    }
+    return city;
+  };
+
+  const handleSelectQuickAddress = (addr) => {
+    const city = validateAddressCity(addr.addressLine, addr);
+    if (!city || city.toLowerCase().trim() !== artistCity.toLowerCase().trim()) {
+      Alert.alert(
+        'Unavailable',
+        `Artist is far from your location. ${artist.name} is located in ${artistCity}, but this address is in ${city || 'another city'}.`
+      );
+      return;
+    }
+    setClientAddress(addr.addressLine);
+  };
 
   const handleNext = () => {
     if (!selectedService) {
@@ -69,9 +103,22 @@ const BookAppointmentScreen = ({ navigation, route }) => {
       return;
     }
 
-    if (selectedLocation === 'home' && !clientAddress.trim()) {
-      Alert.alert('Required', 'Please enter your address for the home service.');
-      return;
+    if (selectedLocation === 'home') {
+      if (!clientAddress.trim()) {
+        Alert.alert('Required', 'Please enter your address for the home service.');
+        return;
+      }
+
+      const matchedSaved = savedAddresses.find(a => a.addressLine.trim() === clientAddress.trim());
+      const detectedCity = validateAddressCity(clientAddress, matchedSaved);
+
+      if (!detectedCity || detectedCity.toLowerCase().trim() !== artistCity.toLowerCase().trim()) {
+        Alert.alert(
+          'Unavailable',
+          `Artist is far from your location. ${artist.name} is located in ${artistCity}.`
+        );
+        return;
+      }
     }
 
     const serviceObj = services.find(s => s.name === selectedService) || {
@@ -334,7 +381,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
                           styles.quickAddressChip,
                           isSelected && styles.quickAddressChipActive
                         ]}
-                        onPress={() => setClientAddress(addr.addressLine)}
+                        onPress={() => handleSelectQuickAddress(addr)}
                       >
                         <Ionicons 
                           name={addr.label === 'Home' ? 'home-outline' : 'briefcase-outline'} 

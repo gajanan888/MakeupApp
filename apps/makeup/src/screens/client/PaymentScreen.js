@@ -4,13 +4,13 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   Platform,
   StatusBar,
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import RazorpayCheckout from 'react-native-razorpay';
 import { 
@@ -93,7 +93,7 @@ const PaymentScreen = ({ navigation, route }) => {
               onPress: () => {
                 navigation.reset({
                   index: 0,
-                  routes: [{ name: 'CustomerBookings' }],
+                  routes: [{ name: 'ClientHome', params: { activeTab: 'Bookings' } }],
                 });
               },
             },
@@ -178,7 +178,7 @@ const PaymentScreen = ({ navigation, route }) => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
       
       {/* Header */}
@@ -250,7 +250,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#FFF',
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0,
   },
   header: {
     height: 56,

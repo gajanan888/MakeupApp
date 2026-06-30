@@ -64,6 +64,9 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
   const [comment, setComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
 
+  const [detailsModalVisible, setDetailsModalVisible] = useState(false);
+  const [selectedBookingForDetails, setSelectedBookingForDetails] = useState(null);
+
   const openReviewModal = (booking) => {
     setSelectedBookingForReview(booking);
     setRating(0);
@@ -166,6 +169,9 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
           date: formattedDate,
           location: b.location || 'At Client Location',
           price: `₹${b.price || 0}`,
+          priceRaw: b.price || 0,
+          addOns: b.addOns,
+          totalPaid: b.totalPaid || 0,
           tabGroup,
           rawStatus: b.status,
           avatar,
@@ -177,6 +183,10 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
           dateRaw: b.date,
           timeRaw: b.time,
           review: b.review,
+          cancelledBy: b.cancelledBy,
+          cancellationReason: b.cancellationReason,
+          refundAmount: b.refundAmount,
+          refundStatus: b.refundStatus,
         };
       });
 
@@ -219,10 +229,31 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
     }
   };
 
-  const handleCancelBooking = (booking) => {
+  const handleCancelBooking = (booking, onCancelSuccess) => {
     let cancelMsg = 'Are you sure you want to cancel this appointment? This action cannot be undone.';
     if (booking.rawStatus === 'confirmed') {
-      cancelMsg = 'Cancellation is only allowed up to 36 hours before the service time. Cancellations before 36 hours incur a 2% service charge on the total price. The remaining advance payment will be refunded. Do you want to proceed?';
+      let hours = 12;
+      let minutes = 0;
+      if (booking.timeRaw) {
+        const parts = booking.timeRaw.split(" ");
+        const timeStr = parts[0];
+        const ampm = parts[1] || "AM";
+        const [h, m] = timeStr.split(":").map(Number);
+        hours = h;
+        minutes = m;
+        if (ampm.toUpperCase() === "PM" && hours !== 12) hours += 12;
+        if (ampm.toUpperCase() === "AM" && hours === 12) hours = 0;
+      }
+      const serviceDate = new Date(`${booking.dateRaw}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`);
+      const diffHours = (serviceDate.getTime() - Date.now()) / (1000 * 60 * 60);
+
+      if (diffHours >= 36) {
+        cancelMsg = `This appointment will be cancelled freely. Since it is cancelled before 36 hours of the appointment time, your full advance payment of ₹${booking.advanceAmount} will be refunded. Do you want to proceed?`;
+      } else {
+        const fee = Math.round(booking.priceRaw * 0.02);
+        const refund = Math.max(0, booking.advanceAmount - fee);
+        cancelMsg = `Since this appointment is being cancelled within 36 hours of the appointment time, a 2% cancellation fee (₹${fee}) will be charged and deducted from your advance payment. The remaining ₹${refund} will be refunded. Do you want to proceed?`;
+      }
     }
 
     Alert.alert(
@@ -238,6 +269,7 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
               setLoading(true);
               await cancelCustomerBooking(booking.id);
               Alert.alert('Cancelled', 'Your appointment has been successfully cancelled.');
+              if (onCancelSuccess) onCancelSuccess();
               await fetchBookings();
             } catch (err) {
               console.warn(err);
@@ -317,37 +349,42 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
           {filteredBookings.length > 0 ? (
             filteredBookings.map(booking => {
               const badgeColors = getBadgeColors(booking.rawStatus);
-              // Show cancel if pending, accepted, or confirmed (if >= 36 hours before)
-              const showCancelBtn = ['pending', 'accepted'].includes(booking.rawStatus) || 
-                                    (booking.rawStatus === 'confirmed' && canCancelBooking(booking));
+              const showCancelBtn = ['pending', 'accepted', 'confirmed'].includes(booking.rawStatus);
               const showChatBtn = ['confirmed', 'in_progress'].includes(booking.rawStatus);
 
               return (
                 <View key={booking.id} style={styles.bookingCard}>
-                  <View style={styles.cardHeader}>
-                    <Image source={{ uri: booking.avatar }} style={styles.avatar} />
-                    <View style={styles.cardInfo}>
-                      <Text style={styles.artistName}>{booking.artistName}</Text>
-                      <Text style={styles.categoryText}>{booking.category}</Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedBookingForDetails(booking);
+                      setDetailsModalVisible(true);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.cardHeader}>
+                      <Image source={{ uri: booking.avatar }} style={styles.avatar} />
+                      <View style={styles.cardInfo}>
+                        <Text style={styles.artistName}>{booking.artistName}</Text>
+                        <Text style={styles.categoryText}>{booking.category}</Text>
+                      </View>
+                      <View style={[styles.statusBadge, { backgroundColor: badgeColors.bg }]}>
+                        <Text style={[styles.statusBadgeText, { color: badgeColors.text }]}>
+                          {badgeColors.label}
+                        </Text>
+                      </View>
                     </View>
-                    <View style={[styles.statusBadge, { backgroundColor: badgeColors.bg }]}>
-                      <Text style={[styles.statusBadgeText, { color: badgeColors.text }]}>
-                        {badgeColors.label}
-                      </Text>
-                    </View>
-                  </View>
 
-                  <View style={styles.cardDivider} />
+                    <View style={styles.cardDivider} />
 
-                  <View style={styles.cardBody}>
-                    <View style={styles.metaRow}>
-                      <Ionicons name="calendar-outline" size={14} color="#8A7D77" />
-                      <Text style={styles.metaText}>{booking.date}</Text>
-                    </View>
-                    <View style={styles.metaRow}>
-                      <Ionicons name="location-outline" size={14} color="#8A7D77" />
-                      <Text style={styles.metaText}>{booking.location}</Text>
-                    </View>
+                    <View style={styles.cardBody}>
+                      <View style={styles.metaRow}>
+                        <Ionicons name="calendar-outline" size={14} color="#8A7D77" />
+                        <Text style={styles.metaText}>{booking.date}</Text>
+                      </View>
+                      <View style={styles.metaRow}>
+                        <Ionicons name="location-outline" size={14} color="#8A7D77" />
+                        <Text style={styles.metaText}>{booking.location}</Text>
+                      </View>
                     
                     {booking.rawStatus === 'rejected' && booking.rejectionReason && (
                       <View style={styles.rejectionBox}>
@@ -372,6 +409,7 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
                       </View>
                     )}
                   </View>
+                </TouchableOpacity>
 
                   {booking.rawStatus === 'accepted' && (
                     <View style={styles.cardFooter}>
@@ -562,6 +600,148 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
                     <Text style={styles.submitReviewBtnText}>Submit Feedback</Text>
                   )}
                 </TouchableOpacity>
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* BOOKING DETAILS MODAL */}
+      <Modal
+        visible={detailsModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setDetailsModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxHeight: '85%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Booking Details</Text>
+              <TouchableOpacity onPress={() => setDetailsModalVisible(false)} style={styles.closeModalBtn}>
+                <Ionicons name="close" size={24} color="#555" />
+              </TouchableOpacity>
+            </View>
+
+            {selectedBookingForDetails && (
+              <ScrollView style={styles.detailsScroll} showsVerticalScrollIndicator={false}>
+                {/* Artist & Status Header */}
+                <View style={[styles.modalBody, { paddingTop: 10, borderBottomWidth: 1, borderBottomColor: '#F5F5F5', paddingBottom: 16 }]}>
+                  <Image
+                    source={{ uri: selectedBookingForDetails.avatar }}
+                    style={styles.reviewArtistAvatar}
+                  />
+                  <Text style={styles.reviewArtistName}>
+                    {selectedBookingForDetails.artistName}
+                  </Text>
+                  <Text style={styles.reviewServiceCategory}>
+                    {selectedBookingForDetails.category}
+                  </Text>
+                  
+                  <View style={[styles.statusBadge, { backgroundColor: getBadgeColors(selectedBookingForDetails.rawStatus).bg, marginTop: 10 }]}>
+                    <Text style={[styles.statusBadgeText, { color: getBadgeColors(selectedBookingForDetails.rawStatus).text }]}>
+                      {getBadgeColors(selectedBookingForDetails.rawStatus).label}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Appointment Info */}
+                <View style={styles.detailsSection}>
+                  <Text style={styles.detailsSectionTitle}>Appointment Info</Text>
+                  <View style={styles.detailsRow}>
+                    <Text style={styles.detailsLabel}>Date & Time</Text>
+                    <Text style={styles.detailsValue}>{selectedBookingForDetails.date}</Text>
+                  </View>
+                  <View style={styles.detailsRow}>
+                    <Text style={styles.detailsLabel}>Service Location</Text>
+                    <Text style={[styles.detailsValue, { maxWidth: '60%', textAlign: 'right' }]}>
+                      {selectedBookingForDetails.location}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Add-ons Section (if any) */}
+                {selectedBookingForDetails.addOns && selectedBookingForDetails.addOns.length > 0 && (
+                  <View style={styles.detailsSection}>
+                    <Text style={styles.detailsSectionTitle}>Selected Add-ons</Text>
+                    {selectedBookingForDetails.addOns.map((addon, index) => (
+                      <View key={index} style={styles.addonItem}>
+                        <Text style={styles.detailsLabel}>{addon.name}</Text>
+                        <Text style={styles.detailsValue}>₹{addon.price}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Price details breakdown */}
+                <View style={styles.detailsSection}>
+                  <Text style={styles.detailsSectionTitle}>Payment Summary</Text>
+                  <View style={styles.detailsRow}>
+                    <Text style={styles.detailsLabel}>Total Service Price</Text>
+                    <Text style={styles.detailsValue}>{selectedBookingForDetails.price}</Text>
+                  </View>
+                  <View style={styles.detailsRow}>
+                    <Text style={styles.detailsLabel}>Advance Paid</Text>
+                    <Text style={styles.detailsValue}>
+                      ₹{selectedBookingForDetails.advanceAmount} ({selectedBookingForDetails.advancePaid ? 'Paid' : 'Pending'})
+                    </Text>
+                  </View>
+                  <View style={styles.detailsRow}>
+                    <Text style={styles.detailsLabel}>Amount Due at Service</Text>
+                    <Text style={styles.detailsValueHighlight}>
+                      ₹{Math.max(0, selectedBookingForDetails.priceRaw - (selectedBookingForDetails.advancePaid ? selectedBookingForDetails.advanceAmount : 0))}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Rejection / Cancellation Info */}
+                {selectedBookingForDetails.rawStatus === 'rejected' && selectedBookingForDetails.rejectionReason && (
+                  <View style={[styles.rejectionBox, { marginVertical: 8 }]}>
+                    <Text style={styles.rejectionLabel}>Decline Reason:</Text>
+                    <Text style={styles.rejectionText}>{selectedBookingForDetails.rejectionReason}</Text>
+                  </View>
+                )}
+
+                {selectedBookingForDetails.rawStatus === 'cancelled' && (
+                  <View style={[styles.rejectionBox, { marginVertical: 8, backgroundColor: '#FFF7F9', borderColor: '#FFE6EF' }]}>
+                    <Text style={[styles.rejectionLabel, { color: '#FF4F87' }]}>Cancellation Details:</Text>
+                    <Text style={[styles.rejectionText, { color: '#666' }]}>
+                      Cancelled By: {selectedBookingForDetails.cancelledBy === 'client' ? 'You' : 'Artist'}
+                    </Text>
+                    {selectedBookingForDetails.cancellationReason && (
+                      <Text style={[styles.rejectionText, { color: '#666', marginTop: 4 }]}>
+                        Reason: {selectedBookingForDetails.cancellationReason}
+                      </Text>
+                    )}
+                    {selectedBookingForDetails.refundAmount !== undefined && (
+                      <Text style={[styles.rejectionText, { color: '#666', marginTop: 4, fontWeight: '700' }]}>
+                        Refund Amount: ₹{selectedBookingForDetails.refundAmount} ({selectedBookingForDetails.refundStatus})
+                      </Text>
+                    )}
+                  </View>
+                )}
+
+                {/* Policy Help text for active bookings */}
+                {['pending', 'accepted', 'confirmed'].includes(selectedBookingForDetails.rawStatus) && (
+                  <View style={styles.policyBox}>
+                    <Text style={styles.policyTitle}>Cancellation Policy</Text>
+                    <Text style={styles.policyText}>
+                      • Cancellations made at least 36 hours before the appointment are 100% free and your full advance payment will be refunded.
+                    </Text>
+                    <Text style={styles.policyText}>
+                      • Cancellations made within 36 hours of the appointment incur a 2% cancellation fee (calculated on the total price), which will be deducted from your advance payment refund.
+                    </Text>
+                  </View>
+                )}
+
+                {/* Cancel Booking Action inside details */}
+                {['pending', 'accepted', 'confirmed'].includes(selectedBookingForDetails.rawStatus) && (
+                  <TouchableOpacity
+                    style={styles.cancelModalBtn}
+                    onPress={() => handleCancelBooking(selectedBookingForDetails, () => setDetailsModalVisible(false))}
+                  >
+                    <Text style={styles.cancelModalBtnText}>Cancel Booking</Text>
+                  </TouchableOpacity>
+                )}
               </ScrollView>
             )}
           </View>
@@ -1003,6 +1183,95 @@ const styles = StyleSheet.create({
     color: '#389E0D',
     marginLeft: 6,
     fontFamily: 'serif',
+  },
+  detailsScroll: {
+    width: '100%',
+  },
+  detailsSection: {
+    width: '100%',
+    marginVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5F5F5',
+    paddingBottom: 10,
+  },
+  detailsSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#8A7D77',
+    marginBottom: 8,
+    fontFamily: 'serif',
+  },
+  detailsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: 4,
+  },
+  detailsLabel: {
+    fontSize: 13,
+    color: '#555',
+    fontFamily: 'serif',
+  },
+  detailsValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#111',
+    fontFamily: 'serif',
+  },
+  detailsValueHighlight: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FF4F87',
+    fontFamily: 'serif',
+  },
+  policyBox: {
+    backgroundColor: '#FFF7F9',
+    borderColor: '#FFE6EF',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 12,
+  },
+  policyTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FF4F87',
+    marginBottom: 4,
+    fontFamily: 'serif',
+  },
+  policyText: {
+    fontSize: 11,
+    color: '#666',
+    lineHeight: 16,
+    fontFamily: 'serif',
+    marginVertical: 1,
+  },
+  cancelModalBtn: {
+    backgroundColor: '#FFF',
+    borderWidth: 1.5,
+    borderColor: '#FFD1E1',
+    width: '100%',
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    marginBottom: 10,
+  },
+  cancelModalBtnText: {
+    color: '#FF4F87',
+    fontSize: 14,
+    fontWeight: '700',
+    fontFamily: 'serif',
+  },
+  addonItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+    paddingLeft: 8,
+    borderLeftWidth: 2,
+    borderLeftColor: '#FFE6EF',
+    marginVertical: 2,
   },
 });
 

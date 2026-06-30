@@ -13,6 +13,7 @@ import {
   createRazorpayOrderController,
   verifyPaymentController,
   razorpayWebhookController,
+  getArtistBookedSlotsController,
 } from "./booking.controller.js";
 import { protectCustomer } from "../../middleware/authMiddleware.js";
 import { protectArtist } from "../../middleware/artistAuth.js";
@@ -31,6 +32,7 @@ router.post("/:id/verify-payment", protectCustomer, paymentLimiter, verifyPaymen
 router.post("/webhook/razorpay", express.json({ type: 'application/json' }), razorpayWebhookController);
 
 router.post("/:id/decline-advance", protectCustomer, declineAdvancePaymentController);
+router.get("/artist/:artistId/booked-slots", protectCustomer, getArtistBookedSlotsController);
 
 router.get("/artist", protectArtist, listArtistBookingsController);
 router.patch("/:id/accept", protectArtist, acceptBookingController);

@@ -4,12 +4,12 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   Image,
   Platform,
   StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 const BookingSuccessScreen = ({ navigation, route }) => {
@@ -24,9 +24,10 @@ const BookingSuccessScreen = ({ navigation, route }) => {
   } = route?.params || {};
 
   const handleViewBookings = () => {
-    // Navigate to the user's bookings tab/screen.
-    // Ensure 'CustomerBookings' exists in your navigation stack.
-    navigation.navigate('CustomerBookings');
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'ClientHome', params: { activeTab: 'Bookings' } }],
+    });
   };
 
   const handleAddToCalendar = () => {
@@ -36,7 +37,7 @@ const BookingSuccessScreen = ({ navigation, route }) => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
       
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -116,7 +117,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#FFF',
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0,
   },
   content: {
     paddingHorizontal: 24,

@@ -5,10 +5,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   Platform,
   StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import ScreenHeader from '../../components/ScreenHeader';
 
@@ -37,7 +37,7 @@ const AddOnsScreen = ({ navigation, route }) => {
   const [checked, setChecked] = useState(() => {
     const init = {};
     addons.forEach((a, i) => {
-      init[a.id] = i < 2;
+      init[a.id] = i < 0;
     });
     return init;
   });
@@ -64,7 +64,7 @@ const AddOnsScreen = ({ navigation, route }) => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
 
       <ScreenHeader title="Add-ons" onBack={() => navigation.goBack()} />
@@ -161,7 +161,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#FFF',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
   },
 
   // Subtitle

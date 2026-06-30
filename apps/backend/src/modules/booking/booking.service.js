@@ -410,26 +410,31 @@ export const cancelBooking = async ({ bookingId, customerId, artistId, reason })
     const now = new Date();
     const diffHours = (serviceDate.getTime() - now.getTime()) / (1000 * 60 * 60);
 
-    if (diffHours < 36) {
-      throw new Error("Cancellation is only allowed up to 36 hours before the service time.");
-    }
-
-    const serviceCharge = Math.round((booking.price || 0) * 0.02);
-
     if (customerId) {
-      // Cancelled by client: gets refund of advance - 2% service charge
       booking.status = "cancelled";
       booking.cancelledBy = "client";
-      booking.cancellationReason = reason || "Client cancelled before 36h limit";
-      booking.refundAmount = Math.max(0, (booking.advanceAmount || 0) - serviceCharge);
       booking.refundStatus = "refunded";
+      if (diffHours >= 36) {
+        // Cancelled before 36 hours: free cancellation
+        booking.refundAmount = booking.advanceAmount || 0;
+        booking.cancellationReason = reason || "Client cancelled before 36h limit (free cancellation)";
+      } else {
+        // Cancelled within 36 hours: 2% cancellation fee charged, rest refunded
+        const cancellationFee = Math.round((booking.price || 0) * 0.02);
+        booking.refundAmount = Math.max(0, (booking.advanceAmount || 0) - cancellationFee);
+        booking.cancellationReason = reason || `Client cancelled within 36h limit. Charged 2% cancellation fee of ₹${cancellationFee}.`;
+      }
     } else {
-      // Cancelled by artist: client gets full refund, artist charged 2% (logged)
+      // Cancelled by artist (or from backend control panel)
       booking.status = "cancelled";
       booking.cancelledBy = "artist";
-      booking.cancellationReason = reason || "Artist cancelled before 36h limit. Artist charged 2% fee.";
-      booking.refundAmount = booking.advanceAmount || 0;
+      booking.refundAmount = booking.advanceAmount || 0; // Client gets full refund if artist cancels
       booking.refundStatus = "refunded";
+      if (diffHours >= 36) {
+        booking.cancellationReason = reason || "Artist cancelled before 36h limit.";
+      } else {
+        booking.cancellationReason = reason || "Artist cancelled within 36h limit. Artist charged 2% fee.";
+      }
     }
 
     await booking.save();
@@ -477,4 +482,16 @@ export const completeBooking = async ({ bookingId, artistId }) => {
   await booking.save();
 
   return booking;
+};
+
+export const getArtistBookedSlots = async (artistId) => {
+  return await Booking.findAll({
+    where: {
+      artistId,
+      status: {
+        [Op.notIn]: ['rejected', 'cancelled']
+      }
+    },
+    attributes: ['date', 'time']
+  });
 };

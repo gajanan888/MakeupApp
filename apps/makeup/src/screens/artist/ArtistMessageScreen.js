@@ -392,8 +392,16 @@ const ArtistMessageScreen = () => {
                 <Image source={{ uri: activeContact.avatar }} style={styles.chatAvatar} />
                 <View style={styles.chatUserMeta}>
                   <Text style={styles.chatUserName}>{activeContact.name}</Text>
-                  <Text style={[styles.chatUserStatus, activeContact.isTyping && styles.typingStatusText]}>
-                    {activeContact.isTyping ? 'Typing...' : 'Online'}
+                  <Text style={[
+                    styles.chatUserStatus,
+                    activeContact.isTyping && styles.typingStatusText,
+                    activeContact.isChatEnabled === false && { color: '#8E8E93' }
+                  ]}>
+                    {activeContact.isChatEnabled === false
+                      ? 'Chat Locked'
+                      : activeContact.isTyping
+                      ? 'Typing...'
+                      : 'Online'}
                   </Text>
                 </View>
               </View>
@@ -463,7 +471,7 @@ const ArtistMessageScreen = () => {
               <View style={[styles.disabledInputBar, { paddingBottom: insets.bottom || 12 }]}>
                 <Ionicons name="lock-closed-outline" size={18} color="#8A7D77" style={{ marginBottom: 4 }} />
                 <Text style={styles.disabledInputText}>
-                  Chat is disabled because there is no active, confirmed booking.
+                  {activeContact.chatDisabledReason || "Chat is disabled because there is no active, confirmed booking."}
                 </Text>
               </View>
             ) : (
@@ -635,7 +643,7 @@ const styles = StyleSheet.create({
   // RIGHT COLUMN
   rightColumn: {
     flex: 1,
-    backgroundColor: '#FFF',
+    backgroundColor: '#F6F6F9',
   },
 
   chatHeader: {
@@ -645,8 +653,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3ECF0',
+    borderBottomColor: '#EAEAEA',
     backgroundColor: '#FFF',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
   },
 
   chatHeaderLeft: {
@@ -660,9 +673,9 @@ const styles = StyleSheet.create({
   },
 
   chatAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: '#FFE4ED',
   },
 
@@ -673,13 +686,13 @@ const styles = StyleSheet.create({
   chatUserName: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#111',
+    color: '#1C1C1E',
     fontFamily: 'serif',
   },
 
   chatUserStatus: {
     fontSize: 11,
-    color: '#389E0D',
+    color: '#4CD964',
     fontWeight: '600',
     fontFamily: 'serif',
     marginTop: 1,
@@ -726,13 +739,15 @@ const styles = StyleSheet.create({
   },
 
   bubbleClient: {
-    backgroundColor: '#F3F4F6',
-    borderTopLeftRadius: 4,
+    backgroundColor: '#FFF',
+    borderBottomLeftRadius: 4,
+    borderWidth: 1,
+    borderColor: '#EAEAEA',
   },
 
   bubbleArtist: {
     backgroundColor: '#FF4F8F',
-    borderTopRightRadius: 4,
+    borderBottomRightRadius: 4,
   },
 
   messageText: {
@@ -742,7 +757,7 @@ const styles = StyleSheet.create({
   },
 
   textClient: {
-    color: '#111',
+    color: '#1C1C1E',
   },
 
   textArtist: {
@@ -757,56 +772,64 @@ const styles = StyleSheet.create({
   },
 
   timeClient: {
-    color: '#8A7D77',
+    color: '#8E8E93',
   },
 
   timeArtist: {
-    color: '#FFE4ED',
+    color: 'rgba(255, 255, 255, 0.75)',
   },
 
   inputBarContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F3ECF0',
+    paddingVertical: 8,
     backgroundColor: '#FFF',
+    borderTopWidth: 1,
+    borderTopColor: '#EAEAEA',
   },
 
   attachBtn: {
-    padding: 6,
-    marginRight: 6,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F1F2F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
   },
 
   inputWrapper: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FCFCFC',
-    borderWidth: 1,
-    borderColor: '#F3ECF0',
-    borderRadius: 24,
-    paddingHorizontal: 14,
-    height: 44,
+    backgroundColor: '#F1F2F6',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    height: 38,
   },
 
   textInput: {
     flex: 1,
     fontSize: 13,
-    color: '#111',
+    color: '#2C2C2E',
     fontFamily: 'serif',
     paddingVertical: 0,
   },
 
   sendBtn: {
     backgroundColor: '#FF4F8F',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 6,
+    marginLeft: 8,
+    shadowColor: '#FF4F8F',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 3,
   },
 
   messageImage: {
@@ -884,19 +907,28 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   disabledInputBar: {
+    flexDirection: 'row',
     paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#FFE4ED',
-    backgroundColor: '#FAFAFA',
+    paddingVertical: 12,
+    backgroundColor: '#FFF',
     alignItems: 'center',
     justifyContent: 'center',
+    margin: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#EAEAEA',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   disabledInputText: {
-    fontSize: 13,
-    color: '#8A7D77',
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 8,
+    fontWeight: '500',
     textAlign: 'center',
-    fontStyle: 'italic',
-    fontFamily: 'serif',
+    flex: 1,
   },
 });

@@ -105,6 +105,7 @@ export const cancelArtistBooking  = async (id, reason) => (await api.patch(`/api
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const createCustomerBooking = async (data) => (await api.post('/api/booking', data))?.data?.data;
+export const getArtistBookedSlots = async (artistId) => (await api.get(`/api/booking/artist/${artistId}/booked-slots`))?.data?.data || [];
 export const getCustomerBookings   = async () => {
   const response = await api.get('/api/booking/customer');
   return response?.data?.data?.items || response?.data?.data || [];

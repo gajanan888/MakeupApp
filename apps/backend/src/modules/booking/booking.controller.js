@@ -12,6 +12,7 @@ import {
   createRazorpayOrderService,
   verifyPaymentService,
   handleRazorpayWebhookService,
+  getArtistBookedSlots,
 } from "./booking.service.js";
 import { verifyWebhookSignature } from "../../utils/razorpay.js";
 import {
@@ -511,6 +512,33 @@ export const completeBookingController = async (req, res) => {
     res.status(400).json({
       success: false,
       message: error.message || "Failed to complete booking",
+      data: null,
+    });
+  }
+};
+
+export const getArtistBookedSlotsController = async (req, res) => {
+  try {
+    const artistId = Number(req.params.artistId);
+    if (!Number.isInteger(artistId) || artistId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid artist id",
+        data: null,
+      });
+    }
+
+    const bookedSlots = await getArtistBookedSlots(artistId);
+
+    res.json({
+      success: true,
+      message: "Artist booked slots retrieved",
+      data: bookedSlots,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message || "Failed to retrieve booked slots",
       data: null,
     });
   }

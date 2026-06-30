@@ -10,7 +10,7 @@ export const fetchWishlist = async () => api.get('/wishlist');
 export const API_BASE_URLS = [
   'http://172.19.20.151:5000',       // adb reverse loopback (numeric, bypasses ROM DNS resolution)
   'http://localhost:5000',           // adb reverse localhost fallback
-  'http://172.19.13.83:5000',        // Current Wi-Fi IP fallback
+  'http://172.19.16.171:5000',        // Current Wi-Fi IP fallback
   'http://10.0.2.2:5000',            // Android Emulator loopback
   'http://192.168.56.1:5000',        // VirtualBox host-only adapter
 ];

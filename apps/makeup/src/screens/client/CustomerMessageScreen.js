@@ -18,14 +18,16 @@ import {
   Alert,
   ActivityIndicator,
   BackHandler,
+  Keyboard,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { uploadFile } from '../../api/files';
-import { getCustomerConversations, sendCustomerMessage } from '../../api/auth';
+import { getCustomerConversations, sendCustomerMessage, getCustomerBookings } from '../../api/auth';
 import BottomNavigation from '../../components/BottomNavigation';
+import { useCall } from '../../context/CallContext';
 
 const requestPermissions = async () => {
   if (Platform.OS === 'android') {
@@ -36,7 +38,7 @@ const requestPermissions = async () => {
 
       const storageGranted = await PermissionsAndroid.request(
         PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES ||
-          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+        PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
       );
 
       return (
@@ -51,7 +53,7 @@ const requestPermissions = async () => {
   return true;
 };
 
-const CustomerMessageScreen = ({ isTab = false }) => {
+const CustomerMessageScreen = ({ isTab = false, activeTab }) => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
@@ -59,9 +61,63 @@ const CustomerMessageScreen = ({ isTab = false }) => {
   const [activeArtistId, setActiveArtistId] = useState(null);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      () => setIsKeyboardVisible(true)
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardDidHide',
+      () => setIsKeyboardVisible(false)
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isTab && activeTab === 'Chat') {
+      setActiveArtistId(null);
+    }
+  }, [activeTab, isTab]);
 
   const scrollViewRef = useRef();
   const [imagePickerVisible, setImagePickerVisible] = useState(false);
+  const { initiateCall } = useCall();
+
+  const handleCallArtist = async () => {
+    if (!activeContact) return;
+    try {
+      // Find a confirmed or in_progress booking with this artist
+      const bookingsList = await getCustomerBookings();
+      const activeBooking = bookingsList.find(
+        b => String(b.artistId || b.artist?.id) === String(activeContact.id) &&
+             ['confirmed', 'in_progress'].includes(b.status)
+      );
+
+      if (!activeBooking) {
+        Alert.alert(
+          'Cannot Call',
+          'You can only call this artist if you have an active, confirmed booking.'
+        );
+        return;
+      }
+
+      initiateCall(
+        activeBooking.id,
+        activeContact.id,
+        'artist',
+        activeContact.name
+      );
+    } catch (error) {
+      console.warn('Failed to initiate call:', error);
+      Alert.alert('Error', 'Failed to place call. Please try again.');
+    }
+  };
 
   useEffect(() => {
     if (route.params && route.params.artistId) {
@@ -94,7 +150,11 @@ const CustomerMessageScreen = ({ isTab = false }) => {
   useEffect(() => {
     const backAction = () => {
       if (activeArtistId !== null) {
-        setActiveArtistId(null);
+        if (isTab) {
+          setActiveArtistId(null);
+        } else {
+          navigation.goBack();
+        }
         return true;
       }
       return false;
@@ -106,7 +166,7 @@ const CustomerMessageScreen = ({ isTab = false }) => {
     );
 
     return () => backHandler.remove();
-  }, [activeArtistId]);
+  }, [activeArtistId, isTab, navigation]);
 
   useEffect(() => {
     navigation.setOptions({
@@ -322,9 +382,15 @@ const CustomerMessageScreen = ({ isTab = false }) => {
 
   return (
     <SafeAreaView style={[styles.safeArea, isTab && { paddingTop: 0 }]}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}
+      <View
+        style={[
+          styles.container,
+          isTab && {
+            paddingBottom: isKeyboardVisible
+              ? 0
+              : 56 + (insets.bottom || 8),
+          },
+        ]}
       >
         {activeArtistId === null ? (
           /* CONVERSATION LIST VIEW */
@@ -363,31 +429,55 @@ const CustomerMessageScreen = ({ isTab = false }) => {
           </View>
         ) : (
           /* ACTIVE CHAT VIEW */
-          <View style={styles.chatRoomContainer}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+            style={styles.chatRoomContainer}
+          >
             {/* Chat Header */}
             <View style={styles.chatHeader}>
               <View style={styles.chatHeaderLeft}>
                 <TouchableOpacity
                   style={styles.backBtn}
-                  onPress={() => setActiveArtistId(null)}
+                  onPress={() => {
+                    if (isTab) {
+                      setActiveArtistId(null);
+                    } else {
+                      navigation.goBack();
+                    }
+                  }}
                 >
                   <Ionicons name="chevron-back" size={24} color="#333" />
                 </TouchableOpacity>
                 <Image source={{ uri: activeContact.avatar }} style={styles.chatAvatarHeader} />
                 <View style={styles.chatHeaderMeta}>
                   <Text style={styles.chatHeaderName} numberOfLines={1}>{activeContact.name}</Text>
-                  <Text style={styles.chatHeaderStatus}>Online</Text>
+                  <Text style={[styles.chatHeaderStatus, activeContact.isChatEnabled === false && { color: '#8E8E93' }]}>
+                    {activeContact.isChatEnabled === false ? 'Chat Locked' : 'Online'}
+                  </Text>
                 </View>
               </View>
-              <TouchableOpacity style={styles.moreBtn}>
-                <Ionicons name="ellipsis-vertical" size={22} color="#333" />
-              </TouchableOpacity>
+              <View style={styles.chatHeaderRight}>
+                {activeContact.isChatEnabled !== false && (
+                  <TouchableOpacity style={styles.callHeaderBtn} onPress={handleCallArtist}>
+                    <Ionicons name="call-outline" size={20} color="#FF4F87" />
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity style={styles.moreBtn}>
+                  <Ionicons name="ellipsis-vertical" size={22} color="#333" />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Messages Flow Scroll */}
             <ScrollView
               ref={scrollViewRef}
-              contentContainerStyle={styles.messagesFlow}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="interactive"
+              contentContainerStyle={[
+                styles.messagesFlow,
+                { flexGrow: 1 }
+              ]}
               showsVerticalScrollIndicator={false}
               onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: false })}
             >
@@ -471,11 +561,21 @@ const CustomerMessageScreen = ({ isTab = false }) => {
               <View style={[styles.disabledInputBar, { paddingBottom: insets.bottom || 12 }]}>
                 <Ionicons name="lock-closed-outline" size={18} color="#8A7D77" style={{ marginBottom: 4 }} />
                 <Text style={styles.disabledInputText}>
-                  Chat is disabled because there is no active, confirmed booking.
+                  {activeContact.chatDisabledReason || "Chat is disabled because there is no active, confirmed booking."}
                 </Text>
               </View>
             ) : (
-              <View style={[styles.inputBar, { paddingBottom: insets.bottom || 12 }]}>
+              <View
+                style={[
+                  styles.inputBar,
+                  {
+                    paddingBottom:
+                      Platform.OS === 'ios'
+                        ? insets.bottom
+                        : 8,
+                  },
+                ]}
+              >
                 <TouchableOpacity
                   style={styles.attachBtn}
                   onPress={() => setImagePickerVisible(true)}
@@ -497,9 +597,9 @@ const CustomerMessageScreen = ({ isTab = false }) => {
                 </View>
               </View>
             )}
-          </View>
+          </KeyboardAvoidingView>
         )}
-      </KeyboardAvoidingView>
+      </View>
 
       {/* Image Picker BottomSheet Modal */}
       <Modal
@@ -635,7 +735,7 @@ const styles = StyleSheet.create({
   /* CHAT ROOM VIEW */
   chatRoomContainer: {
     flex: 1,
-    backgroundColor: '#FFF',
+    backgroundColor: '#F6F6F9',
   },
   chatHeader: {
     height: 56,
@@ -643,9 +743,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderBottomWidth: 1,
-    borderBottomColor: '#F5F5F7',
+    borderBottomColor: '#EAEAEA',
     backgroundColor: '#FFF',
     paddingHorizontal: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
   },
   chatHeaderLeft: {
     flexDirection: 'row',
@@ -655,14 +760,22 @@ const styles = StyleSheet.create({
   moreBtn: {
     padding: 4,
   },
+  chatHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  callHeaderBtn: {
+    padding: 4,
+    marginRight: 10,
+  },
   backBtn: {
     padding: 4,
     marginRight: 6,
   },
   chatAvatarHeader: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: '#FFE6EF',
   },
   chatHeaderMeta: {
@@ -672,17 +785,20 @@ const styles = StyleSheet.create({
   chatHeaderName: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#111',
+    color: '#1C1C1E',
   },
   chatHeaderStatus: {
     fontSize: 11,
-    color: '#8E8E93',
-    fontWeight: '500',
-    marginTop: 2,
+    color: '#4CD964',
+    fontWeight: '600',
+    marginTop: 1,
   },
   messagesFlow: {
+    flexGrow: 1,
     paddingHorizontal: 16,
-    paddingVertical: 20,
+    paddingTop: 20,
+    paddingBottom: 20,
+    justifyContent: 'flex-end',
   },
   messageRow: {
     flexDirection: 'row',
@@ -719,33 +835,35 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   bubbleClient: {
-    backgroundColor: '#FFEBF0',
-    borderTopRightRadius: 16,
+    backgroundColor: '#FF4F87',
+    borderBottomRightRadius: 4,
   },
   bubbleArtist: {
-    backgroundColor: '#F4F5F7',
-    borderTopLeftRadius: 16,
+    backgroundColor: '#FFF',
+    borderBottomLeftRadius: 4,
+    borderWidth: 1,
+    borderColor: '#EAEAEA',
   },
   messageText: {
     fontSize: 14,
     lineHeight: 19,
   },
   textClient: {
-    color: '#222',
+    color: '#FFF',
   },
   textArtist: {
-    color: '#222',
+    color: '#1C1C1E',
   },
   messageTime: {
-    fontSize: 10,
+    fontSize: 9,
     alignSelf: 'flex-end',
     marginTop: 4,
   },
   timeClient: {
-    color: '#8E8E93',
+    color: 'rgba(255, 255, 255, 0.75)',
   },
   timeArtist: {
-    color: '#999',
+    color: '#8E8E93',
   },
   imageContainerRow: {
     flexDirection: 'row',
@@ -774,44 +892,49 @@ const styles = StyleSheet.create({
   inputBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F5F5F7',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     backgroundColor: '#FFF',
+    borderTopWidth: 1,
+    borderTopColor: '#EAEAEA',
   },
   attachBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#F0F0F2',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F1F2F6',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
+    marginRight: 8,
   },
   inputWrapper: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F2F3F5',
+    backgroundColor: '#F1F2F6',
     borderRadius: 20,
-    paddingHorizontal: 14,
-    height: 40,
+    paddingHorizontal: 12,
+    height: 38,
   },
   textInput: {
     flex: 1,
     fontSize: 14,
-    color: '#222',
+    color: '#2C2C2E',
     paddingVertical: 0,
   },
   sendBtn: {
     backgroundColor: '#FF4F87',
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 10,
+    marginLeft: 8,
+    shadowColor: '#FF4F87',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 3,
   },
 
   /* BOTTOM SHEET MODAL */
@@ -860,19 +983,28 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   disabledInputBar: {
+    flexDirection: 'row',
     paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#F5F5F7',
-    backgroundColor: '#FAFAFA',
+    paddingVertical: 12,
+    backgroundColor: '#FFF',
     alignItems: 'center',
     justifyContent: 'center',
+    margin: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#EAEAEA',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   disabledInputText: {
-    fontSize: 13,
-    color: '#8A7D77',
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 8,
+    fontWeight: '500',
     textAlign: 'center',
-    fontStyle: 'italic',
-    fontFamily: 'serif',
+    flex: 1,
   },
 });

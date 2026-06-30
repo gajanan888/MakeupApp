@@ -1,17 +1,18 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
-  Platform,
   StatusBar,
   Alert,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { getArtistBookedSlots } from '../../api/auth';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DAY_CELL_SIZE = Math.floor((SCREEN_WIDTH - 48) / 7);
@@ -79,6 +80,25 @@ const SelectDateTimeScreen = ({ navigation, route }) => {
   const [viewMonth, setViewMonth] = useState(today.getMonth());
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
+  const [bookedSlots, setBookedSlots] = useState([]);
+  const [loadingBooked, setLoadingBooked] = useState(false);
+
+  useEffect(() => {
+    if (artist?.id) {
+      const fetchBooked = async () => {
+        try {
+          setLoadingBooked(true);
+          const data = await getArtistBookedSlots(artist.id);
+          setBookedSlots(data);
+        } catch (err) {
+          console.warn('Failed to fetch booked slots:', err);
+        } finally {
+          setLoadingBooked(false);
+        }
+      };
+      fetchBooked();
+    }
+  }, [artist?.id]);
 
   const calendarCells = useMemo(() => buildCalendar(viewYear, viewMonth), [viewYear, viewMonth]);
 
@@ -102,6 +122,50 @@ const SelectDateTimeScreen = ({ navigation, route }) => {
     if (!selectedDate || !cell.date) return false;
     return cell.date.getTime() === selectedDate.getTime();
   };
+
+  const availableTimeSlots = useMemo(() => {
+    if (!selectedDate) return TIME_SLOTS;
+
+    const now = new Date();
+    const isTodaySelected =
+      selectedDate.getDate() === now.getDate() &&
+      selectedDate.getMonth() === now.getMonth() &&
+      selectedDate.getFullYear() === now.getFullYear();
+
+    const year = selectedDate.getFullYear();
+    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(selectedDate.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+
+    return TIME_SLOTS.filter(slot => {
+      // 1. Check if slot is already booked for this artist
+      const isBooked = bookedSlots.some(b => {
+        return b.date === dateStr && b.time.trim() === slot.trim();
+      });
+      if (isBooked) return false;
+
+      // 2. Check if slot has already passed today
+      if (isTodaySelected) {
+        const [timeStr, modifier] = slot.split(' ');
+        let [hours, minutes] = timeStr.split(':').map(Number);
+        if (modifier === 'PM' && hours !== 12) {
+          hours += 12;
+        }
+        if (modifier === 'AM' && hours === 12) {
+          hours = 0;
+        }
+
+        const slotDate = new Date(selectedDate);
+        slotDate.setHours(hours, minutes, 0, 0);
+
+        if (slotDate <= now) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [selectedDate, bookedSlots]);
 
   const handleNext = () => {
     if (!selectedDate) {
@@ -133,7 +197,7 @@ const SelectDateTimeScreen = ({ navigation, route }) => {
     : null;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
 
       {/* Header */}
@@ -233,23 +297,33 @@ const SelectDateTimeScreen = ({ navigation, route }) => {
         {/* ── Time Slots ────────────────────────────────────────────── */}
         <Text style={styles.sectionTitle}>Available Time Slots</Text>
 
-        <View style={styles.timeSlotsGrid}>
-          {TIME_SLOTS.map((slot) => {
-            const isActive = selectedTime === slot;
-            return (
-              <TouchableOpacity
-                key={slot}
-                style={[styles.timeChip, isActive && styles.timeChipActive]}
-                onPress={() => setSelectedTime(slot)}
-                activeOpacity={0.75}
-              >
-                <Text style={[styles.timeChipText, isActive && styles.timeChipTextActive]}>
-                  {slot}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        {loadingBooked ? (
+          <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+            <ActivityIndicator size="small" color="#FF4F87" />
+          </View>
+        ) : !selectedDate ? (
+          <Text style={styles.selectDatePromptText}>Please select a date to view available time slots.</Text>
+        ) : availableTimeSlots.length === 0 ? (
+          <Text style={styles.noSlotsText}>No time slots available for this day. Please select another date.</Text>
+        ) : (
+          <View style={styles.timeSlotsGrid}>
+            {availableTimeSlots.map((slot) => {
+              const isActive = selectedTime === slot;
+              return (
+                <TouchableOpacity
+                  key={slot}
+                  style={[styles.timeChip, isActive && styles.timeChipActive]}
+                  onPress={() => setSelectedTime(slot)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={[styles.timeChipText, isActive && styles.timeChipTextActive]}>
+                    {slot}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
 
         {/* ── Next Button ───────────────────────────────────────────── */}
         <TouchableOpacity
@@ -276,7 +350,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#F8F8FA',
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0,
   },
 
   // Header
@@ -523,5 +596,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.3,
+  },
+  selectDatePromptText: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontStyle: 'italic',
+    marginBottom: 24,
+  },
+  noSlotsText: {
+    fontSize: 14,
+    color: '#EF4444',
+    fontWeight: '600',
+    marginBottom: 24,
   },
 });
