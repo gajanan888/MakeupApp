@@ -366,12 +366,26 @@ const BookAppointmentScreen = ({ navigation, route }) => {
 
         {selectedLocation === 'home' && (
           <View style={styles.addressInputContainer}>
-            <Text style={styles.addressInputLabel}>Enter Your Address</Text>
+            <Text style={styles.addressInputLabel}>Select Booking Address</Text>
+
+            {clientAddress ? (
+              <View style={styles.selectedAddressDetailCard}>
+                <Ionicons name="location" size={16} color="#FF4F87" style={{ marginRight: 6 }} />
+                <Text style={styles.selectedAddressDetailText}>{clientAddress}</Text>
+              </View>
+            ) : (
+              <View style={styles.selectedAddressDetailCard}>
+                <Ionicons name="alert-circle-outline" size={16} color="#FF4F87" style={{ marginRight: 6 }} />
+                <Text style={[styles.selectedAddressDetailText, { fontStyle: 'italic', color: '#666' }]}>
+                  No address selected. Tap a saved address below or add a new one.
+                </Text>
+              </View>
+            )}
             
-            {savedAddresses.length > 0 && (
+            {savedAddresses.length > 0 ? (
               <View style={{ marginBottom: 12 }}>
                 <Text style={styles.quickSelectLabel}>Quick select from saved addresses:</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
                   {savedAddresses.map(addr => {
                     const isSelected = clientAddress === addr.addressLine;
                     return (
@@ -400,17 +414,20 @@ const BookAppointmentScreen = ({ navigation, route }) => {
                   })}
                 </ScrollView>
               </View>
+            ) : (
+              <Text style={[styles.quickSelectLabel, { marginBottom: 12, fontStyle: 'italic' }]}>
+                You have no saved addresses. Please add an address to continue.
+              </Text>
             )}
 
-            <TextInput
-              style={styles.addressTextInput}
-              placeholder="House/Flat No., Building, Street, Area, City..."
-              placeholderTextColor="#B7A9A1"
-              value={clientAddress}
-              onChangeText={setClientAddress}
-              multiline
-              numberOfLines={3}
-            />
+            <TouchableOpacity
+              style={styles.addNewAddressBtn}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('EnterBookingAddress', { artist })}
+            >
+              <Ionicons name="add-circle-outline" size={18} color="#FF4F87" />
+              <Text style={styles.addNewAddressBtnText}>Add New Address</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -648,12 +665,40 @@ const styles = StyleSheet.create({
     color: '#FF4F87',
     marginBottom: 6,
   },
-  addressTextInput: {
-    fontSize: 14,
+  selectedAddressDetailCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF5F8',
+    borderColor: '#FFE0EC',
+    borderWidth: 1.5,
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  selectedAddressDetailText: {
+    fontSize: 13,
     color: '#333',
-    minHeight: 60,
-    textAlignVertical: 'top',
-    padding: 0,
+    flex: 1,
+    lineHeight: 18,
+  },
+  addNewAddressBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF',
+    borderWidth: 1.5,
+    borderColor: '#FF4F87',
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  addNewAddressBtnText: {
+    fontSize: 13,
+    color: '#FF4F87',
+    fontWeight: '700',
+    marginLeft: 6,
   },
   quickSelectLabel: {
     fontSize: 12,

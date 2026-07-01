@@ -129,12 +129,12 @@ class GeminiService:
         logger.info(f"Processing chat turn for session: {session.id}. Message: {user_message}")
         
         questions = [
-            ("What is the occasion? (💍 Wedding, 🥂 Reception, 💕 Engagement, 🎉 Party, 🎂 Birthday, 💼 Office, 🎓 College, 📸 Photoshoot, 🌸 Festival, ❤️ Date Night, 😊 Casual Outing, ✨ Other)", "event"),
-            ("Where is the event? (🏛 Indoor, 🌳 Outdoor, 🔄 Both)", "location"),
-            ("What time is the event? (🌅 Morning, ☀️ Afternoon, 🌇 Evening, 🌙 Night)", "time"),
+            ("What is the occasion? (Wedding, Reception, Engagement, Party, Birthday, Office, College, Photoshoot, Festival, Date Night, Casual Outing, Other)", "event"),
+            ("Where is the event? (Indoor, Outdoor, Both)", "location"),
+            ("What time is the event? (Morning, Afternoon, Evening, Night)", "time"),
             ("What outfit will you wear? (Saree, Lehenga, Gown, Salwar Suit, Western Dress, Formal Wear, Casual Wear, Other)", "outfit"),
-            ("What is the primary color of your outfit? (❤️ Red, 💗 Pink, 💙 Blue, 💚 Green, 💛 Gold, 🖤 Black, 🤍 White, 💜 Purple, 🤎 Brown, ❤️🔥 Maroon, 🧡 Orange, 🌸 Peach)", "outfit_color"),
-            ("Which overall look do you prefer? (🌿 Natural, ✨ Soft Glam, 💄 Glamorous, 👑 Luxury Bridal, 🌸 Korean Glass Skin, ⭐ Celebrity Inspired, 🤖 Surprise Me)", "style"),
+            ("What is the primary color of your outfit? (Red, Pink, Blue, Green, Gold, Black, White, Purple, Brown, Maroon, Orange, Peach)", "outfit_color"),
+            ("Which overall look do you prefer? (Natural, Soft Glam, Glamorous, Luxury Bridal, Korean Glass Skin, Celebrity Inspired, Surprise Me)", "style"),
             ("How bold should your makeup be? (1 = Barely Visible, 2 = Light, 3 = Medium, 4 = Glam, 5 = Full Glam)", "boldness"),
             ("Do you want any accessories in the preview? (Hairstyle, Earrings, Necklace, Bindi, Dupatta, Veil, None)", "accessories")
         ]
