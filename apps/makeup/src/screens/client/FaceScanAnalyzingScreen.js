@@ -10,13 +10,19 @@ import {
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import ScreenHeader from '../../components/ScreenHeader';
-import { recommendLooks, probeAndLockBaseURL } from '../../api/aiClient';
+import { 
+  uploadPreviewSelfie, 
+  validatePreviewSelfie, 
+  analyzePreviewFace, 
+  sendPreviewChatMessage, 
+  probeAndLockBaseURL 
+} from '../../api/aiClient';
 
 const ANALYSIS_STEPS = [
-  'Detecting facial features',
-  'Analyzing face shape',
-  'Analyzing skin tone',
-  'Finding best makeup match',
+  'Uploading front-facing selfie',
+  'Validating lighting and quality',
+  'Analyzing features and parsing face masks',
+  'Connecting to AI Beauty Advisor',
 ];
 
 const FaceScanAnalyzingScreen = ({ navigation, route }) => {
@@ -27,25 +33,18 @@ const FaceScanAnalyzingScreen = ({ navigation, route }) => {
   useEffect(() => {
     let active = true;
 
-    // 1. Progress and step tick animation
+    // 1. Smooth progress animation
     const progressInterval = setInterval(() => {
       setProgress(prev => {
-        if (prev < 96) {
-          const next = prev + Math.floor(Math.random() * 8) + 2;
-          return Math.min(next, 96);
+        if (prev < 95) {
+          const next = prev + Math.floor(Math.random() * 4) + 1;
+          return Math.min(next, 95);
         }
         return prev;
       });
     }, 150);
 
-    const stepInterval = setInterval(() => {
-      setCurrentStep(prev => {
-        if (prev < 3) return prev + 1;
-        return prev;
-      });
-    }, 500);
-
-    // 2. Perform API call
+    // 2. Perform Virtual Makeup Preview API Pipeline
     const runAnalysis = async () => {
       try {
         if (!image) {
@@ -54,41 +53,64 @@ const FaceScanAnalyzingScreen = ({ navigation, route }) => {
           return;
         }
 
-        console.log('[Analyzing] Uploading image to AI backend...', image.uri);
+        console.log('[Analyzing] Starting Virtual Preview Pipeline...');
 
-        // Fast probe: find working server in ≤3s per candidate before 30s upload
+        // Connect/probe base URL
         await probeAndLockBaseURL();
 
-        const result = await recommendLooks(image);
-
+        // Step 0: Upload Selfie
+        setCurrentStep(0);
+        const uploadResult = await uploadPreviewSelfie(image);
         if (!active) return;
-
-        if (result && result.face_detected && result.beauty_profile) {
-          setProgress(100);
-          setCurrentStep(3);
-          // Small pause so the user sees 100% complete
-          setTimeout(() => {
-            if (active) {
-              navigation.replace('FaceScanResult', {
-                beauty_profile: result.beauty_profile,
-                recommended_looks: result.recommended_looks || [],
-                image: image,
-              });
-            }
-          }, 400);
-        } else {
-          Alert.alert(
-            'Analysis Failed',
-            result?.message || 'No face detected. Please ensure your face is clearly visible, well-lit, and not cropped.'
-          );
-          navigation.navigate('FaceScan');
+        const selfieId = uploadResult?.id;
+        if (!selfieId) {
+          throw new Error('Selfie upload failed: No ID returned.');
         }
+
+        // Step 1: Validate Quality
+        setProgress(30);
+        setCurrentStep(1);
+        const validateResult = await validatePreviewSelfie(selfieId);
+        if (!active) return;
+        if (!validateResult?.is_valid) {
+          throw new Error(validateResult?.error_message || 'Selfie validation failed. Make sure your face is visible, centered, and well-lit.');
+        }
+
+        // Step 2: Analyze Face (landmarks + segment parsing masks)
+        setProgress(60);
+        setCurrentStep(2);
+        const analyzeResult = await analyzePreviewFace(selfieId);
+        if (!active) return;
+        if (!analyzeResult?.landmarks) {
+          throw new Error('Face landmark extraction failed.');
+        }
+
+        // Step 3: Initialize Gemini Chat Session
+        setProgress(90);
+        setCurrentStep(3);
+        const chatInit = await sendPreviewChatMessage(selfieId, null, 'Hello! Initiate makeup prescription.');
+        if (!active) return;
+        
+        setProgress(100);
+
+        // Small delay so user sees completion
+        setTimeout(() => {
+          if (active) {
+            navigation.replace('VirtualPreviewChat', {
+              selfie_id: selfieId,
+              chat_session_id: chatInit?.chat_session_id,
+              first_reply: chatInit?.reply,
+              image: image,
+            });
+          }
+        }, 600);
+
       } catch (error) {
-        console.error('[Analyzing] Request failed:', error);
+        console.error('[Analyzing] Pipeline failed:', error);
         if (active) {
           Alert.alert(
-            'Connection Error',
-            'Failed to connect to the AI backend. Please ensure the server is running on port 8000 and accessible.'
+            'Analysis Error',
+            error.message || 'An error occurred during face analysis. Please try again with a clear, well-lit photo.'
           );
           navigation.navigate('FaceScan');
         }
@@ -100,7 +122,6 @@ const FaceScanAnalyzingScreen = ({ navigation, route }) => {
     return () => {
       active = false;
       clearInterval(progressInterval);
-      clearInterval(stepInterval);
     };
   }, [image, navigation]);
 
