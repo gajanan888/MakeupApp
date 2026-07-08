@@ -6,29 +6,21 @@ import ArtistService from "../../models/ArtistService.js";
 import Booking from "../../models/Booking.js";
 import ArtistPortfolio from "../../models/ArtistPortfolio.js";
 
-export const getArtists = async ({ minPrice, maxPrice, experience, location, id }) => {
+export const getArtists = async ({ minPrice, maxPrice, experience, location, id, page, limit, search, category, rating, priceRange, gender }) => {
   const where = { isVerified: true };
-  const profileWhere = {};
 
   if (id) {
     where.id = id;
   }
 
-  if (location) {
-    profileWhere.location = {
-      [Op.iLike]: `%${location}%`,
-    };
-  }
-
-  return Artist.findAll({
+  // Fetch all to perform reliable JS filtering & mapping (since prices are strings like "₹1,500")
+  const allArtists = await Artist.findAll({
     attributes: ["id", "name", "email", "phone", "createdAt"],
     where,
     include: [
       {
         model: ArtistProfile,
         as: "profile",
-        where: Object.keys(profileWhere).length > 0 ? profileWhere : undefined,
-        required: Object.keys(profileWhere).length > 0,
         attributes: ["profileImage", "gender", "bio", "location", "experience", "rating", "reviewCount"],
       },
       {
@@ -48,8 +40,84 @@ export const getArtists = async ({ minPrice, maxPrice, experience, location, id 
       },
     ],
     order: [["createdAt", "DESC"]],
-    limit: 200,
   });
+
+  // Filter in memory for maximum consistency and accuracy
+  let filtered = allArtists;
+
+  if (location) {
+    const locLower = location.toLowerCase().trim();
+    filtered = filtered.filter(artist => 
+      artist.profile?.location && artist.profile.location.toLowerCase().includes(locLower)
+    );
+  }
+
+  if (rating) {
+    const ratingNum = parseFloat(rating);
+    filtered = filtered.filter(artist => {
+      const r = Number(artist.profile?.rating ?? artist.rating ?? 4.7);
+      return r >= ratingNum;
+    });
+  }
+
+  if (category && category !== 'All') {
+    const catLower = category.toLowerCase().trim();
+    filtered = filtered.filter(artist => {
+      const specMatch = artist.specializations?.some(spec => 
+        spec.name && spec.name.toLowerCase().includes(catLower)
+      );
+      const serviceMatch = artist.services?.some(svc => 
+        svc.specialization && svc.specialization.toLowerCase().includes(catLower)
+      );
+      return specMatch || serviceMatch;
+    });
+  }
+
+  if (priceRange) {
+    filtered = filtered.filter(artist => {
+      const artistPrice = artist.services?.[0]?.priceRange
+        ? parseInt(artist.services[0].priceRange.replace(/[^\d]/g, ''), 10)
+        : 1500;
+      if (priceRange === '0-2000') {
+        return artistPrice <= 2000;
+      } else if (priceRange === '2000-5000') {
+        return artistPrice > 2000 && artistPrice <= 5000;
+      } else if (priceRange === '5000+') {
+        return artistPrice > 5000;
+      }
+      return true;
+    });
+  }
+
+  if (search) {
+    const searchLower = search.toLowerCase().trim();
+    filtered = filtered.filter(artist => {
+      const nameMatch = artist.name && artist.name.toLowerCase().includes(searchLower);
+      const bioMatch = artist.profile?.bio && artist.profile.bio.toLowerCase().includes(searchLower);
+      const specMatch = artist.specializations?.some(spec => 
+        spec.name && spec.name.toLowerCase().includes(searchLower)
+      );
+      const serviceMatch = artist.services?.some(svc => 
+        svc.specialization && svc.specialization.toLowerCase().includes(searchLower)
+      );
+      return nameMatch || bioMatch || specMatch || serviceMatch;
+    });
+  }
+
+  if (gender) {
+    const genderLower = gender.toLowerCase().trim();
+    filtered = filtered.filter(artist => 
+      artist.profile?.gender && artist.profile.gender.toLowerCase() === genderLower
+    );
+  }
+
+  // Paginate
+  const pageNum = page ? parseInt(page, 10) : 1;
+  const limitNum = limit ? parseInt(limit, 10) : 20;
+  const startIndex = (pageNum - 1) * limitNum;
+  const endIndex = pageNum * limitNum;
+
+  return filtered.slice(startIndex, endIndex);
 };
 
 export const getTrendingArtists = async () => {

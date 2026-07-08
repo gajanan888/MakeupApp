@@ -11,7 +11,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   ScrollView,
   TextInput,
@@ -21,7 +20,10 @@ import {
   KeyboardAvoidingView,
   Alert,
   ActivityIndicator,
+  PermissionsAndroid,
 } from 'react-native';
+
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { uploadFile } from '../../api/files';
 
@@ -29,41 +31,211 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { useArtistRegistration } from '../../context/ArtistRegistrationContext';
 import { updateArtistProfile } from '../../api/auth';
 
-import { launchImageLibrary } from 'react-native-image-picker';
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 
-const PLACEHOLDER_IMAGE =
-  'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?q=80&w=600';
+const requestCameraPermission = async () => {
+  if (Platform.OS === 'android') {
+    try {
+      const cameraGranted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.CAMERA,
+      );
+      return cameraGranted === PermissionsAndroid.RESULTS.GRANTED;
+    } catch (err) {
+      console.warn('Camera permission request error:', err);
+      return false;
+    }
+  }
+  return true;
+};
 
 const ArtistRegisterScreen5 = ({ navigation, route }) => {
   const { data, setPortfolio } = useArtistRegistration();
-  const [works, setWorks] = useState(
-    data.portfolio && data.portfolio.length > 0
-      ? data.portfolio
-      : [
-          {
-            id: Date.now(),
-            beforeImage: null,
-            afterImage: null,
-            tag: '',
-            description: '',
-          },
-        ],
-  );
+  
+  const getInitialWorks = () => {
+    if (data.portfolio && data.portfolio.length > 0) {
+      return data.portfolio.map(item => ({
+        id: item.id || Date.now() + Math.random(),
+        beforeImage: item.beforeImageUrl || item.beforeImage || null,
+        afterImage: item.afterImageUrl || item.afterImage || null,
+        images: Array.isArray(item.images)
+          ? item.images
+          : (item.afterImageUrl || item.afterImage ? [item.afterImageUrl || item.afterImage] : []),
+        tag: item.tag || '',
+        description: item.description || '',
+      }));
+    }
+    return [
+      {
+        id: Date.now(),
+        beforeImage: null,
+        afterImage: null,
+        images: [],
+        tag: '',
+        description: '',
+      },
+    ];
+  };
+
+  const [works, setWorks] = useState(getInitialWorks());
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const pickImage = async (type, index) => {
-    const result = await launchImageLibrary({
-      mediaType: 'photo',
-      quality: 1,
-      selectionLimit: 1,
-    });
+  const handleImagePick = (type, index) => {
+    if (type === 'work') {
+      const currentWork = works[index];
+      if (currentWork && currentWork.images && currentWork.images.length >= 10) {
+        Alert.alert('Limit Reached', 'You can upload up to 10 after photos only.');
+        return;
+      }
+    }
+    Alert.alert(
+      'Select Image Source',
+      'Choose an option to upload your photo',
+      [
+        {
+          text: 'Camera',
+          onPress: () => handleCameraLaunch(type, index),
+        },
+        {
+          text: 'Gallery',
+          onPress: () => handleGalleryLaunch(type, index),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ],
+    );
+  };
 
-    if (result.didCancel) {
+  const handleCameraLaunch = async (type, index) => {
+    const granted = await requestCameraPermission();
+    if (!granted) {
+      Alert.alert('Permission Required', 'Camera permission is needed');
       return;
     }
 
+    const result = await launchCamera({
+      mediaType: 'photo',
+      quality: 1,
+      saveToPhotos: true,
+    });
+
+    if (result.didCancel) return;
+
     if (result.assets && result.assets.length > 0) {
-      const asset = result.assets[0];
+      await processSelectedImage(type, index, result.assets[0]);
+    }
+  };
+
+  const handleGalleryLaunch = async (type, index) => {
+    const currentCount = (works[index]?.images || []).length;
+    const limit = type === 'before' ? 1 : 10 - currentCount;
+
+    if (limit <= 0) {
+      Alert.alert('Limit Reached', 'You can upload up to 10 after photos only.');
+      return;
+    }
+
+    const result = await launchImageLibrary({
+      mediaType: 'photo',
+      quality: 1,
+      selectionLimit: limit,
+    });
+
+    if (result.didCancel) return;
+
+    if (result.assets && result.assets.length > 0) {
+      if (type === 'before') {
+        await processSelectedImage('before', index, result.assets[0]);
+      } else {
+        await processMultipleSelectedImages(index, result.assets);
+      }
+    }
+  };
+
+  const processSelectedImage = async (type, index, asset) => {
+    const file = {
+      uri: asset.uri,
+      name: asset.fileName || `photo_${Date.now()}.jpg`,
+      type: asset.type || 'image/jpeg',
+    };
+
+    try {
+      if (type === 'before') {
+        setWorks(prev =>
+          prev.map((item, idx) =>
+            idx === index ? { ...item, beforeImage: asset.uri } : item,
+          ),
+        );
+      } else {
+        setWorks(prev =>
+          prev.map((item, idx) => {
+            if (idx === index) {
+              const currentImages = item.images || [];
+              return {
+                ...item,
+                images: [...currentImages, asset.uri],
+                afterImage: item.afterImage || asset.uri,
+              };
+            }
+            return item;
+          }),
+        );
+      }
+
+      const url = await uploadFile(file);
+      if (url) {
+        if (type === 'before') {
+          setWorks(prev =>
+            prev.map((item, idx) =>
+              idx === index ? { ...item, beforeImage: url } : item,
+            ),
+          );
+        } else {
+          setWorks(prev =>
+            prev.map((item, idx) => {
+              if (idx === index) {
+                const updatedImages = (item.images || []).map(img =>
+                  img === asset.uri ? url : img,
+                );
+                return {
+                  ...item,
+                  images: updatedImages,
+                  afterImage: item.afterImage === asset.uri ? url : item.afterImage,
+                };
+              }
+              return item;
+            }),
+          );
+        }
+      }
+    } catch (err) {
+      console.warn('Upload failed', err);
+      Alert.alert('Upload failed', err.message || 'Unable to upload image');
+    }
+  };
+
+  const processMultipleSelectedImages = async (index, assets) => {
+    const localUris = assets.map(asset => asset.uri);
+
+    // 1. Add all assets' local URIs instantly to the UI
+    setWorks(prev =>
+      prev.map((item, idx) => {
+        if (idx === index) {
+          const currentImages = item.images || [];
+          const combined = [...currentImages, ...localUris].slice(0, 10);
+          return {
+            ...item,
+            images: combined,
+            afterImage: item.afterImage || combined[0] || null,
+          };
+        }
+        return item;
+      }),
+    );
+
+    // 2. Upload each asset sequentially
+    for (const asset of assets) {
       const file = {
         uri: asset.uri,
         name: asset.fileName || `photo_${Date.now()}.jpg`,
@@ -71,36 +243,45 @@ const ArtistRegisterScreen5 = ({ navigation, route }) => {
       };
 
       try {
-        // Set local uri first for instant feedback to the user
-        setWorks(prev =>
-          prev.map((item, idx) =>
-            idx === index
-              ? {
-                  ...item,
-                  [`${type}Image`]: asset.uri,
-                }
-              : item,
-          ),
-        );
-
         const url = await uploadFile(file);
         if (url) {
           setWorks(prev =>
-            prev.map((item, idx) =>
-              idx === index
-                ? {
-                    ...item,
-                    [`${type}Image`]: url,
-                  }
-                : item,
-            ),
+            prev.map((item, idx) => {
+              if (idx === index) {
+                const updatedImages = (item.images || []).map(img =>
+                  img === asset.uri ? url : img,
+                );
+                return {
+                  ...item,
+                  images: updatedImages,
+                  afterImage: item.afterImage === asset.uri ? url : item.afterImage,
+                };
+              }
+              return item;
+            }),
           );
         }
       } catch (err) {
-        console.warn('Upload failed', err);
-        Alert.alert('Upload failed', err.message || 'Unable to upload image');
+        console.warn('Upload failed for one of the images', err);
+        Alert.alert('Upload failed', `Unable to upload ${file.name}`);
       }
     }
+  };
+
+  const handleRemoveWorkImage = (index, imgIdx) => {
+    setWorks(prev =>
+      prev.map((item, idx) => {
+        if (idx === index) {
+          const filtered = (item.images || []).filter((_, i) => i !== imgIdx);
+          return {
+            ...item,
+            images: filtered,
+            afterImage: filtered[0] || null,
+          };
+        }
+        return item;
+      }),
+    );
   };
 
   const addWork = () => {
@@ -110,6 +291,7 @@ const ArtistRegisterScreen5 = ({ navigation, route }) => {
         id: Date.now() + prev.length,
         beforeImage: null,
         afterImage: null,
+        images: [],
         tag: '',
         description: '',
       },
@@ -124,8 +306,12 @@ const ArtistRegisterScreen5 = ({ navigation, route }) => {
     );
   };
 
+  const removeWork = (index) => {
+    setWorks(prev => prev.filter((_, idx) => idx !== index));
+  };
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar backgroundColor="#F7F7F7" barStyle="dark-content" />
 
       <KeyboardAvoidingView
@@ -152,62 +338,22 @@ const ArtistRegisterScreen5 = ({ navigation, route }) => {
 
           {works.map((work, index) => (
             <View key={work?.id ?? index} style={styles.workCard}>
-              <View style={styles.showcaseContainer}>
+              {index > 0 && (
                 <TouchableOpacity
-                  style={styles.imageBox}
-                  onPress={() => pickImage('before', index)}
+                  style={styles.removeCardButton}
+                  onPress={() => removeWork(index)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <Image
-                    source={{
-                      uri: work?.beforeImage || PLACEHOLDER_IMAGE,
-                    }}
-                    style={styles.image}
-                  />
-                  {!work?.beforeImage && (
-                    <View style={styles.placeholderOverlay}>
-                      <Text style={styles.placeholderText}>
-                        Tap to add before image
-                      </Text>
-                    </View>
-                  )}
-                  <View style={styles.imageLabel}>
-                    <Text style={styles.labelText}>BEFORE</Text>
-                  </View>
+                  <Ionicons name="close-circle" size={24} color="#FF4F8F" />
                 </TouchableOpacity>
-
-                <View style={styles.divider} />
-
-                <TouchableOpacity
-                  style={styles.imageBox}
-                  onPress={() => pickImage('after', index)}
-                >
-                  <Image
-                    source={{
-                      uri: work?.afterImage || PLACEHOLDER_IMAGE,
-                    }}
-                    style={styles.image}
-                  />
-                  {!work?.afterImage && (
-                    <View style={styles.placeholderOverlay}>
-                      <Text style={styles.placeholderText}>
-                        Tap to add after image
-                      </Text>
-                    </View>
-                  )}
-                  <View style={styles.imageLabel}>
-                    <Text style={styles.labelText}>AFTER</Text>
-                  </View>
-                </TouchableOpacity>
-
-                <View style={styles.centerTag}>
-                  <Text style={styles.centerTagText}>Example Images</Text>
-                </View>
-              </View>
-
+              )}
+              {/* Event Name */}
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Add Tag</Text>
+                <View style={styles.labelRow}>
+                  <Text style={styles.fieldLabel}>Event Name</Text>
+                </View>
                 <TextInput
-                  placeholder="Bridal Makeup"
+                  placeholder="e.g. Wedding Event / Party Makeup"
                   placeholderTextColor="#C7AAA0"
                   value={work?.tag ?? ''}
                   onChangeText={text => updateWorkField(index, 'tag', text)}
@@ -215,37 +361,140 @@ const ArtistRegisterScreen5 = ({ navigation, route }) => {
                 />
               </View>
 
+              {/* Makeup Type */}
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Description</Text>
+                <View style={styles.labelRow}>
+                  <Text style={styles.fieldLabel}>Makeup Type</Text>
+                </View>
                 <TextInput
-                  placeholder="Describe the transformation..."
+                  placeholder="e.g. Bridal / HD / Airbrush"
                   placeholderTextColor="#C7AAA0"
                   value={work?.description ?? ''}
-                  onChangeText={text =>
-                    updateWorkField(index, 'description', text)
-                  }
-                  multiline
-                  style={[styles.input, styles.descriptionInput]}
+                  onChangeText={text => updateWorkField(index, 'description', text)}
+                  style={styles.input}
                 />
+              </View>
+
+              {/* Upload Past Work's Photos container */}
+              <View style={styles.photosContainer}>
+                <View style={styles.photosHeader}>
+                  <Text style={styles.photosTitle}>Upload Past Work's Photos</Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      Alert.alert(
+                        'Suggestions',
+                        '1. Add at least 1 photo of without makeup\n2. Add at least 4-5 photos of a single work.'
+                      );
+                    }}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Ionicons name="information-circle-outline" size={20} color="#FF4F8F" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Subtitle list style hint */}
+                <Text style={styles.photoHint}>
+                  • Add at least 1 photo of without makeup{'\n'}
+                  • Add at least 4-5 photos of a single work
+                </Text>
+
+                <View style={styles.photosRow}>
+                  {/* Without Makeup (Before) */}
+                  <View style={styles.photoSlotGroup}>
+                    <Text style={styles.slotLabel}>Without Makeup</Text>
+                    <TouchableOpacity
+                      style={styles.beforePhotoSlot}
+                      onPress={() => handleImagePick('before', index)}
+                    >
+                      {work?.beforeImage ? (
+                        <Image source={{ uri: work.beforeImage }} style={styles.slotImage} />
+                      ) : (
+                        <View style={styles.slotPlaceholder}>
+                          <Ionicons name="camera-outline" size={24} color="#B7A9A1" />
+                          <Text style={styles.slotPlaceholderText}>Before</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Vertical Divider */}
+                  <View style={styles.verticalDivider} />
+
+                  {/* Work Photos (After) */}
+                  <View style={[styles.photoSlotGroup, { flex: 1 }]}>
+                    <Text style={styles.slotLabel}>Work Photos (After)</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.workPhotosScroll}>
+                      {(work?.images || []).map((imgUrl, imgIdx) => (
+                        <View key={imgIdx} style={styles.workPhotoSlot}>
+                          <Image source={{ uri: imgUrl }} style={styles.slotImage} />
+                          <TouchableOpacity
+                            style={styles.deletePhotoBadge}
+                            onPress={() => handleRemoveWorkImage(index, imgIdx)}
+                          >
+                            <Ionicons name="close" size={12} color="#FFF" />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+
+                      {/* Add Button */}
+                      {(work?.images || []).length < 10 && (
+                        <TouchableOpacity
+                          style={styles.addWorkPhotoSlot}
+                          onPress={() => handleImagePick('work', index)}
+                        >
+                          <Ionicons name="add" size={24} color="#FF4F8F" />
+                          <Text style={[styles.slotPlaceholderText, { color: '#FF4F8F' }]}>Add</Text>
+                        </TouchableOpacity>
+                      )}
+                    </ScrollView>
+                  </View>
+                </View>
               </View>
             </View>
           ))}
 
           <TouchableOpacity style={styles.addWorkButton} onPress={addWork}>
             <View style={styles.plusCircle}>
-              <Ionicons name="add" size={20} color="#B7796C" />
+              <Ionicons name="add" size={20} color="#FF4F8F" />
             </View>
-            <Text style={styles.addWorkText}>Add more Work</Text>
+            <Text style={styles.addWorkText}>Add More +</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.button, isSubmitting && { opacity: 0.7 }]}
             onPress={async () => {
+              // Validations
+              for (let i = 0; i < works.length; i++) {
+                const w = works[i];
+                const workNum = i + 1;
+                
+                if (!w.tag.trim()) {
+                  Alert.alert('Validation Error', `Event Name is required for work ${workNum}`);
+                  return;
+                }
+                
+                if (!w.description.trim()) {
+                  Alert.alert('Validation Error', `Makeup Type is required for work ${workNum}`);
+                  return;
+                }
+                
+                if (!w.beforeImage) {
+                  Alert.alert('Validation Error', `Please upload a Without Makeup (Before) image for work ${workNum}`);
+                  return;
+                }
+                
+                if (!w.images || w.images.length === 0) {
+                  Alert.alert('Validation Error', `Please upload at least one Work (After) photo for work ${workNum}`);
+                  return;
+                }
+              }
+
               try {
                 setIsSubmitting(true);
                 const portfolioPayload = works.map(item => ({
                   beforeImage: item?.beforeImage,
-                  afterImage: item?.afterImage,
+                  afterImage: item?.afterImage || item?.images?.[0] || null,
+                  images: item?.images || [],
                   tag: item?.tag,
                   description: item?.description,
                 }));
@@ -272,7 +521,7 @@ const ArtistRegisterScreen5 = ({ navigation, route }) => {
               <ActivityIndicator color="#FFF" size="small" />
             ) : (
               <>
-                <Text style={styles.buttonText}>Let’s Make-up Profile</Text>
+                <Text style={styles.buttonText}>Lets Make-up Profile</Text>
 
                 <Ionicons
                   name="arrow-forward"
@@ -312,7 +561,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 20,
-    marginBottom: 35,
+    marginBottom: 20,
   },
 
   headerText: {
@@ -327,122 +576,187 @@ const styles = StyleSheet.create({
     color: '#FF4F8F',
   },
 
-  // SHOWCASE
-
-  showcaseContainer: {
-    height: 340,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: '#FFB5CC',
-    borderRadius: 28,
-    backgroundColor: '#FFF',
-    flexDirection: 'row',
-    overflow: 'hidden',
-    position: 'relative',
-  },
-
-  divider: {
-    width: 1,
-    backgroundColor: '#FFD1E1',
-  },
-
-  imageBox: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  image: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-
-  imageLabel: {
-    position: 'absolute',
-    bottom: 18,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    paddingHorizontal: 18,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-
-  labelText: {
-    color: '#111',
-    fontWeight: '700',
-    fontSize: 13,
-  },
-
-  centerTag: {
-    position: 'absolute',
-    top: 16,
-    alignSelf: 'center',
-    backgroundColor: '#FFE4ED',
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    borderRadius: 18,
-  },
-
-  centerTagText: {
-    color: '#FF4F8F',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-
   // INPUTS
 
   inputGroup: {
-    marginTop: 20,
+    position: 'relative',
+    marginTop: 18,
   },
 
-  label: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#F7F7F7',
-    paddingHorizontal: 10,
-    marginLeft: 18,
-    marginBottom: -10,
+  labelRow: {
+    position: 'absolute',
+    top: -10,
+    left: 18,
+    backgroundColor: '#FFF',
+    paddingHorizontal: 8,
     zIndex: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  fieldLabel: {
     color: '#FF4F8F',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
   },
 
   input: {
-    height: 58,
+    height: 56,
     borderWidth: 1.5,
     borderColor: '#FFD1E1',
-    borderRadius: 22,
+    borderRadius: 18,
     backgroundColor: '#FFF',
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     color: '#111',
     fontSize: 15,
     marginBottom: 14,
   },
 
-  descriptionInput: {
-    height: 120,
-    paddingTop: 18,
-    textAlignVertical: 'top',
-  },
-
   workCard: {
-    marginBottom: 30,
+    borderWidth: 1.5,
+    borderColor: '#FFD1E1',
+    borderRadius: 24,
+    backgroundColor: '#FFF',
+    padding: 16,
+    marginBottom: 20,
+    position: 'relative',
   },
 
-  placeholderOverlay: {
-    ...StyleSheet.absoluteFillObject,
+  removeCardButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    zIndex: 20,
+  },
+
+  // PHOTOS CONTAINER
+
+  photosContainer: {
+    marginTop: 8,
+  },
+
+  photosHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+
+  photosTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111',
+  },
+
+  photoHint: {
+    fontSize: 11,
+    color: '#8A7D77',
+    lineHeight: 16,
+    marginBottom: 12,
+  },
+
+  photosRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  photoSlotGroup: {
+    alignItems: 'flex-start',
+  },
+
+  slotLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FF4F8F',
+    marginBottom: 8,
+  },
+
+  beforePhotoSlot: {
+    width: 80,
+    height: 80,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#FFD1E1',
+    borderStyle: 'dashed',
+    backgroundColor: '#FFF',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    backgroundColor: 'rgba(0,0,0,0.24)',
+    overflow: 'hidden',
   },
 
-  placeholderText: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
+  slotImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
+
+  slotPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  slotPlaceholderText: {
+    fontSize: 10,
+    color: '#B7A9A1',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+
+  verticalDivider: {
+    width: 1.5,
+    height: 80,
+    backgroundColor: '#FFE4ED',
+    marginHorizontal: 16,
+  },
+
+  workPhotosScroll: {
+    flexGrow: 0,
+  },
+
+  workPhotoSlot: {
+    width: 80,
+    height: 80,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#FFD1E1',
+    backgroundColor: '#FFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+    position: 'relative',
+  },
+
+  addWorkPhotoSlot: {
+    width: 80,
+    height: 80,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#FFD1E1',
+    borderStyle: 'dashed',
+    backgroundColor: '#FFE4ED',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  deletePhotoBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#FF4F8F',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1,
+  },
+
+  // ADD MORE BUTTON
 
   addWorkButton: {
     height: 62,
@@ -453,13 +767,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 18,
+    marginTop: 10,
+    marginBottom: 20,
+  },
+
+  plusCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#FFE4ED',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
   },
 
   addWorkText: {
-    color: '#B7796C',
+    color: '#FF4F8F',
     fontSize: 18,
-    fontWeight: '500',
+    fontWeight: '700',
   },
 
   // SUBMIT BUTTON
@@ -468,7 +793,6 @@ const styles = StyleSheet.create({
     height: 64,
     backgroundColor: '#FF4F8F',
     borderRadius: 32,
-    marginTop: 12,
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',

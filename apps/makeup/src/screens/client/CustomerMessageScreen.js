@@ -29,24 +29,15 @@ import { getCustomerConversations, sendCustomerMessage, getCustomerBookings } fr
 import BottomNavigation from '../../components/BottomNavigation';
 import { useCall } from '../../context/CallContext';
 
-const requestPermissions = async () => {
+const requestCameraPermission = async () => {
   if (Platform.OS === 'android') {
     try {
       const cameraGranted = await PermissionsAndroid.request(
         PermissionsAndroid.PERMISSIONS.CAMERA,
       );
-
-      const storageGranted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES ||
-        PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
-      );
-
-      return (
-        cameraGranted === PermissionsAndroid.RESULTS.GRANTED &&
-        storageGranted === PermissionsAndroid.RESULTS.GRANTED
-      );
+      return cameraGranted === PermissionsAndroid.RESULTS.GRANTED;
     } catch (err) {
-      console.log(err);
+      console.warn('Camera permission request error:', err);
       return false;
     }
   }
@@ -219,9 +210,9 @@ const CustomerMessageScreen = ({ isTab = false, activeTab }) => {
   };
 
   const openCamera = async () => {
-    const granted = await requestPermissions();
+    const granted = await requestCameraPermission();
     if (!granted) {
-      Alert.alert('Permission Required', 'Camera and Storage permission is needed');
+      Alert.alert('Permission Required', 'Camera permission is needed');
       return;
     }
     setImagePickerVisible(false);
@@ -262,11 +253,6 @@ const CustomerMessageScreen = ({ isTab = false, activeTab }) => {
   };
 
   const openGallery = async () => {
-    const granted = await requestPermissions();
-    if (!granted) {
-      Alert.alert('Permission Required', 'Storage permission is needed');
-      return;
-    }
     setImagePickerVisible(false);
 
     try {

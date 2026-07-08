@@ -228,7 +228,10 @@ const ArtistDashboardScreen = ({ onNavigate }) => {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.headerButton}>
+        <TouchableOpacity
+          style={styles.headerButton}
+          onPress={() => navigation.navigate('ArtistNotification')}
+        >
           <Ionicons name="notifications-outline" size={24} color="#111" />
           <View style={styles.notificationBadge} />
         </TouchableOpacity>

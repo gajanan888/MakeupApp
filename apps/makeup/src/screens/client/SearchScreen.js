@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
   Pressable,
   Platform,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getArtists } from '../../api/auth';
@@ -33,6 +34,7 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
   const [selectedRating, setSelectedRating] = useState(null);
   const [selectedPrice, setSelectedPrice] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
+  const [selectedGender, setSelectedGender] = useState('All');
   const [artists, setArtists] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -58,6 +60,7 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [showPriceModal, setShowPriceModal] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
+  const [showGenderModal, setShowGenderModal] = useState(false);
 
   // Date and Time selection states
   const [selectedDate, setSelectedDate] = useState(null);
@@ -155,36 +158,85 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
     'Minimal',
   ];
 
-  useEffect(() => {
-    const fetchArtists = async (silent = false) => {
-      if (!silent) setLoading(true);
-      try {
-        const data = await getArtists();
-        const list = Array.isArray(data) ? data : [];
+  const [page, setPage] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+
+  const fetchArtists = async (pageNum = 1, shouldReset = false) => {
+    if (pageNum === 1) {
+      setLoading(true);
+    } else if (pageNum > 1) {
+      setLoadingMore(true);
+    }
+
+    try {
+      const filters = {
+        page: pageNum,
+        limit: 20,
+        search: searchText,
+        category: selectedCategory,
+        rating: selectedRating,
+        priceRange: selectedPrice,
+        location: selectedLocation,
+        gender: selectedGender !== 'All' ? selectedGender : undefined,
+      };
+
+      const data = await getArtists(filters);
+      const list = Array.isArray(data) ? data : [];
+
+      if (pageNum === 1) {
         setArtists(list);
-      } catch (err) {
-        console.warn('Failed to fetch artists:', err?.message);
-      } finally {
-        if (!silent) setLoading(false);
+      } else {
+        setArtists((prev) => {
+          const existingIds = new Set(prev.map((a) => a.id));
+          const filteredNew = list.filter((a) => !existingIds.has(a.id));
+          return [...prev, ...filteredNew];
+        });
       }
-    };
 
-    fetchArtists();
+      if (list.length < 20) {
+        setHasMore(false);
+      } else {
+        setHasMore(true);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch artists:', err?.message);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  };
 
+  // Debounced API calls when search or filters change
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPage(1);
+      setHasMore(true);
+      fetchArtists(1, true);
+    }, 400);
 
-
-    const interval = setInterval(() => {
-      fetchArtists(true);
-    }, 30 * 1000); // 30 seconds
-
-    return () => clearInterval(interval);
-  }, []);
+    return () => clearTimeout(timer);
+  }, [searchText, selectedCategory, selectedRating, selectedPrice, selectedLocation, selectedGender]);
 
   useEffect(() => {
     if (route?.params?.category) {
-      setSelectedCategory(route.params.category);
+      const cat = route.params.category;
+      setSelectedCategory(cat);
+      if (cat !== 'All') {
+        setSearchText(cat);
+      } else {
+        setSearchText('');
+      }
     }
   }, [route?.params?.category]);
+
+  const handleLoadMore = () => {
+    if (!loading && !loadingMore && hasMore) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      fetchArtists(nextPage, false);
+    }
+  };
 
   const toggleFavorite = async (artistId) => {
     let updated;
@@ -200,76 +252,6 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
       console.warn('Failed to save favorites:', err);
     }
   };
-
-  // Flatten all portfolio items from all artists, creating a fallback if they have no portfolio items
-  const allPortfolioItems = [];
-  artists.forEach(artist => {
-    if (artist.portfolio && artist.portfolio.length > 0) {
-      artist.portfolio.forEach(item => {
-        allPortfolioItems.push({
-          ...item,
-          artist,
-        });
-      });
-    } else {
-      // Fallback look using the artist profile image
-      allPortfolioItems.push({
-        id: `fallback-${artist.id}`,
-        beforeImageUrl: null,
-        afterImageUrl: artist.profile?.profileImage || null,
-        tag: artist.specializations?.[0]?.name || 'Signature Look',
-        description: artist.profile?.bio || 'Professional makeup look',
-        artist,
-      });
-    }
-  });
-
-  // Filter the portfolio items list
-  const filteredLooks = allPortfolioItems.filter(item => {
-    const artist = item.artist;
-    const artistSpecialization = artist.specializations?.[0]?.name?.toLowerCase() || '';
-    const artistLocation = artist.profile?.location?.toLowerCase() || '';
-    const artistName = artist.name?.toLowerCase() || '';
-    const artistRating = Number(artist.profile?.rating || artist.rating || 4.7);
-
-    // Parse price from services
-    const artistPrice = artist.services?.[0]?.priceRange
-      ? parseInt(artist.services[0].priceRange.replace(/[^\d]/g, ''), 10)
-      : 1500;
-
-    const matchesCategory =
-      selectedCategory === 'All' ||
-      artistSpecialization.includes(selectedCategory.toLowerCase()) ||
-      (item.tag && item.tag.toLowerCase().includes(selectedCategory.toLowerCase()));
-
-    const matchesLocation =
-      !selectedLocation ||
-      artistLocation.includes(selectedLocation.toLowerCase());
-
-    const matchesRating = !selectedRating || artistRating >= selectedRating;
-
-    let matchesPrice = true;
-    if (selectedPrice === '0-2000') {
-      matchesPrice = artistPrice <= 2000;
-    } else if (selectedPrice === '2000-5000') {
-      matchesPrice = artistPrice > 2000 && artistPrice <= 5000;
-    } else if (selectedPrice === '5000+') {
-      matchesPrice = artistPrice > 5000;
-    }
-
-    const searchLower = searchText.toLowerCase().trim();
-    const matchesSearch =
-      !searchLower ||
-      artistName.includes(searchLower) ||
-      artistSpecialization.includes(searchLower) ||
-      (item.tag && item.tag.toLowerCase().includes(searchLower)) ||
-      (item.description && item.description.toLowerCase().includes(searchLower)) ||
-      (artist.services && artist.services.some(svc => svc.specialization?.toLowerCase().includes(searchLower)));
-
-    const matchesFavorites = !showOnlyFavorites || favorites.includes(artist.id);
-
-    return matchesCategory && matchesLocation && matchesRating && matchesPrice && matchesSearch && matchesFavorites;
-  });
 
   const mainContent = (
     <View style={styles.container}>
@@ -386,6 +368,22 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
               style={{ marginLeft: 4 }}
             />
           </TouchableOpacity>
+
+          {/* Gender Chip */}
+          <TouchableOpacity
+            style={[styles.filterPill, selectedGender !== 'All' && styles.filterPillActive]}
+            onPress={() => setShowGenderModal(true)}
+          >
+            <Text style={[styles.filterPillText, selectedGender !== 'All' && styles.filterPillTextActive]}>
+              {selectedGender !== 'All' ? `Gender: ${selectedGender}` : 'Gender'}
+            </Text>
+            <Ionicons
+              name="chevron-down"
+              size={12}
+              color={selectedGender !== 'All' ? '#FF4F87' : '#666'}
+              style={{ marginLeft: 4 }}
+            />
+          </TouchableOpacity>
         </ScrollView>
       </View>
 
@@ -444,28 +442,19 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
         </View>
       )}
 
-      {/* Looks/Portfolios Scroll List */}
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.looksSection}>
-        {loading ? (
-          <ActivityIndicator
-            color="#FF4F87"
-            size="large"
-            style={{ marginVertical: 60 }}
-          />
-        ) : filteredLooks.length === 0 ? (
-          <View style={{ alignItems: 'center', marginVertical: 60 }}>
-            <Ionicons name="search-outline" size={48} color="#CCC" />
-            <Text style={{ color: '#999', marginTop: 12, fontSize: 16 }}>
-              No looks found
-            </Text>
-          </View>
-        ) : (
-          filteredLooks.map(look => {
-            const artist = look.artist;
+      {/* Artists Scroll List */}
+      {loading && page === 1 ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60 }}>
+          <ActivityIndicator color="#FF4F87" size="large" />
+        </View>
+      ) : (
+        <FlatList
+          data={showOnlyFavorites ? artists.filter(a => favorites.includes(a.id)) : artists}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item: artist }) => {
             return (
               <TouchableOpacity
-                key={`${artist.id}-${look.id}`}
-                style={styles.lookCard}
+                style={styles.artistCard}
                 onPress={() => navigation.navigate('ArtistDetails', {
                   artist,
                   selectedDate: selectedDate ? selectedDate.toISOString() : null,
@@ -473,86 +462,68 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
                   selectedCategory,
                 })}
               >
-                <View style={styles.imageContainer}>
-                  {look.afterImageUrl ? (
-                    <Image
-                      source={{ uri: look.afterImageUrl }}
-                      style={styles.lookImage}
-                    />
-                  ) : (
-                    <View style={styles.lookImagePlaceholder}>
-                      <Ionicons name="image-outline" size={40} color="#FF4F87" />
-                    </View>
-                  )}
-
-                  {/* Look/Tag Badge */}
-                  <View style={styles.lookTagBadge}>
-                    <Text style={styles.lookTagText}>{look.tag || 'Makeup Look'}</Text>
+                {artist.profile?.profileImage ? (
+                  <Image
+                    source={{ uri: artist.profile.profileImage }}
+                    style={styles.artistImage}
+                  />
+                ) : (
+                  <View style={styles.artistImagePlaceholder}>
+                    <Ionicons name="person-outline" size={32} color="#FF4F87" />
                   </View>
-
-                  {/* Rating Badge */}
-                  <View style={styles.ratingBadge}>
-                    <Ionicons name="star" size={12} color="#FFB800" style={{ marginRight: 2 }} />
-                    <Text style={styles.ratingBadgeText}>
-                      {artist.profile?.rating || '4.8'}
-                    </Text>
+                )}
+                <View style={styles.artistInfo}>
+                  <Text style={styles.artistName}>{artist.name}</Text>
+                  <Text style={styles.artistSpeciality}>
+                    {artist.specializations?.[0]?.name || 'Makeup Artist'} • {artist.profile?.location || 'India'}
+                  </Text>
+                  <View style={styles.ratingRow}>
+                    <Ionicons name="star" size={14} color="#FFB800" style={{ marginRight: 4 }} />
+                    <Text style={styles.ratingText}>{Number(artist.profile?.rating || artist.rating || 4.7).toFixed(1)}</Text>
+                    <Text style={styles.distanceText}> ({artist.profile?.experience || '4'} years exp)</Text>
                   </View>
+                  <Text style={styles.artistPrice}>
+                    Starting: {artist.services?.[0]?.priceRange || '₹1,500'}
+                  </Text>
                 </View>
-
-                <View style={styles.lookInfo}>
-                  <View style={styles.artistRow}>
-                    <View style={styles.artistProfileThumb}>
-                      {artist.profile?.profileImage ? (
-                        <Image
-                          source={{ uri: artist.profile.profileImage }}
-                          style={styles.artistThumbImage}
-                        />
-                      ) : (
-                        <Text style={styles.artistThumbInitials}>
-                          {artist.name?.charAt(0)?.toUpperCase()}
-                        </Text>
-                      )}
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.artistNameText} numberOfLines={1}>
-                        {artist.name}
-                      </Text>
-                      <Text style={styles.artistSpecText} numberOfLines={1}>
-                        {artist.specializations?.[0]?.name || 'Makeup Artist'} • {artist.profile?.location || 'India'}
-                      </Text>
-                    </View>
-
-                    <TouchableOpacity
-                      style={styles.favoriteButton}
-                      onPress={() => toggleFavorite(artist.id)}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    >
-                      <Ionicons
-                        name={favorites.includes(artist.id) ? 'heart' : 'heart-outline'}
-                        size={22}
-                        color={favorites.includes(artist.id) ? '#FF4F87' : '#999'}
-                      />
-                    </TouchableOpacity>
-                  </View>
-
-                  {look.description ? (
-                    <Text style={styles.lookDescriptionText} numberOfLines={2}>
-                      {look.description}
-                    </Text>
-                  ) : null}
-
-                  <View style={styles.priceRow}>
-                    <Text style={styles.priceLabelText}>Starting Service Price:</Text>
-                    <Text style={styles.priceValueText}>
-                      {artist.services?.[0]?.priceRange || '₹1,500'}
-                    </Text>
-                  </View>
-                </View>
+                <TouchableOpacity
+                  style={styles.favoriteButton}
+                  onPress={() => toggleFavorite(artist.id)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons
+                    name={favorites.includes(artist.id) ? 'heart' : 'heart-outline'}
+                    size={22}
+                    color={favorites.includes(artist.id) ? '#FF4F87' : '#999'}
+                  />
+                </TouchableOpacity>
               </TouchableOpacity>
             );
-          })
-        )}
-      </ScrollView>
+          }}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={() => {
+            if (!loadingMore) return null;
+            return (
+              <ActivityIndicator
+                color="#FF4F87"
+                size="small"
+                style={{ marginVertical: 20 }}
+              />
+            );
+          }}
+          ListEmptyComponent={() => (
+            <View style={{ alignItems: 'center', marginVertical: 60, paddingHorizontal: 20 }}>
+              <Ionicons name="search-outline" size={48} color="#CCC" />
+              <Text style={{ color: '#999', marginTop: 12, fontSize: 16, textAlign: 'center' }}>
+                No artists found matching your criteria.
+              </Text>
+            </View>
+          )}
+          contentContainerStyle={styles.artistSection}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
       {/* MASTER FILTERS MODAL */}
       <Modal visible={showFilter} animationType="slide" transparent>
@@ -624,6 +595,25 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
                 })}
               </View>
 
+              {/* Gender Filter */}
+              <Text style={styles.filterLabel}>Gender</Text>
+              <View style={styles.filterRow}>
+                {['All', 'Female', 'Male'].map(g => {
+                  const isSelected = selectedGender === g;
+                  return (
+                    <TouchableOpacity
+                      key={g}
+                      style={[styles.filterChip, isSelected && styles.selectedChip]}
+                      onPress={() => setSelectedGender(g)}
+                    >
+                      <Text style={[styles.filterChipText, isSelected && styles.selectedChipText]}>
+                        {g}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
               {/* Location Filter */}
               <Text style={styles.filterLabel}>Location</Text>
               <View style={styles.locationInputContainer}>
@@ -681,6 +671,7 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
                   setSelectedRating(null);
                   setSelectedPrice(null);
                   setSelectedLocation(null);
+                  setSelectedGender('All');
                   setLocationText('');
                   setLocationSuggestions([]);
                 }}
@@ -760,6 +751,39 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
                   >
                     <Text style={[styles.bottomSheetOptionText, isSelected && styles.bottomSheetOptionTextActive]}>
                       {label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* QUICK GENDER MODAL */}
+      <Modal visible={showGenderModal} animationType="slide" transparent onRequestClose={() => setShowGenderModal(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowGenderModal(false)}>
+          <View style={styles.bottomSheetContainer}>
+            <View style={styles.bottomSheetHeader}>
+              <Text style={styles.bottomSheetTitle}>Select Gender</Text>
+              <TouchableOpacity onPress={() => setShowGenderModal(false)}>
+                <Ionicons name="close" size={24} color="#111" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.bottomSheetContent}>
+              {['All', 'Female', 'Male'].map(g => {
+                const isSelected = selectedGender === g;
+                return (
+                  <TouchableOpacity
+                    key={g}
+                    style={[styles.bottomSheetOption, isSelected && styles.bottomSheetOptionActive]}
+                    onPress={() => {
+                      setSelectedGender(g);
+                      setShowGenderModal(false);
+                    }}
+                  >
+                    <Text style={[styles.bottomSheetOptionText, isSelected && styles.bottomSheetOptionTextActive]}>
+                      {g}
                     </Text>
                   </TouchableOpacity>
                 );

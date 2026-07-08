@@ -52,7 +52,7 @@ const CountdownTimer = ({ deadline, onExpire }) => {
 };
 
 const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
-  const [activeTab, setActiveTab] = useState('Upcoming'); // 'Upcoming' | 'Past' | 'Cancelled'
+  const [activeTab, setActiveTab] = useState('Upcoming'); // 'Upcoming' | 'Completed' | 'Cancelled'
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [customerProfile, setCustomerProfile] = useState(null);
@@ -134,7 +134,7 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
       const mapped = data.map(b => {
         let tabGroup = 'Upcoming';
         if (b.status === 'completed') {
-          tabGroup = 'Past';
+          tabGroup = 'Completed';
         } else if (b.status === 'cancelled' || b.status === 'rejected') {
           tabGroup = 'Cancelled';
         }
@@ -313,14 +313,12 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
       <View style={[styles.header, isTab && { paddingTop: 10, height: 60 }]}>
         <View style={styles.headerSpacer} />
         <Text style={styles.headerTitle}>My Bookings</Text>
-        <TouchableOpacity style={styles.headerButton}>
-          <Ionicons name="notifications-outline" size={22} color="#111" />
-        </TouchableOpacity>
+
       </View>
 
       {/* FILTER TABS */}
       <View style={styles.tabsContainer}>
-        {['Upcoming', 'Past', 'Cancelled'].map(tab => {
+        {['Upcoming', 'Completed', 'Cancelled'].map(tab => {
           const isActive = activeTab === tab;
           return (
             <TouchableOpacity
@@ -761,9 +759,9 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    // alignItems: 'center',
+    // justifyContent: 'space-between',
+    // paddingHorizontal: 10,
     paddingTop: Platform.OS === 'ios' ? 10 : (StatusBar.currentHeight || 0) + 10,
     height: Platform.OS === 'ios' ? 60 : 60 + (StatusBar.currentHeight || 0),
     backgroundColor: '#FFFFFF',

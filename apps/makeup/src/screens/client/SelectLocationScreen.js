@@ -473,7 +473,7 @@ const SelectLocationScreen = ({ navigation, route }) => {
           <Ionicons name="search-outline" size={20} color="#666" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search for area, street name..."
+            placeholder="Search for city name"
             placeholderTextColor="#999"
             value={searchText}
             onChangeText={fetchSuggestions}
@@ -519,11 +519,11 @@ const SelectLocationScreen = ({ navigation, route }) => {
                 onPress={handleCurrentLocation}
                 disabled={loadingGPS}
               >
-                <View style={[styles.actionIconBg, { backgroundColor: '#EBF9EB' }]}>
-                  <Ionicons name="locate" size={20} color="#389E0D" />
+                <View style={[styles.actionIconBg, { backgroundColor: '#FFEBF0' }]}>
+                  <Ionicons name="locate" size={20} color="#FF4F87" />
                 </View>
                 <View style={styles.actionTextCol}>
-                  <Text style={[styles.actionTitle, { color: '#389E0D' }]}>Use current location</Text>
+                  <Text style={[styles.actionTitle, { color: '#FF4F87' }]}>Use current location</Text>
                   <Text style={styles.actionSubtitle} numberOfLines={2}>
                     {loadingGPS
                       ? 'Locating your current address...'
@@ -540,11 +540,11 @@ const SelectLocationScreen = ({ navigation, route }) => {
                 style={styles.actionRow}
                 onPress={() => setShowAddAddressModal(true)}
               >
-                <View style={[styles.actionIconBg, { backgroundColor: '#EBF9EB' }]}>
-                  <Ionicons name="add" size={20} color="#389E0D" />
+                <View style={[styles.actionIconBg, { backgroundColor: '#FFEBF0' }]}>
+                  <Ionicons name="add" size={20} color="#FF4F87" />
                 </View>
                 <View style={styles.actionTextCol}>
-                  <Text style={[styles.actionTitle, { color: '#389E0D' }]}>Add new address</Text>
+                  <Text style={[styles.actionTitle, { color: '#FF4F87' }]}>Add new address</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color="#888" />
               </TouchableOpacity>
@@ -586,7 +586,7 @@ const SelectLocationScreen = ({ navigation, route }) => {
                       {/* Here badge */}
                       {address.isHere && (
                         <View style={styles.hereBadge}>
-                          <Ionicons name="checkmark-circle" size={14} color="#389E0D" />
+                          <Ionicons name="checkmark-circle" size={14} color="#FF4F87" />
                         </View>
                       )}
                     </View>
@@ -640,30 +640,13 @@ const SelectLocationScreen = ({ navigation, route }) => {
                   {address.isHere && (
                     <View style={styles.cardActionsRow}>
                       <TouchableOpacity style={styles.miniActionButton}>
-                        <Ionicons name="ellipsis-horizontal" size={16} color="#389E0D" />
+                        <Ionicons name="ellipsis-horizontal" size={16} color="#FF4F87" />
                       </TouchableOpacity>
                     </View>
                   )}
                 </TouchableOpacity>
               );
             })}
-
-            {/* Share Addresses Banner */}
-            {showShareBanner && (
-              <View style={styles.shareBanner}>
-                <View style={styles.shareBannerLeft}>
-                  <View style={styles.shareBannerIconBg}>
-                    <Ionicons name="share-social" size={16} color="#B45309" />
-                  </View>
-                  <Text style={styles.shareBannerText}>
-                    Now share your addresses with friends and family
-                  </Text>
-                </View>
-                <TouchableOpacity onPress={() => setShowShareBanner(false)}>
-                  <Ionicons name="close" size={16} color="#78350F" />
-                </TouchableOpacity>
-              </View>
-            )}
           </ScrollView>
         )}
       </View>
@@ -975,25 +958,25 @@ const styles = StyleSheet.create({
   },
   youreHereText: {
     fontSize: 11,
-    color: '#389E0D',
+    color: '#FF4F87',
     fontWeight: '600',
     marginLeft: 8,
-    backgroundColor: '#E6FFED',
+    backgroundColor: '#FFEBF0',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
   },
   distanceBadge: {
     fontSize: 10,
-    color: '#D46B08',
+    color: '#D0255A',
     fontWeight: '600',
     marginLeft: 8,
-    backgroundColor: '#FFFBE6',
+    backgroundColor: '#FFF2F5',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
     borderWidth: 0.5,
-    borderColor: '#FFE7BA',
+    borderColor: '#FFD3DE',
   },
   addressName: {
     fontSize: 13,
@@ -1024,7 +1007,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#E6FFED',
+    backgroundColor: '#FFEBF0',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1032,9 +1015,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#FFFBE6',
+    backgroundColor: '#FFF2F5',
     borderWidth: 1,
-    borderColor: '#FFE7BA',
+    borderColor: '#FFD3DE',
     borderRadius: 12,
     padding: 12,
     marginTop: 6,
@@ -1056,7 +1039,7 @@ const styles = StyleSheet.create({
   },
   shareBannerText: {
     fontSize: 12,
-    color: '#B45309',
+    color: '#A31F48',
     fontWeight: '600',
     flex: 1,
   },
@@ -1142,8 +1125,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
   },
   labelSelectorBtnActive: {
-    borderColor: '#389E0D',
-    backgroundColor: '#E6FFED',
+    borderColor: '#FF4F87',
+    backgroundColor: '#FFEBF0',
   },
   labelSelectorText: {
     fontSize: 13,
@@ -1151,7 +1134,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   labelSelectorTextActive: {
-    color: '#389E0D',
+    color: '#FF4F87',
     fontWeight: '700',
   },
   citySuggestionsContainer: {
@@ -1202,7 +1185,7 @@ const styles = StyleSheet.create({
     borderColor: '#D1D5DB',
   },
   modalBtnSave: {
-    backgroundColor: '#389E0D',
+    backgroundColor: '#FF4F87',
   },
   modalBtnTextCancel: {
     color: '#4B5563',

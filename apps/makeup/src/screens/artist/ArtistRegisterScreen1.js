@@ -13,6 +13,8 @@ import {
   Alert,
 } from 'react-native';
 
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { sendOtp } from '../../api/auth';
 import { useArtistRegistration } from '../../context/ArtistRegistrationContext';
 
@@ -141,194 +143,196 @@ const ArtistRegisterScreen1 = ({ navigation }) => {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#FAFAFA' }} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={styles.container}>
-          {/* Header */}
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-          >
-            <Ionicons name="chevron-back" size={28} color="#222" />
-          </TouchableOpacity>
-
-          <Text style={styles.title}>Create Account</Text>
-
-          <Text style={styles.subtitle}>
-            Join GlamAI and discover top makeup artists
-          </Text>
-
-          {/* Registration Form */}
-
-          <View style={styles.inputContainer}>
-            <Ionicons name="person-outline" size={22} color="#FF4F87" />
-
-            <TextInput
-              placeholder="Full Name"
-              value={fullName}
-              onChangeText={text => {
-                setFullName(text);
-                setNameError('');
-              }}
-              placeholderTextColor="#C7AAA0"
-              style={styles.input}
-            />
-          </View>
-
-          {nameError ? <Text style={styles.errorText}>{nameError}</Text> : null}
-
-          <View style={styles.inputContainer}>
-            <Ionicons name="mail-outline" size={22} color="#FF4F87" />
-
-            <TextInput
-              placeholder="Email Address"
-              value={email}
-              onChangeText={text => {
-                setEmail(text);
-                setEmailError('');
-              }}
-              placeholderTextColor="#C7AAA0"
-              style={styles.input}
-            />
-          </View>
-
-          {emailError ? (
-            <Text style={styles.errorText}>{emailError}</Text>
-          ) : null}
-
-          <View style={styles.inputContainer}>
-            <Ionicons name="call-outline" size={22} color="#FF4F87" />
-
-            <TextInput
-              placeholder="Phone Number"
-              keyboardType="phone-pad"
-              value={phone}
-              maxLength={10}
-              onChangeText={text => {
-                const numbersOnly = text.replace(/[^0-9]/g, '');
-                setPhone(numbersOnly);
-                setPhoneError('');
-              }}
-              placeholderTextColor="#C7AAA0"
-              style={styles.input}
-            />
-          </View>
-
-          {phoneError ? (
-            <Text style={styles.errorText}>{phoneError}</Text>
-          ) : null}
-
-          <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed-outline" size={22} color="#FF4F87" />
-
-            <TextInput
-              placeholder="Password"
-              value={password}
-              onChangeText={text => {
-                setPassword(text);
-                setPasswordError('');
-              }}
-              secureTextEntry={!showPassword}
-              placeholderTextColor="#C7AAA0"
-              style={styles.input}
-            />
-
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-              <Ionicons
-                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                size={22}
-                color="#999"
-              />
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: 30 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.container}>
+            {/* Header */}
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={styles.backButton}
+            >
+              <Ionicons name="chevron-back" size={28} color="#222" />
             </TouchableOpacity>
-          </View>
 
-          {passwordError ? (
-            <Text style={styles.errorText}>{passwordError}</Text>
-          ) : null}
+            <Text style={styles.title}>Create Account</Text>
 
-          <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed-outline" size={22} color="#FF4F87" />
+            <Text style={styles.subtitle}>
+              Join GlamAI and discover top makeup artists
+            </Text>
 
-            <TextInput
-              placeholder="Confirm Password"
-              value={confirmPassword}
-              onChangeText={text => {
-                setConfirmPassword(text);
-                setConfirmPasswordError('');
-              }}
-              secureTextEntry={!showConfirmPassword}
-              placeholderTextColor="#C7AAA0"
-              style={styles.input}
-            />
+            {/* Registration Form */}
+
+            <View style={styles.inputContainer}>
+              <Ionicons name="person-outline" size={22} color="#FF4F87" />
+
+              <TextInput
+                placeholder="Full Name"
+                value={fullName}
+                onChangeText={text => {
+                  setFullName(text);
+                  setNameError('');
+                }}
+                placeholderTextColor="#C7AAA0"
+                style={styles.input}
+              />
+            </View>
+
+            {nameError ? <Text style={styles.errorText}>{nameError}</Text> : null}
+
+            <View style={styles.inputContainer}>
+              <Ionicons name="mail-outline" size={22} color="#FF4F87" />
+
+              <TextInput
+                placeholder="Email Address"
+                value={email}
+                onChangeText={text => {
+                  setEmail(text);
+                  setEmailError('');
+                }}
+                placeholderTextColor="#C7AAA0"
+                style={styles.input}
+              />
+            </View>
+
+            {emailError ? (
+              <Text style={styles.errorText}>{emailError}</Text>
+            ) : null}
+
+            <View style={styles.inputContainer}>
+              <Ionicons name="call-outline" size={22} color="#FF4F87" />
+
+              <TextInput
+                placeholder="Phone Number"
+                keyboardType="phone-pad"
+                value={phone}
+                maxLength={10}
+                onChangeText={text => {
+                  const numbersOnly = text.replace(/[^0-9]/g, '');
+                  setPhone(numbersOnly);
+                  setPhoneError('');
+                }}
+                placeholderTextColor="#C7AAA0"
+                style={styles.input}
+              />
+            </View>
+
+            {phoneError ? (
+              <Text style={styles.errorText}>{phoneError}</Text>
+            ) : null}
+
+            <View style={styles.inputContainer}>
+              <Ionicons name="lock-closed-outline" size={22} color="#FF4F8F" />
+
+              <TextInput
+                placeholder="Password"
+                value={password}
+                onChangeText={text => {
+                  setPassword(text);
+                  setPasswordError('');
+                }}
+                secureTextEntry={!showPassword}
+                placeholderTextColor="#C7AAA0"
+                style={styles.input}
+              />
+
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <Ionicons
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={22}
+                  color="#999"
+                />
+              </TouchableOpacity>
+            </View>
+
+            {passwordError ? (
+              <Text style={styles.errorText}>{passwordError}</Text>
+            ) : null}
+
+            <View style={styles.inputContainer}>
+              <Ionicons name="lock-closed-outline" size={22} color="#FF4F8F" />
+
+              <TextInput
+                placeholder="Confirm Password"
+                value={confirmPassword}
+                onChangeText={text => {
+                  setConfirmPassword(text);
+                  setConfirmPasswordError('');
+                }}
+                secureTextEntry={!showConfirmPassword}
+                placeholderTextColor="#C7AAA0"
+                style={styles.input}
+              />
+
+              <TouchableOpacity
+                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+              >
+                <Ionicons
+                  name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={22}
+                  color="#999"
+                />
+              </TouchableOpacity>
+            </View>
+
+            {confirmPasswordError ? (
+              <Text style={styles.errorText}>{confirmPasswordError}</Text>
+            ) : null}
+
+            {/* Terms & Conditions */}
 
             <TouchableOpacity
-              onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+              style={styles.checkboxContainer}
+              onPress={() => setIsChecked(!isChecked)}
             >
               <Ionicons
-                name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                name={isChecked ? 'checkbox' : 'square-outline'}
                 size={22}
-                color="#999"
+                color="#FF4F87"
               />
+
+              <Text style={styles.checkboxText}>
+                I agree to Terms & Conditions
+              </Text>
             </TouchableOpacity>
-          </View>
 
-          {confirmPasswordError ? (
-            <Text style={styles.errorText}>{confirmPasswordError}</Text>
-          ) : null}
-
-          {/* Terms & Conditions */}
-
-          <TouchableOpacity
-            style={styles.checkboxContainer}
-            onPress={() => setIsChecked(!isChecked)}
-          >
-            <Ionicons
-              name={isChecked ? 'checkbox' : 'square-outline'}
-              size={22}
-              color="#FF4F87"
-            />
-
-            <Text style={styles.checkboxText}>
-              I agree to Terms & Conditions
-            </Text>
-          </TouchableOpacity>
-
-          {/* Register Button */}
-
-          <TouchableOpacity
-            disabled={!isChecked || isSubmitting}
-            style={[
-              styles.registerButton,
-              (!isChecked || isSubmitting) && styles.disabledButton,
-            ]}
-            onPress={handleRegister}
-          >
-            <Text style={styles.registerText}>
-              {isSubmitting ? 'Sending Code...' : 'Create Account'}
-            </Text>
-          </TouchableOpacity>
-
-          {/* Footer */}
-
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Already have an account?</Text>
+            {/* Register Button */}
 
             <TouchableOpacity
-              onPress={() => navigation.navigate('ArtistLogin')}
+              disabled={!isChecked || isSubmitting}
+              style={[
+                styles.registerButton,
+                (!isChecked || isSubmitting) && styles.disabledButton,
+              ]}
+              onPress={handleRegister}
             >
-              <Text style={styles.signInLink}>Sign In</Text>
+              <Text style={styles.registerText}>
+                {isSubmitting ? 'Sending Code...' : 'Create Account'}
+              </Text>
             </TouchableOpacity>
+
+            {/* Footer */}
+
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>Already have an account?</Text>
+
+              <TouchableOpacity
+                onPress={() => navigation.navigate('ArtistLogin')}
+              >
+                <Text style={styles.signInLink}>Sign In</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
@@ -339,7 +343,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FAFAFA',
     paddingHorizontal: 24,
-    paddingTop: 60,
+    paddingTop: 15,
   },
 
   backButton: {

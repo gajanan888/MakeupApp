@@ -299,7 +299,10 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.notificationButton}>
+        <TouchableOpacity
+          style={styles.notificationButton}
+          onPress={() => navigation.navigate('ClientNotification')}
+        >
           <Ionicons name="notifications-outline" size={24} color="#222" />
         </TouchableOpacity>
       </View>

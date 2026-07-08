@@ -26,28 +26,18 @@ import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { uploadFile } from '../../api/files';
 import { getArtistConversations, sendArtistMessage } from '../../api/auth';
 
-const requestPermissions = async () => {
+const requestCameraPermission = async () => {
   if (Platform.OS === 'android') {
     try {
       const cameraGranted = await PermissionsAndroid.request(
         PermissionsAndroid.PERMISSIONS.CAMERA,
       );
-
-      const storageGranted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES ||
-          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
-      );
-
-      return (
-        cameraGranted === PermissionsAndroid.RESULTS.GRANTED &&
-        storageGranted === PermissionsAndroid.RESULTS.GRANTED
-      );
+      return cameraGranted === PermissionsAndroid.RESULTS.GRANTED;
     } catch (err) {
-      console.log(err);
+      console.warn('Camera permission request error:', err);
       return false;
     }
   }
-
   return true;
 };
 
@@ -160,10 +150,10 @@ const ArtistMessageScreen = () => {
   };
 
   const openCamera = async () => {
-    const granted = await requestPermissions();
+    const granted = await requestCameraPermission();
 
     if (!granted) {
-      Alert.alert('Permission Required', 'Camera and Storage permission is needed');
+      Alert.alert('Permission Required', 'Camera permission is needed');
       return;
     }
 
@@ -205,13 +195,6 @@ const ArtistMessageScreen = () => {
   };
 
   const openGallery = async () => {
-    const granted = await requestPermissions();
-
-    if (!granted) {
-      Alert.alert('Permission Required', 'Storage permission is needed');
-      return;
-    }
-
     setImagePickerVisible(false);
 
     try {

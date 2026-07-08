@@ -49,6 +49,8 @@ import BookingSuccessScreen from '../screens/client/BookingSuccessScreen';
 import SelectLocationScreen from '../screens/client/SelectLocationScreen';
 import ArtistsListByLocationScreen from '../screens/client/ArtistsListByLocationScreen';
 import EnterBookingAddressScreen from '../screens/client/EnterBookingAddressScreen';
+import ClientNotificationScreen from '../screens/client/ClientNotificationScreen';
+import ArtistNotificationScreen from '../screens/artist/ArtistNotificationScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -242,6 +244,8 @@ const AppNavigator = () => {
         <Stack.Screen name="SelectLocation" component={SelectLocationScreen} />
         <Stack.Screen name="ArtistsListByLocation" component={ArtistsListByLocationScreen} />
         <Stack.Screen name="EnterBookingAddress" component={EnterBookingAddressScreen} />
+        <Stack.Screen name="ClientNotification" component={ClientNotificationScreen} />
+        <Stack.Screen name="ArtistNotification" component={ArtistNotificationScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

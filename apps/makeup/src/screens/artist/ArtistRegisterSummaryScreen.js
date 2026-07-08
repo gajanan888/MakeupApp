@@ -6,7 +6,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   ScrollView,
   StatusBar,
@@ -14,6 +13,8 @@ import {
   Image,
   Alert,
 } from 'react-native';
+
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { updateArtistProfile } from '../../api/auth';
@@ -87,7 +88,7 @@ const ArtistRegisterSummaryScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar backgroundColor="#F7F7F7" barStyle="dark-content" />
 
       <View style={styles.container}>
