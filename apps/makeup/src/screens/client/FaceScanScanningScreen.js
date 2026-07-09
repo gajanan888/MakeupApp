@@ -247,4 +247,9 @@ const styles = StyleSheet.create({
     borderColor: '#FFF',
     backgroundColor: '#FF4F87',
   },
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#FFF',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
+  },
 });

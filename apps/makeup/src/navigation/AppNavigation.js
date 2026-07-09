@@ -51,6 +51,8 @@ import ArtistsListByLocationScreen from '../screens/client/ArtistsListByLocation
 import EnterBookingAddressScreen from '../screens/client/EnterBookingAddressScreen';
 import ClientNotificationScreen from '../screens/client/ClientNotificationScreen';
 import ArtistNotificationScreen from '../screens/artist/ArtistNotificationScreen';
+import VirtualPreviewChatScreen from '../screens/client/VirtualPreviewChatScreen';
+import VirtualPreviewResultScreen from '../screens/client/VirtualPreviewResultScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -246,6 +248,8 @@ const AppNavigator = () => {
         <Stack.Screen name="EnterBookingAddress" component={EnterBookingAddressScreen} />
         <Stack.Screen name="ClientNotification" component={ClientNotificationScreen} />
         <Stack.Screen name="ArtistNotification" component={ArtistNotificationScreen} />
+        <Stack.Screen name="VirtualPreviewChat" component={VirtualPreviewChatScreen} />
+        <Stack.Screen name="VirtualPreviewResult" component={VirtualPreviewResultScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

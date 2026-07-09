@@ -4,7 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const AI_API_BASE_URLS = [
   'http://127.0.0.1:8000',       // adb reverse loopback (numeric, bypasses ROM DNS resolution)
   'http://localhost:8000',       // adb reverse localhost fallback
-  'http://10.145.106.179:8000',   // Wi-Fi IP fallback
+  'http://10.145.106.179:8000',  // Current Wi-Fi IP fallback
+  'http://172.19.20.151:8000',   // Wi-Fi IP fallback (Previous computer IP)
   'http://10.0.2.2:8000',        // Android Emulator loopback
   'http://192.168.56.1:8000',    // VirtualBox host-only
 ];
@@ -181,6 +182,79 @@ export const simulateMakeup = async (lookId, step, file) => {
       'Content-Type': 'multipart/form-data',
     },
   });
+  return response.data;
+};
+
+// ── Virtual Makeup Preview Endpoints ─────────────────────────────────────────
+
+export const uploadPreviewSelfie = async (file) => {
+  const formData = new FormData();
+  const uri = file?.uri || '';
+  let normalizedUri = uri;
+  
+  if (!uri.startsWith('file://') && !uri.startsWith('content://')) {
+    if (uri.startsWith('file:')) {
+      normalizedUri = uri.replace(/^file:\/?\/?\/?/, 'file:///');
+    } else {
+      normalizedUri = `file://${uri}`;
+    }
+  }
+
+  formData.append('file', {
+    uri: normalizedUri,
+    name: file.fileName || file.name || 'upload.jpg',
+    type: file.type || 'image/jpeg',
+  });
+
+  const response = await aiApi.post('/api/v1/virtual-preview/upload', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
+export const validatePreviewSelfie = async (selfieId) => {
+  const response = await aiApi.post('/api/v1/virtual-preview/validate-image', {
+    selfie_id: selfieId,
+  });
+  return response.data;
+};
+
+export const analyzePreviewFace = async (selfieId) => {
+  const response = await aiApi.post('/api/v1/virtual-preview/analyze-face', {
+    selfie_id: selfieId,
+  });
+  return response.data;
+};
+
+export const sendPreviewChatMessage = async (selfieId, chatSessionId, message) => {
+  const response = await aiApi.post('/api/v1/virtual-preview/chat', {
+    selfie_id: selfieId,
+    chat_session_id: chatSessionId,
+    message: message,
+  });
+  return response.data;
+};
+
+export const generatePreviewPrompt = async (chatSessionId) => {
+  const response = await aiApi.post('/api/v1/virtual-preview/generate-prompt', {
+    chat_session_id: chatSessionId,
+  });
+  return response.data;
+};
+
+export const generatePreview = async (selfieId, prompt, chatSessionId) => {
+  const response = await aiApi.post('/api/v1/virtual-preview/generate-preview', {
+    selfie_id: selfieId,
+    prompt: prompt,
+    chat_session_id: chatSessionId,
+  });
+  return response.data;
+};
+
+export const getPreview = async (previewId) => {
+  const response = await aiApi.get(`/api/v1/virtual-preview/preview/${previewId}`);
   return response.data;
 };
 

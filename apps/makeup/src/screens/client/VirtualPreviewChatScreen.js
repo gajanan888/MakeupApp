@@ -18,12 +18,12 @@ import ScreenHeader from '../../components/ScreenHeader';
 import { sendPreviewChatMessage, generatePreviewPrompt, generatePreview } from '../../api/aiClient';
 
 const QUICK_REPLIES = [
-  { trigger: 'occasion', options: ['💍 Wedding', '🥂 Reception', '💕 Engagement', '🎉 Party', '🎂 Birthday', '💼 Office', '🎓 College', '📸 Photoshoot', '🌸 Festival', '❤️ Date Night', '😊 Casual Outing', '✨ Other'] },
-  { trigger: 'where is the event', options: ['🏛 Indoor', '🌳 Outdoor', '🔄 Both'] },
-  { trigger: 'what time', options: ['🌅 Morning', '☀️ Afternoon', '🌇 Evening', '🌙 Night'] },
+  { trigger: 'occasion', options: ['Wedding', 'Reception', 'Engagement', 'Party', 'Birthday', 'Office', 'College', 'Photoshoot', 'Festival', 'Date Night', 'Casual Outing', 'Other'] },
+  { trigger: 'where is the event', options: ['Indoor', 'Outdoor', 'Both'] },
+  { trigger: 'what time', options: ['Morning', 'Afternoon', 'Evening', 'Night'] },
   { trigger: 'what outfit', options: ['Saree', 'Lehenga', 'Gown', 'Salwar Suit', 'Western Dress', 'Formal Wear', 'Casual Wear', 'Other'] },
-  { trigger: 'color of your outfit', options: ['❤️ Red', '💗 Pink', '💙 Blue', '💚 Green', '💛 Gold', '🖤 Black', '🤍 White', '💜 Purple', '🤎 Brown', '❤️🔥 Maroon', '🧡 Orange', '🌸 Peach'] },
-  { trigger: 'overall look', options: ['🌿 Natural', '✨ Soft Glam', '💄 Glamorous', '👑 Luxury Bridal', '🌸 Korean Glass Skin', '⭐ Celebrity Inspired', '🤖 Surprise Me'] },
+  { trigger: 'color of your outfit', options: ['Red', 'Pink', 'Blue', 'Green', 'Gold', 'Black', 'White', 'Purple', 'Brown', 'Maroon', 'Orange', 'Peach'] },
+  { trigger: 'overall look', options: ['Natural', 'Soft Glam', 'Glamorous', 'Luxury Bridal', 'Korean Glass Skin', 'Celebrity Inspired', 'Surprise Me'] },
   { trigger: 'how bold', options: ['1 = Barely Visible', '2 = Light', '3 = Medium', '4 = Glam', '5 = Full Glam'] },
   { trigger: 'accessories', options: ['Hairstyle', 'Earrings', 'Necklace', 'Bindi', 'Dupatta', 'Veil', 'None'] },
 ];
@@ -156,20 +156,40 @@ const VirtualPreviewChatScreen = ({ navigation, route }) => {
     }
   };
 
-  const renderMessageItem = ({ item }) => {
+  const renderMessageItem = ({ item, index }) => {
     const isAi = item.role === 'model';
+    const isLastMessage = index === messages.length - 1;
+    const showOptions = isAi && isLastMessage && options.length > 0 && !loading;
+
     return (
-      <View style={[styles.messageRow, isAi ? styles.messageRowAi : styles.messageRowUser]}>
-        {isAi && (
-          <View style={styles.avatarIcon}>
-            <Ionicons name="sparkles" size={14} color="#FFF" />
+      <View style={{ marginBottom: 12 }}>
+        <View style={[styles.messageRow, isAi ? styles.messageRowAi : styles.messageRowUser]}>
+          {isAi && (
+            <View style={styles.avatarIcon}>
+              <Ionicons name="sparkles" size={14} color="#FFF" />
+            </View>
+          )}
+          <View style={[styles.bubble, isAi ? styles.bubbleAi : styles.bubbleUser]}>
+            <Text style={[styles.messageText, isAi ? styles.messageTextAi : styles.messageTextUser]}>
+              {item.content}
+            </Text>
+          </View>
+        </View>
+
+        {showOptions && (
+          <View style={styles.inChatOptionsContainer}>
+            {options.map((option) => (
+              <TouchableOpacity
+                key={option}
+                style={styles.inChatOptionChip}
+                activeOpacity={0.8}
+                onPress={() => handleSendMessage(option)}
+              >
+                <Text style={styles.inChatOptionText}>{option}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         )}
-        <View style={[styles.bubble, isAi ? styles.bubbleAi : styles.bubbleUser]}>
-          <Text style={[styles.messageText, isAi ? styles.messageTextAi : styles.messageTextUser]}>
-            {item.content}
-          </Text>
-        </View>
       </View>
     );
   };
@@ -202,29 +222,6 @@ const VirtualPreviewChatScreen = ({ navigation, route }) => {
             <View style={styles.typingContainer}>
               <ActivityIndicator size="small" color="#FF4F87" style={{ marginRight: 8 }} />
               <Text style={styles.typingText}>AI is thinking...</Text>
-            </View>
-          )}
-
-          {/* Quick Replies / Choice Chips */}
-          {options.length > 0 && !loading && (
-            <View style={styles.quickReplyContainer}>
-              <Text style={styles.quickReplyTitle}>Choose an option:</Text>
-              <FlatList
-                horizontal
-                data={options}
-                keyExtractor={item => item}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.quickReplyList}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={styles.optionChip}
-                    activeOpacity={0.8}
-                    onPress={() => handleSendMessage(item)}
-                  >
-                    <Text style={styles.optionChipText}>{item}</Text>
-                  </TouchableOpacity>
-                )}
-              />
             </View>
           )}
 
@@ -381,6 +378,31 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#FF4F87',
     fontWeight: '700',
+  },
+  inChatOptionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingLeft: 32, // Align with bubble text
+    marginTop: 8,
+  },
+  inChatOptionChip: {
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: '#FFD1E1',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 8,
+    marginBottom: 8,
+    shadowColor: '#FFD1E1',
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  inChatOptionText: {
+    fontSize: 12,
+    color: '#FF4F87',
+    fontWeight: '600',
   },
   inputBar: {
     flexDirection: 'row',
