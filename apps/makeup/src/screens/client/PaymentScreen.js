@@ -39,13 +39,14 @@ const PaymentScreen = ({ navigation, route }) => {
   } = route?.params || {};
 
   const servicePrice = selectedService?.price || 0;
+  const peopleCount = selectedService?.peopleCount || 1;
   // Parse clean numbers from strings if they contain currency symbols
   const parseAmount = (val) => {
     if (typeof val === 'number') return val;
     if (!val) return 0;
     return parseFloat(String(val).replace(/[^0-9]/g, '')) || 0;
   };
-  const numericServicePrice = parseAmount(servicePrice);
+  const numericServicePrice = parseAmount(servicePrice) * peopleCount;
   const numericAddonsTotal = parseAmount(addonsTotal);
   
   const total = isAdvancePayment ? advanceAmount : (numericServicePrice + numericAddonsTotal);

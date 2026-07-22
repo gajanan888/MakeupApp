@@ -324,13 +324,23 @@ const ArtistProfileScreen = ({ onBack }) => {
   };
 
   const handleSelectPostImages = () => {
-    launchImageLibrary({ mediaType: 'photo', selectionLimit: 0, quality: 0.8 }, (response) => {
+    const currentCount = newPostImages.length;
+    if (currentCount >= 10) {
+      Alert.alert('Limit Reached', 'You can post a maximum of 10 photos at once.');
+      return;
+    }
+
+    const remainingLimit = 10 - currentCount;
+
+    launchImageLibrary({ mediaType: 'photo', selectionLimit: remainingLimit, quality: 0.8 }, (response) => {
       if (response.didCancel || response.errorCode) return;
       if (!response.assets || response.assets.length === 0) return;
 
+      const selectedAssets = response.assets.slice(0, remainingLimit);
+
       setNewPostImages(prev => [
         ...prev,
-        ...response.assets.map(asset => ({
+        ...selectedAssets.map(asset => ({
           uri: asset.uri,
           fileName: asset.fileName || 'work_image.jpg',
           type: asset.type || 'image/jpeg',
@@ -370,6 +380,11 @@ const ArtistProfileScreen = ({ onBack }) => {
   const handleCreatePost = async () => {
     if (newPostImages.length === 0) {
       Alert.alert('Error', 'Please select at least one image.');
+      return;
+    }
+
+    if (newPostImages.length > 10) {
+      Alert.alert('Limit Exceeded', 'You can post a maximum of 10 photos at once.');
       return;
     }
 
@@ -902,7 +917,12 @@ const ArtistProfileScreen = ({ onBack }) => {
               multiline
             />
 
-            <Text style={styles.inputLabel}>Select Photos</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Text style={styles.inputLabel}>Select Photos</Text>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: newPostImages.length >= 10 ? '#FF4F8F' : '#777' }}>
+                {newPostImages.length} / 10 photos
+              </Text>
+            </View>
             
             {newPostImages.length > 0 ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16, paddingVertical: 4 }}>
@@ -930,11 +950,14 @@ const ArtistProfileScreen = ({ onBack }) => {
             ) : null}
 
             <TouchableOpacity 
-              style={styles.docUploadButton} 
+              style={[styles.docUploadButton, newPostImages.length >= 10 && { backgroundColor: '#F5F5F5', borderColor: '#DDD' }]} 
               onPress={handleSelectPostImages}
+              disabled={newPostImages.length >= 10}
             >
-              <Ionicons name="images-outline" size={20} color="#FF4F8F" style={{ marginRight: 8 }} />
-              <Text style={styles.docUploadText}>Select Images</Text>
+              <Ionicons name="images-outline" size={20} color={newPostImages.length >= 10 ? '#AAA' : '#FF4F8F'} style={{ marginRight: 8 }} />
+              <Text style={[styles.docUploadText, newPostImages.length >= 10 && { color: '#AAA' }]}>
+                {newPostImages.length >= 10 ? 'Photo Limit Reached (10/10)' : 'Select Images (Max 10)'}
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity 

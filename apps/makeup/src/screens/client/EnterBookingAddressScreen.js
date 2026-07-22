@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -22,6 +24,7 @@ const EnterBookingAddressScreen = ({ navigation, route }) => {
   const { artist } = route.params;
   const artistCity = artist.profile?.location || 'Pune';
 
+  const scrollRef = useRef(null);
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [addressLabel, setAddressLabel] = useState('Home');
   const [addressName, setAddressName] = useState('');
@@ -33,6 +36,14 @@ const EnterBookingAddressScreen = ({ navigation, route }) => {
   const [addressPhone, setAddressPhone] = useState('');
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const keyboardHeight = useState(new Animated.Value(0))[0];
+  const [currentKbHeight, setCurrentKbHeight] = useState(0);
+
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }, 200);
+  };
 
   useEffect(() => {
     const loadSaved = async () => {
@@ -48,6 +59,41 @@ const EnterBookingAddressScreen = ({ navigation, route }) => {
     loadSaved();
   }, []);
 
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener(
+      Platform.OS === 'ios'
+        ? 'keyboardWillShow'
+        : 'keyboardDidShow',
+      (event) => {
+        const kh = event.endCoordinates.height;
+        setCurrentKbHeight(kh);
+        Animated.timing(keyboardHeight, {
+          toValue: kh,
+          duration: 250,
+          useNativeDriver: false,
+        }).start();
+      }
+    );
+
+    const hideSubscription = Keyboard.addListener(
+      Platform.OS === 'ios'
+        ? 'keyboardWillHide'
+        : 'keyboardDidHide',
+      () => {
+        setCurrentKbHeight(0);
+        Animated.timing(keyboardHeight, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: false,
+        }).start();
+      }
+    );
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
   const fetchCitySuggestions = async (text) => {
     setAddressCity(text);
     setErrorMessage('');
@@ -242,11 +288,13 @@ const EnterBookingAddressScreen = ({ navigation, route }) => {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
       >
         <ScrollView
+          ref={scrollRef}
           style={styles.container}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: currentKbHeight + 100 }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -390,6 +438,7 @@ const EnterBookingAddressScreen = ({ navigation, route }) => {
             value={addressPinCode}
             onChangeText={setAddressPinCode}
             maxLength={6}
+            onFocus={scrollToBottom}
           />
 
           {/* Detailed Address */}
@@ -402,6 +451,7 @@ const EnterBookingAddressScreen = ({ navigation, route }) => {
             onChangeText={setAddressLine}
             multiline={true}
             numberOfLines={3}
+            onFocus={scrollToBottom}
           />
 
           {/* Phone Number */}
@@ -414,9 +464,26 @@ const EnterBookingAddressScreen = ({ navigation, route }) => {
             value={addressPhone}
             onChangeText={setAddressPhone}
             maxLength={10}
+            onFocus={scrollToBottom}
           />
+        </ScrollView>
 
-          {/* Submit Button */}
+        {/* Static Bottom Footer */}
+        <Animated.View
+          style={[
+            styles.bottomFooter,
+            {
+              transform: [
+                {
+                  translateY: Animated.multiply(
+                    keyboardHeight,
+                    -1
+                  ),
+                },
+              ],
+            },
+          ]}
+        >
           <TouchableOpacity
             style={styles.submitBtn}
             onPress={handleProceed}
@@ -428,7 +495,7 @@ const EnterBookingAddressScreen = ({ navigation, route }) => {
               <Text style={styles.submitBtnText}>Validate and Proceed</Text>
             )}
           </TouchableOpacity>
-        </ScrollView>
+        </Animated.View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -446,7 +513,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
   artistSummaryCard: {
     flexDirection: 'row',
@@ -561,12 +628,25 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#374151',
   },
+  bottomFooter: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 16 : 16,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+  },
   submitBtn: {
     backgroundColor: '#FF4F87',
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 30,
+    marginTop: 0,
   },
   submitBtnText: {
     color: '#FFFFFF',

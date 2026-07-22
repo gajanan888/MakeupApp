@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getArtists } from '../../api/auth';
+import { getUniqueProfileImage } from '../../utils/artistImageHelper';
 import ScreenHeader from '../../components/ScreenHeader';
 
 const LOCATIONIQ_API_KEY = 'pk.30df6c1f1ec752495ea504fe88556693'; // LocationIQ API access token
@@ -35,8 +36,36 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
   const [selectedPrice, setSelectedPrice] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [selectedGender, setSelectedGender] = useState('All');
+  const [isNearMeActive, setIsNearMeActive] = useState(false);
+  const [clientCityName, setClientCityName] = useState('Pune');
   const [artists, setArtists] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const handleToggleNearMe = async () => {
+    if (isNearMeActive) {
+      setIsNearMeActive(false);
+      setSelectedLocation(null);
+    } else {
+      try {
+        const storedCity = await AsyncStorage.getItem('detectedCity');
+        const storedLocName = await AsyncStorage.getItem('detectedLocationName');
+        const targetCity = storedCity || storedLocName || 'Pune';
+        setClientCityName(targetCity);
+        setSelectedLocation(targetCity);
+        setIsNearMeActive(true);
+      } catch (err) {
+        console.warn('Failed to load client city for Near Me:', err);
+        setSelectedLocation('Pune');
+        setIsNearMeActive(true);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedLocation) {
+      setIsNearMeActive(false);
+    }
+  }, [selectedLocation]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -79,6 +108,7 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
 
   const fetchLocationSuggestions = async (text) => {
     setLocationText(text);
+    setSelectedLocation(text && text.trim().length > 0 ? text.trim() : null);
     if (!text || text.trim().length < 2) {
       setLocationSuggestions([]);
       return;
@@ -135,14 +165,9 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
   };
 
   const timeSlots = [
-    '09:00 AM',
-    '10:00 AM',
-    '11:00 AM',
-    '01:00 PM',
-    '02:00 PM',
-    '03:00 PM',
-    '04:00 PM',
-    '05:00 PM',
+    'Morning Slot (7:00 AM - 11:00 AM)',
+    'Afternoon Slot (11:00 AM - 3:00 PM)',
+    'Evening Slot (3:00 PM - 8:00 PM)',
   ];
 
   const categories = [
@@ -177,7 +202,7 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
         category: selectedCategory,
         rating: selectedRating,
         priceRange: selectedPrice,
-        location: selectedLocation,
+        location: selectedLocation || undefined,
         gender: selectedGender !== 'All' ? selectedGender : undefined,
       };
 
@@ -277,6 +302,23 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
           />
         </View>
 
+        {/* Near Me Quick Button */}
+        <TouchableOpacity
+          style={[styles.nearMeBtn, isNearMeActive && styles.nearMeBtnActive]}
+          onPress={handleToggleNearMe}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name={isNearMeActive ? "location" : "location-outline"}
+            size={16}
+            color={isNearMeActive ? "#FFF" : "#FF4F87"}
+            style={{ marginRight: 4 }}
+          />
+          <Text style={[styles.nearMeBtnText, isNearMeActive && styles.nearMeBtnTextActive]}>
+            Near Me
+          </Text>
+        </TouchableOpacity>
+
         <TouchableOpacity
           style={styles.filterButton}
           onPress={() => setShowOnlyFavorites(!showOnlyFavorites)}
@@ -289,158 +331,100 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
         </TouchableOpacity>
       </View>
 
-      {/* Horizontal Filter Chips */}
-      <View style={{ height: 46, marginBottom: 4, justifyContent: 'center' }}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ flexGrow: 0 }}
-          contentContainerStyle={{ paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center' }}
-        >
-          {/* Master Filters Chip */}
-          <TouchableOpacity
-            style={styles.filtersChip}
-            onPress={() => setShowFilter(true)}
-          >
-            <Ionicons name="options-outline" size={13} color="#FF4F87" style={{ marginRight: 6 }} />
-            <Text style={styles.filtersChipText}>Filters</Text>
+      {/* Active Near Me Location Banner */}
+      {isNearMeActive && (
+        <View style={styles.nearMeBanner}>
+          <Ionicons name="location" size={15} color="#FF4F87" style={{ marginRight: 6 }} />
+          <Text style={styles.nearMeBannerText}>
+            Showing artists in <Text style={{ fontWeight: '700', color: '#111' }}>{selectedLocation || clientCityName}</Text>
+          </Text>
+          <TouchableOpacity onPress={handleToggleNearMe} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="close-circle" size={18} color="#888" />
           </TouchableOpacity>
-
-          {/* Location Chip - inline expandable */}
-          <TouchableOpacity
-            style={[styles.filterPill, (!!selectedLocation || showInlineLocation) && styles.filterPillActive]}
-            onPress={() => setShowInlineLocation(!showInlineLocation)}
-          >
-            <Ionicons name="location-outline" size={13} color={(selectedLocation || showInlineLocation) ? '#FF4F87' : '#666'} style={{ marginRight: 4 }} />
-            <Text style={[styles.filterPillText, (!!selectedLocation || showInlineLocation) && styles.filterPillTextActive]}>
-              {selectedLocation ? selectedLocation : 'Location'}
-            </Text>
-            {selectedLocation ? (
-              <TouchableOpacity
-                onPress={() => {
-                  setSelectedLocation(null);
-                  setLocationText('');
-                  setLocationSuggestions([]);
-                  setShowInlineLocation(false);
-                }}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons name="close-circle" size={14} color="#FF4F87" style={{ marginLeft: 4 }} />
-              </TouchableOpacity>
-            ) : (
-              <Ionicons
-                name={showInlineLocation ? 'chevron-up' : 'chevron-down'}
-                size={12}
-                color={(selectedLocation || showInlineLocation) ? '#FF4F87' : '#666'}
-                style={{ marginLeft: 4 }}
-              />
-            )}
-          </TouchableOpacity>
-
-          {/* Price Chip */}
-          <TouchableOpacity
-            style={[styles.filterPill, !!selectedPrice && styles.filterPillActive]}
-            onPress={() => setShowPriceModal(true)}
-          >
-            <Text style={[styles.filterPillText, !!selectedPrice && styles.filterPillTextActive]}>
-              {selectedPrice ? `Price: ${selectedPrice === '0-2000' ? '₹0-₹2k' : selectedPrice === '2000-5000' ? '₹2k-₹5k' : '₹5k+'}` : 'Price'}
-            </Text>
-            <Ionicons
-              name="chevron-down"
-              size={12}
-              color={selectedPrice ? '#FF4F87' : '#666'}
-              style={{ marginLeft: 4 }}
-            />
-          </TouchableOpacity>
-
-          {/* Rating Chip */}
-          <TouchableOpacity
-            style={[styles.filterPill, !!selectedRating && styles.filterPillActive]}
-            onPress={() => setShowRatingModal(true)}
-          >
-            <Text style={[styles.filterPillText, !!selectedRating && styles.filterPillTextActive]}>
-              {selectedRating ? `Rating: ${selectedRating}★` : 'Rating'}
-            </Text>
-            <Ionicons
-              name="chevron-down"
-              size={12}
-              color={selectedRating ? '#FF4F87' : '#666'}
-              style={{ marginLeft: 4 }}
-            />
-          </TouchableOpacity>
-
-          {/* Gender Chip */}
-          <TouchableOpacity
-            style={[styles.filterPill, selectedGender !== 'All' && styles.filterPillActive]}
-            onPress={() => setShowGenderModal(true)}
-          >
-            <Text style={[styles.filterPillText, selectedGender !== 'All' && styles.filterPillTextActive]}>
-              {selectedGender !== 'All' ? `Gender: ${selectedGender}` : 'Gender'}
-            </Text>
-            <Ionicons
-              name="chevron-down"
-              size={12}
-              color={selectedGender !== 'All' ? '#FF4F87' : '#666'}
-              style={{ marginLeft: 4 }}
-            />
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
-
-      {/* Inline Location Search (expanded below filter chips) */}
-      {showInlineLocation && (
-        <View>
-          {/* Input row */}
-          <View style={styles.inlineLocationWrapper}>
-            <View style={styles.inlineLocationInputRow}>
-              <Ionicons name="location-outline" size={18} color="#FF4F87" style={{ marginRight: 8 }} />
-              <TextInput
-                style={styles.inlineLocationInput}
-                placeholder="Search city..."
-                placeholderTextColor="#999"
-                value={locationText}
-                onChangeText={fetchLocationSuggestions}
-                autoFocus
-              />
-              {locationText ? (
-                <TouchableOpacity
-                  onPress={() => {
-                    setLocationText('');
-                    setSelectedLocation(null);
-                    setLocationSuggestions([]);
-                  }}
-                >
-                  <Ionicons name="close-circle" size={18} color="#CCC" />
-                </TouchableOpacity>
-              ) : null}
-            </View>
-          </View>
-
-          {/* Suggestions rendered OUTSIDE the wrapper to avoid overflow clipping */}
-          {loadingSuggestions && (
-            <ActivityIndicator color="#FF4F87" size="small" style={{ marginVertical: 6, alignSelf: 'flex-start', marginLeft: 28 }} />
-          )}
-          {locationSuggestions.length > 0 && (
-            <View style={styles.inlineSuggestionsContainer}>
-              {locationSuggestions.map((item, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={styles.inlineSuggestionItem}
-                  onPress={() => {
-                    setSelectedLocation(item.cityName);
-                    setLocationText(item.cityName);
-                    setLocationSuggestions([]);
-                    setShowInlineLocation(false);
-                  }}
-                >
-                  <Ionicons name="location" size={15} color="#FF4F87" style={{ marginRight: 8 }} />
-                  <Text style={styles.inlineSuggestionText} numberOfLines={1}>{item.displayName}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
         </View>
       )}
+
+      {/* Horizontal Filter Chips (Only shown after entering search text) */}
+      {!!searchText.trim() && (
+        <View style={{ height: 46, marginBottom: 4, justifyContent: 'center' }}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ flexGrow: 0 }}
+            contentContainerStyle={{ paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center' }}
+          >
+            {/* Near Me Chip */}
+            <TouchableOpacity
+              style={[styles.filterPill, isNearMeActive && styles.filterPillActive]}
+              onPress={handleToggleNearMe}
+            >
+              <Ionicons name="location" size={13} color={isNearMeActive ? '#FF4F87' : '#666'} style={{ marginRight: 4 }} />
+              <Text style={[styles.filterPillText, isNearMeActive && styles.filterPillTextActive]}>
+                {isNearMeActive ? `Near Me (${selectedLocation || clientCityName})` : 'Near Me'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Master Filters Chip */}
+            <TouchableOpacity
+              style={styles.filtersChip}
+              onPress={() => setShowFilter(true)}
+            >
+              <Ionicons name="options-outline" size={13} color="#FF4F87" style={{ marginRight: 6 }} />
+              <Text style={styles.filtersChipText}>Filters</Text>
+            </TouchableOpacity>
+
+            {/* Price Chip */}
+            <TouchableOpacity
+              style={[styles.filterPill, !!selectedPrice && styles.filterPillActive]}
+              onPress={() => setShowPriceModal(true)}
+            >
+              <Text style={[styles.filterPillText, !!selectedPrice && styles.filterPillTextActive]}>
+                {selectedPrice ? `Price: ${selectedPrice === '0-2000' ? '₹0-₹2k' : selectedPrice === '2000-5000' ? '₹2k-₹5k' : '₹5k+'}` : 'Price'}
+              </Text>
+              <Ionicons
+                name="chevron-down"
+                size={12}
+                color={selectedPrice ? '#FF4F87' : '#666'}
+                style={{ marginLeft: 4 }}
+              />
+            </TouchableOpacity>
+
+            {/* Rating Chip */}
+            <TouchableOpacity
+              style={[styles.filterPill, !!selectedRating && styles.filterPillActive]}
+              onPress={() => setShowRatingModal(true)}
+            >
+              <Text style={[styles.filterPillText, !!selectedRating && styles.filterPillTextActive]}>
+                {selectedRating ? `Rating: ${selectedRating}★` : 'Rating'}
+              </Text>
+              <Ionicons
+                name="chevron-down"
+                size={12}
+                color={selectedRating ? '#FF4F87' : '#666'}
+                style={{ marginLeft: 4 }}
+              />
+            </TouchableOpacity>
+
+            {/* Gender Chip */}
+            <TouchableOpacity
+              style={[styles.filterPill, selectedGender !== 'All' && styles.filterPillActive]}
+              onPress={() => setShowGenderModal(true)}
+            >
+              <Text style={[styles.filterPillText, selectedGender !== 'All' && styles.filterPillTextActive]}>
+                {selectedGender !== 'All' ? `Gender: ${selectedGender}` : 'Gender'}
+              </Text>
+              <Ionicons
+                name="chevron-down"
+                size={12}
+                color={selectedGender !== 'All' ? '#FF4F87' : '#666'}
+                style={{ marginLeft: 4 }}
+              />
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      )}
+
+
 
       {/* Artists Scroll List */}
       {loading && page === 1 ? (
@@ -462,16 +446,10 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
                   selectedCategory,
                 })}
               >
-                {artist.profile?.profileImage ? (
-                  <Image
-                    source={{ uri: artist.profile.profileImage }}
-                    style={styles.artistImage}
-                  />
-                ) : (
-                  <View style={styles.artistImagePlaceholder}>
-                    <Ionicons name="person-outline" size={32} color="#FF4F87" />
-                  </View>
-                )}
+                <Image
+                  source={{ uri: getUniqueProfileImage(artist) }}
+                  style={styles.artistImage}
+                />
                 <View style={styles.artistInfo}>
                   <Text style={styles.artistName}>{artist.name}</Text>
                   <Text style={styles.artistSpeciality}>
@@ -514,9 +492,14 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
           }}
           ListEmptyComponent={() => (
             <View style={{ alignItems: 'center', marginVertical: 60, paddingHorizontal: 20 }}>
-              <Ionicons name="search-outline" size={48} color="#CCC" />
-              <Text style={{ color: '#999', marginTop: 12, fontSize: 16, textAlign: 'center' }}>
-                No artists found matching your criteria.
+              <Ionicons name={selectedLocation ? "location-outline" : "search-outline"} size={48} color={selectedLocation ? "#FF4F87" : "#CCC"} />
+              <Text style={{ color: '#222', marginTop: 14, fontSize: 17, fontWeight: '700', textAlign: 'center' }}>
+                {selectedLocation ? 'No artist at our location' : 'No artists found'}
+              </Text>
+              <Text style={{ color: '#777', marginTop: 6, fontSize: 13, textAlign: 'center', lineHeight: 18 }}>
+                {selectedLocation
+                  ? `No registered artists are available in ${selectedLocation} right now.`
+                  : 'No artists found matching your criteria.'}
               </Text>
             </View>
           )}
@@ -526,8 +509,9 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
       )}
 
       {/* MASTER FILTERS MODAL */}
-      <Modal visible={showFilter} animationType="slide" transparent>
-        <Pressable style={styles.modalOverlay} onPress={() => setShowFilter(false)}>
+      <Modal visible={showFilter} animationType="slide" transparent onRequestClose={() => setShowFilter(false)}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowFilter(false)} />
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Filters</Text>
@@ -613,54 +597,6 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
                   );
                 })}
               </View>
-
-              {/* Location Filter */}
-              <Text style={styles.filterLabel}>Location</Text>
-              <View style={styles.locationInputContainer}>
-                <Ionicons name="location-outline" size={20} color="#FF4F87" style={styles.locationInputIcon} />
-                <TextInput
-                  style={styles.locationTextInput}
-                  placeholder="Search city..."
-                  placeholderTextColor="#999"
-                  value={locationText}
-                  onChangeText={fetchLocationSuggestions}
-                />
-                {locationText ? (
-                  <TouchableOpacity
-                    onPress={() => {
-                      setLocationText('');
-                      setSelectedLocation(null);
-                      setLocationSuggestions([]);
-                    }}
-                    style={{ padding: 4 }}
-                  >
-                    <Ionicons name="close-circle" size={18} color="#CCC" />
-                  </TouchableOpacity>
-                ) : null}
-              </View>
-
-              {loadingSuggestions && (
-                <ActivityIndicator color="#FF4F87" size="small" style={{ marginVertical: 8, alignSelf: 'flex-start' }} />
-              )}
-
-              {locationSuggestions.length > 0 && (
-                <View style={styles.suggestionsContainer}>
-                  {locationSuggestions.map((item, idx) => (
-                    <TouchableOpacity
-                      key={idx}
-                      style={styles.suggestionItem}
-                      onPress={() => {
-                        setSelectedLocation(item.cityName);
-                        setLocationText(item.cityName);
-                        setLocationSuggestions([]);
-                      }}
-                    >
-                      <Ionicons name="location" size={16} color="#FF4F87" style={{ marginRight: 8 }} />
-                      <Text style={styles.suggestionText} numberOfLines={1}>{item.displayName}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
             </ScrollView>
 
             <View style={styles.buttonRow}>
@@ -687,14 +623,15 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
               </TouchableOpacity>
             </View>
           </View>
-        </Pressable>
+        </View>
       </Modal>
 
 
 
       {/* QUICK PRICE MODAL */}
       <Modal visible={showPriceModal} animationType="slide" transparent onRequestClose={() => setShowPriceModal(false)}>
-        <Pressable style={styles.modalOverlay} onPress={() => setShowPriceModal(false)}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowPriceModal(false)} />
           <View style={styles.bottomSheetContainer}>
             <View style={styles.bottomSheetHeader}>
               <Text style={styles.bottomSheetTitle}>Select Price Range</Text>
@@ -723,12 +660,13 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
               })}
             </View>
           </View>
-        </Pressable>
+        </View>
       </Modal>
 
       {/* QUICK RATING MODAL */}
       <Modal visible={showRatingModal} animationType="slide" transparent onRequestClose={() => setShowRatingModal(false)}>
-        <Pressable style={styles.modalOverlay} onPress={() => setShowRatingModal(false)}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowRatingModal(false)} />
           <View style={styles.bottomSheetContainer}>
             <View style={styles.bottomSheetHeader}>
               <Text style={styles.bottomSheetTitle}>Select Minimum Rating</Text>
@@ -757,12 +695,13 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
               })}
             </View>
           </View>
-        </Pressable>
+        </View>
       </Modal>
 
       {/* QUICK GENDER MODAL */}
       <Modal visible={showGenderModal} animationType="slide" transparent onRequestClose={() => setShowGenderModal(false)}>
-        <Pressable style={styles.modalOverlay} onPress={() => setShowGenderModal(false)}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowGenderModal(false)} />
           <View style={styles.bottomSheetContainer}>
             <View style={styles.bottomSheetHeader}>
               <Text style={styles.bottomSheetTitle}>Select Gender</Text>
@@ -782,7 +721,7 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
                       setShowGenderModal(false);
                     }}
                   >
-                    <Text style={[styles.bottomSheetOptionText, isSelected && styles.bottomSheetOptionTextActive]}>
+                    <Text style={[styles.bottomSheetOptionText, isSelected && styles.bottomSheetOptionActive]}>
                       {g}
                     </Text>
                   </TouchableOpacity>
@@ -790,12 +729,13 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
               })}
             </View>
           </View>
-        </Pressable>
+        </View>
       </Modal>
 
       {/* DATE & TIME / SCHEDULE MODAL */}
-      <Modal visible={showDateTimeModal} animationType="slide" transparent>
-        <Pressable style={styles.modalOverlay} onPress={() => setShowDateTimeModal(false)}>
+      <Modal visible={showDateTimeModal} animationType="slide" transparent onRequestClose={() => setShowDateTimeModal(false)}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowDateTimeModal(false)} />
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Schedule Appointment</Text>
@@ -867,7 +807,7 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
               </TouchableOpacity>
             </View>
           </View>
-        </Pressable>
+        </View>
       </Modal>
 
       {!isTab && <BottomNavigation navigation={navigation} activeTab="Search" />}
@@ -932,9 +872,49 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 12,
+    marginLeft: 8,
     borderWidth: 1.5,
     borderColor: '#ECECEC',
+  },
+  nearMeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 48,
+    paddingHorizontal: 12,
+    borderRadius: 24,
+    backgroundColor: '#FFF0F5',
+    borderWidth: 1.5,
+    borderColor: '#FFD6E5',
+    marginLeft: 8,
+  },
+  nearMeBtnActive: {
+    backgroundColor: '#FF4F87',
+    borderColor: '#FF4F87',
+  },
+  nearMeBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FF4F87',
+  },
+  nearMeBtnTextActive: {
+    color: '#FFFFFF',
+  },
+  nearMeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF0F5',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginHorizontal: 20,
+    marginBottom: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FFD6E5',
+  },
+  nearMeBannerText: {
+    fontSize: 13,
+    color: '#444',
+    flex: 1,
   },
   filtersChip: {
     flexDirection: 'row',

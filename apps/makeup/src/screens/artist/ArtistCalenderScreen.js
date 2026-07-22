@@ -402,10 +402,39 @@ const ArtistCalenderScreen = ({ onBack }) => {
                 onChangeText={setReason}
               />
 
-              <Text style={styles.inputLabel}>Time (e.g. 11:00 AM)</Text>
+              <Text style={styles.inputLabel}>Select Unavailable Slot</Text>
+              <View style={{ flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+                {[
+                  'Morning Slot (7:00 AM - 11:00 AM)',
+                  'Afternoon Slot (11:00 AM - 3:00 PM)',
+                  'Evening Slot (3:00 PM - 8:00 PM)',
+                ].map((sOption) => {
+                  const isSelected = time === sOption;
+                  return (
+                    <TouchableOpacity
+                      key={sOption}
+                      style={{
+                        paddingVertical: 10,
+                        paddingHorizontal: 12,
+                        borderRadius: 10,
+                        borderWidth: 1,
+                        borderColor: isSelected ? '#FF4F8F' : '#EAEAEA',
+                        backgroundColor: isSelected ? '#FFF0F5' : '#FAFAFA',
+                      }}
+                      onPress={() => setTime(sOption)}
+                    >
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: isSelected ? '#FF4F8F' : '#333' }}>
+                        {sOption}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <Text style={styles.inputLabel}>Custom Time (Optional)</Text>
               <TextInput
                 style={styles.textInput}
-                placeholder="e.g. 11:00 AM, 02:00 PM"
+                placeholder="Or enter custom time slot..."
                 placeholderTextColor="#A99F9A"
                 value={time}
                 onChangeText={setTime}

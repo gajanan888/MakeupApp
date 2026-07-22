@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getArtistReviews, getArtists } from '../../api/auth';
+import { getUniqueProfileImage, getUniquePortfolio } from '../../utils/artistImageHelper';
 
 import {
   View,
@@ -16,6 +18,58 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
+
+const getParsedImagesList = (rawImages) => {
+  if (!rawImages) return [];
+  if (Array.isArray(rawImages)) return rawImages;
+  if (typeof rawImages === 'string') {
+    try {
+      const parsed = JSON.parse(rawImages);
+      if (Array.isArray(parsed)) return parsed;
+      if (parsed && typeof parsed === 'object') return [parsed];
+      if (typeof parsed === 'string') return [parsed];
+    } catch (e) {
+      return [rawImages];
+    }
+  }
+  if (typeof rawImages === 'object') return [rawImages];
+  return [];
+};
+
+const getPostMediaDetails = (item) => {
+  if (!item) return { imgUrl: 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?auto=format&fit=crop&w=200&q=80', scale: 1, translateX: 0, translateY: 0, isMultiImage: false, imagesList: [] };
+  
+  let imagesList = getParsedImagesList(item.images);
+  if (imagesList.length === 0) {
+    if (item.afterImageUrl || item.beforeImageUrl) {
+      imagesList = [item.afterImageUrl || item.beforeImageUrl];
+    }
+  }
+
+  const firstItem = imagesList.length > 0 ? imagesList[0] : null;
+  let imgUrl = 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?auto=format&fit=crop&w=200&q=80';
+  let scale = 1;
+  let translateX = 0;
+  let translateY = 0;
+
+  if (firstItem && typeof firstItem === 'object') {
+    imgUrl = firstItem.url || firstItem.uri || imgUrl;
+    scale = firstItem.scale || 1;
+    translateX = firstItem.translateX || 0;
+    translateY = firstItem.translateY || 0;
+  } else if (typeof firstItem === 'string') {
+    imgUrl = firstItem;
+  }
+
+  return {
+    imgUrl,
+    scale,
+    translateX,
+    translateY,
+    isMultiImage: imagesList.length > 1,
+    imagesList,
+  };
+};
 
 const ArtistDetailsScreen = ({ route, navigation }) => {
   const insets = useSafeAreaInsets();
@@ -36,19 +90,21 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
   const [modalWidth, setModalWidth] = useState(340);
   const [fullImageUri, setFullImageUri] = useState(null);
 
-  useEffect(() => {
-    const fetchFreshArtist = async () => {
-      try {
-        const data = await getArtists({ id: artist.id });
-        if (data && data.length > 0) {
-          setCurrentArtist(data[0]);
+  useFocusEffect(
+    useCallback(() => {
+      const fetchFreshArtist = async () => {
+        try {
+          const data = await getArtists({ id: artist.id });
+          if (data && data.length > 0) {
+            setCurrentArtist(data[0]);
+          }
+        } catch (err) {
+          console.warn('Failed to fetch fresh artist:', err);
         }
-      } catch (err) {
-        console.warn('Failed to fetch fresh artist:', err);
-      }
-    };
-    fetchFreshArtist();
-  }, [artist.id]);
+      };
+      fetchFreshArtist();
+    }, [artist.id])
+  );
 
   useEffect(() => {
     if (activeTab === 'Reviews') {
@@ -67,9 +123,8 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
     }
   }, [activeTab, artist.id]);
 
-  const heroImageUri =
-    currentArtist.profile?.profileImage ||
-    (typeof currentArtist.image === 'string' ? currentArtist.image : currentArtist.image?.uri);
+  const heroImageUri = getUniqueProfileImage(currentArtist);
+  const portfolioList = getUniquePortfolio(currentArtist);
 
   const buttonTop = 16;
   const contentPaddingBottom = 110;
@@ -206,17 +261,9 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
         {/* Dynamic Content */}
         {activeTab === 'Portfolio' && (
           <View style={styles.portfolioGrid}>
-            {currentArtist.portfolio && currentArtist.portfolio.length > 0 ? (
-              currentArtist.portfolio.map((item, index) => {
-                const firstImage = item.images && item.images.length > 0 ? item.images[0] : null;
-                const isObject = typeof firstImage === 'object' && firstImage !== null;
-                const imgUrl = isObject 
-                  ? firstImage.url 
-                  : (firstImage || item.afterImageUrl || item.beforeImageUrl || 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?auto=format&fit=crop&w=200&q=80');
-                const scale = isObject ? (firstImage.scale || 1) : 1;
-                const translateX = isObject ? (firstImage.translateX || 0) : 0;
-                const translateY = isObject ? (firstImage.translateY || 0) : 0;
-                const isMultiImage = item.images && item.images.length > 1;
+            {portfolioList && portfolioList.length > 0 ? (
+              portfolioList.map((item, index) => {
+                const { imgUrl, scale, translateX, translateY, isMultiImage } = getPostMediaDetails(item);
 
                 return (
                   <TouchableOpacity 
@@ -377,15 +424,15 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
       >
         <SafeAreaView style={{ flex: 1, backgroundColor: '#FFF' }}>
           {/* Header */}
-          <View style={[styles.modalHeader, { paddingTop: Platform.OS === 'ios' ? 10 : (StatusBar.currentHeight || 20) }]}>
+          <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setShowPostDetailModal(false)} style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Ionicons name="arrow-back-outline" size={24} color="#111" style={{ marginRight: 8 }} />
+              <Ionicons name="arrow-back-outline" size={24} color="#111" style={{ marginRight: 12 }} />
               <Text style={styles.modalTitle}>Post Detail</Text>
             </TouchableOpacity>
           </View>
           
           {selectedPost && (
-            <View style={styles.modalBody}>
+            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
               {/* Header */}
               <View style={styles.instaPostHeader}>
                 <Image 
@@ -403,9 +450,7 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
 
               {/* Carousel */}
               {(() => {
-                const postImages = selectedPost.images && selectedPost.images.length > 0
-                  ? selectedPost.images
-                  : [selectedPost.afterImageUrl || selectedPost.beforeImageUrl].filter(Boolean);
+                const { imagesList: postImages } = getPostMediaDetails(selectedPost);
 
                 return (
                   <View 
@@ -425,11 +470,11 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
                         }
                       }}
                       scrollEventThrottle={16}
-                      style={{ width: '100%', height: 350 }}
+                      style={{ width: '100%', height: 420 }}
                     >
                       {postImages.map((imgItem, idx) => {
                         const isObject = typeof imgItem === 'object' && imgItem !== null;
-                        const imgUrl = isObject ? imgItem.url : imgItem;
+                        const imgUrl = isObject ? (imgItem.url || imgItem.uri) : imgItem;
                         const scale = isObject ? (imgItem.scale || 1) : 1;
                         const translateX = isObject ? (imgItem.translateX || 0) : 0;
                         const translateY = isObject ? (imgItem.translateY || 0) : 0;
@@ -439,7 +484,7 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
                             key={idx} 
                             activeOpacity={0.9} 
                             onPress={() => setFullImageUri(imgUrl)}
-                            style={{ width: modalWidth, height: 350, overflow: 'hidden' }}
+                            style={{ width: modalWidth || '100%', height: 420, overflow: 'hidden' }}
                           >
                             <Image 
                               source={{ uri: imgUrl }} 
@@ -453,7 +498,7 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
                                   ]
                                 }
                               ]}
-                              resizeMode="cover"
+                              resizeMode="contain"
                             />
                           </TouchableOpacity>
                         );
@@ -473,9 +518,7 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
 
               {/* Dots Indicator */}
               {(() => {
-                const postImages = selectedPost.images && selectedPost.images.length > 0
-                  ? selectedPost.images
-                  : [selectedPost.afterImageUrl || selectedPost.beforeImageUrl].filter(Boolean);
+                const { imagesList: postImages } = getPostMediaDetails(selectedPost);
 
                 if (postImages.length <= 1) return null;
 
@@ -501,7 +544,7 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
                   {selectedPost.description || 'No description provided.'}
                 </Text>
               </View>
-            </View>
+            </ScrollView>
           )}
         </SafeAreaView>
       </Modal>
@@ -994,10 +1037,11 @@ const styles = StyleSheet.create({
 
   // Modal Detail Styles
   modalHeader: {
-    height: 56,
+    minHeight: 54,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#F3ECF0',
     backgroundColor: '#FFF',
@@ -1015,12 +1059,13 @@ const styles = StyleSheet.create({
   instaPostHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   instaAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
   },
   instaHeaderInfo: {
     marginLeft: 10,
@@ -1039,9 +1084,8 @@ const styles = StyleSheet.create({
   instaImageContainer: {
     position: 'relative',
     width: '100%',
-    height: 350,
-    backgroundColor: '#FFF9FB',
-    borderRadius: 12,
+    height: 420,
+    backgroundColor: '#121216',
     overflow: 'hidden',
   },
   instaPostImage: {
@@ -1052,8 +1096,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     right: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    paddingHorizontal: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
   },
@@ -1066,7 +1110,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 14,
   },
   carouselDot: {
     width: 6,
@@ -1088,7 +1132,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#111',
     fontFamily: 'serif',
-    lineHeight: 18,
+    lineHeight: 20,
   },
   instaCaptionUsername: {
     fontWeight: '700',
@@ -1100,6 +1144,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.95)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  fullScreenImage: {
+    width: '100%',
+    height: '85%',
   },
   fullImageCloseBtn: {
     position: 'absolute',

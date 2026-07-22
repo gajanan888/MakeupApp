@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Ionicons from '@react-native-vector-icons/ionicons';
 import {
   View,
   Text,
@@ -27,17 +28,19 @@ const BookingConfirmationScreen = ({ navigation, route }) => {
   } = route?.params || {};
 
   const servicePrice = selectedService?.price || 0;
+  const peopleCount = selectedService?.peopleCount || 1;
   // Parse clean numbers from strings if they contain currency symbols
   const parseAmount = (val) => {
     if (typeof val === 'number') return val;
     if (!val) return 0;
     return parseFloat(String(val).replace(/[^0-9]/g, '')) || 0;
   };
-  const numericServicePrice = parseAmount(servicePrice);
+  const numericServicePrice = parseAmount(servicePrice) * peopleCount;
   const numericAddonsTotal = parseAmount(addonsTotal);
   const total = numericServicePrice + numericAddonsTotal;
 
   const [loading, setLoading] = useState(false);
+  const [isConsentChecked, setIsConsentChecked] = useState(false);
 
   const handleConfirm = async () => {
     try {
@@ -55,22 +58,21 @@ const BookingConfirmationScreen = ({ navigation, route }) => {
         }
       }
 
-      // Format time to 24h HH:MM format
-      let apiTime = selectedTime;
-      if (selectedTime && (selectedTime.includes('AM') || selectedTime.includes('PM'))) {
-        const parts = selectedTime.trim().split(/\s+/);
-        if (parts.length === 2) {
-          const timeParts = parts[0].split(':');
-          if (timeParts.length === 2) {
-            let hour = parseInt(timeParts[0], 10);
-            const minute = timeParts[1];
-            const ampm = parts[1].toUpperCase();
-            if (ampm === 'PM' && hour < 12) {
-              hour += 12;
-            } else if (ampm === 'AM' && hour === 12) {
-              hour = 0;
-            }
-            apiTime = `${String(hour).padStart(2, '0')}:${minute}`;
+      // Format time to 24h HH:MM format (handles slot range strings like "Afternoon Slot (11:00 AM - 3:00 PM)")
+      let apiTime = '11:00';
+      if (selectedTime) {
+        const str = String(selectedTime);
+        if (/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(str.trim())) {
+          apiTime = str.trim();
+        } else {
+          const match = str.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+          if (match) {
+            let hour = parseInt(match[1], 10);
+            const min = match[2];
+            const ampm = match[3] ? match[3].toUpperCase() : null;
+            if (ampm === 'PM' && hour < 12) hour += 12;
+            if (ampm === 'AM' && hour === 12) hour = 0;
+            apiTime = `${String(hour).padStart(2, '0')}:${min}`;
           }
         }
       }
@@ -137,8 +139,9 @@ const BookingConfirmationScreen = ({ navigation, route }) => {
           <Text style={styles.sectionTitle}>Service</Text>
           <Text style={styles.detail}>
             {selectedService?.name || (typeof selectedService === 'string' ? selectedService : 'N/A')}
+            {peopleCount > 1 ? ` (×${peopleCount} People)` : ''}
           </Text>
-          <Text style={styles.price}>₹{numericServicePrice}</Text>
+          <Text style={styles.price}>₹{numericServicePrice.toLocaleString('en-IN')}</Text>
         </View>
         {/* Location */}
         <View style={styles.section}>
@@ -168,20 +171,53 @@ const BookingConfirmationScreen = ({ navigation, route }) => {
         {/* Total */}
         <View style={styles.totalBox}>
           <Text style={styles.totalLabel}>Total</Text>
-          <Text style={styles.totalAmount}>₹{total}</Text>
+          <Text style={styles.totalAmount}>₹{total.toLocaleString('en-IN')}</Text>
+        </View>
+
+        {/* Health & Liability Disclaimer Consent */}
+        <View style={styles.consentCard}>
+          <TouchableOpacity
+            style={styles.consentCheckRow}
+            onPress={() => setIsConsentChecked(!isConsentChecked)}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name={isConsentChecked ? 'checkbox' : 'square-outline'}
+              size={22}
+              color={isConsentChecked ? '#FF4F87' : '#888'}
+              style={{ marginRight: 10, marginTop: 2 }}
+            />
+            <Text style={styles.consentTitle}>
+              Health & Safety Consent Disclaimer
+            </Text>
+          </TouchableOpacity>
+
+          <View style={styles.consentDetailsBox}>
+            <Text style={styles.consentText}>
+              • The platform acts solely as an intermediary connecting clients with independent beauty artists.{'\n'}
+              • <Text style={{ fontWeight: '700', color: '#222' }}>The platform is not liable or responsible for any skin reactions, allergies, infections, or dermatological issues</Text> occurring during or after the service.{'\n'}
+              • Clients are advised to inform the artist prior to service regarding any pre-existing skin conditions or product sensitivities.
+            </Text>
+          </View>
         </View>
       </ScrollView>
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.confirmBtn, loading && { backgroundColor: '#FFA7C4' }]}
+          style={[
+            styles.confirmBtn,
+            (!isConsentChecked || loading) && styles.confirmBtnDisabled,
+          ]}
           onPress={handleConfirm}
-          disabled={loading}
+          disabled={!isConsentChecked || loading}
+          activeOpacity={0.8}
         >
           {loading ? (
             <ActivityIndicator color="#FFF" />
           ) : (
-            <Text style={styles.confirmBtnText}>Send Request</Text>
+            <Text style={[styles.confirmBtnText, !isConsentChecked && styles.confirmBtnTextDisabled]}>
+              Send Request
+            </Text>
           )}
         </TouchableOpacity>
       </View>
@@ -237,5 +273,40 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 5,
   },
+  confirmBtnDisabled: {
+    backgroundColor: '#E5E5E5',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
   confirmBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+  confirmBtnTextDisabled: { color: '#999999' },
+  consentCard: {
+    backgroundColor: '#FAF7F9',
+    borderRadius: 14,
+    padding: 16,
+    marginTop: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#F0E2EB',
+  },
+  consentCheckRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  consentTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111',
+    flex: 1,
+    marginTop: 2,
+  },
+  consentDetailsBox: {
+    paddingLeft: 32,
+  },
+  consentText: {
+    fontSize: 12,
+    color: '#555',
+    lineHeight: 18,
+  },
 });

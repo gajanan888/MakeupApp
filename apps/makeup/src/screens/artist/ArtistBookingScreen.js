@@ -138,6 +138,41 @@ const ArtistBookingScreen = ({ onBack }) => {
     }
   };
 
+  const isBookingTimeReached = (b) => {
+    if (!b) return false;
+    try {
+      let dStr = b.rawDate || b.date;
+      let tStr = b.rawTime || b.time || '00:00';
+
+      let scheduledDate = new Date(dStr);
+      if (isNaN(scheduledDate.getTime()) && b.rawDate) {
+        const [y, m, d] = String(b.rawDate).split('-').map(Number);
+        scheduledDate = new Date(y, m - 1, d);
+      }
+
+      if (isNaN(scheduledDate.getTime())) return false;
+
+      let hours = 0;
+      let minutes = 0;
+      if (tStr) {
+        const match = String(tStr).match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+        if (match) {
+          hours = parseInt(match[1], 10);
+          minutes = parseInt(match[2], 10);
+          const ampm = match[3] ? match[3].toUpperCase() : null;
+          if (ampm === 'PM' && hours < 12) hours += 12;
+          if (ampm === 'AM' && hours === 12) hours = 0;
+        }
+      }
+
+      scheduledDate.setHours(hours, minutes, 0, 0);
+      const now = new Date();
+      return now >= scheduledDate;
+    } catch (e) {
+      return false;
+    }
+  };
+
   const filteredBookings = bookings.filter(booking => booking.status === activeSubTab);
 
   const getStatusStyle = (status, rawStatus) => {
@@ -148,10 +183,17 @@ const ArtistBookingScreen = ({ onBack }) => {
         label: 'In Progress',
       };
     }
-    if (rawStatus === 'accepted') {
+    if (rawStatus === 'accepted' || rawStatus === 'advance_pending') {
       return {
         bg: '#E6F7FF',
         text: '#0050B3',
+        label: 'Accepted',
+      };
+    }
+    if (rawStatus === 'confirmed') {
+      return {
+        bg: '#F6FFED',
+        text: '#389E0D',
         label: 'Confirmed',
       };
     }
@@ -277,13 +319,24 @@ const ArtistBookingScreen = ({ onBack }) => {
                             </TouchableOpacity>
                           </>
                         )}
-                        {booking.rawStatus === 'accepted' && (
-                          <TouchableOpacity
-                            style={[styles.actionBtn, styles.startBtn]}
-                            onPress={() => handleStart(booking.id)}
-                          >
-                            <Text style={styles.actionBtnText}>Start Service</Text>
-                          </TouchableOpacity>
+                        {(booking.rawStatus === 'accepted' || booking.rawStatus === 'advance_pending') && (
+                          <View style={styles.waitingPillContainer}>
+                            <Text style={styles.waitingPillText}>Waiting for Client Confirmation</Text>
+                          </View>
+                        )}
+                        {booking.rawStatus === 'confirmed' && (
+                          isBookingTimeReached(booking) ? (
+                            <TouchableOpacity
+                              style={[styles.actionBtn, styles.startBtn]}
+                              onPress={() => handleStart(booking.id)}
+                            >
+                              <Text style={styles.actionBtnText}>Start Service</Text>
+                            </TouchableOpacity>
+                          ) : (
+                            <View style={styles.waitingPillContainer}>
+                              <Text style={styles.waitingPillText}>Starts {booking.date}</Text>
+                            </View>
+                          )
                         )}
                         {booking.rawStatus === 'in_progress' && (
                           <TouchableOpacity
@@ -564,6 +617,21 @@ const styles = StyleSheet.create({
   cardActionsContainer: {
     flexDirection: 'row',
     marginTop: 8,
+  },
+  waitingPillContainer: {
+    backgroundColor: '#FFF7E6',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FFD591',
+    alignSelf: 'flex-start',
+    marginTop: 6,
+  },
+  waitingPillText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#D46B08',
   },
   actionBtn: {
     paddingVertical: 6,

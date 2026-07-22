@@ -41,15 +41,37 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
   if (!booking) return null;
 
   const checkTimeReached = () => {
-    if (!booking.rawDate || !booking.rawTime) return true;
+    if (!booking) return false;
     try {
-      const [year, month, day] = booking.rawDate.split('-').map(Number);
-      const [hours, minutes] = booking.rawTime.split(':').map(Number);
-      const scheduled = new Date(year, month - 1, day, hours, minutes);
+      let dStr = booking.rawDate || booking.date;
+      let tStr = booking.rawTime || booking.time || '00:00';
+
+      let scheduledDate = new Date(dStr);
+      if (isNaN(scheduledDate.getTime()) && booking.rawDate) {
+        const [y, m, d] = String(booking.rawDate).split('-').map(Number);
+        scheduledDate = new Date(y, m - 1, d);
+      }
+
+      if (isNaN(scheduledDate.getTime())) return false;
+
+      let hours = 0;
+      let minutes = 0;
+      if (tStr) {
+        const match = String(tStr).match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+        if (match) {
+          hours = parseInt(match[1], 10);
+          minutes = parseInt(match[2], 10);
+          const ampm = match[3] ? match[3].toUpperCase() : null;
+          if (ampm === 'PM' && hours < 12) hours += 12;
+          if (ampm === 'AM' && hours === 12) hours = 0;
+        }
+      }
+
+      scheduledDate.setHours(hours, minutes, 0, 0);
       const now = new Date();
-      return now >= scheduled;
+      return now >= scheduledDate;
     } catch (e) {
-      return true;
+      return false;
     }
   };
   const isTimeReached = checkTimeReached();
@@ -69,21 +91,21 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
     }
   };
 
-  // Parse price number
-  const rawPrice = parseFloat(booking.price ? booking.price.replace(/[^0-9.]/g, '') : '0');
-  const tax = Math.round(rawPrice * 0.1);
-  const tip = rawPrice > 50 ? 15 : 8;
-  const total = rawPrice + tax + tip;
+  // Parse price number & 10% platform fee advance deduction
+  const totalBookingAmount = Math.round(parseFloat(booking.price ? String(booking.price).replace(/[^0-9.]/g, '') : '0'));
+  const platformFee = Math.round(totalBookingAmount * 0.10);
+  const artistNetPayout = totalBookingAmount - platformFee;
 
   // Set default phone if undefined
   const clientPhone = booking.phone || '9876543210';
   const displayAddress = booking.address || 'Flat 402, Block B, Marvel Zephyr, Kharadi, Pune';
 
-  // Determine timeline steps
-  const isConfirmed = ['accepted', 'in_progress', 'completed'].includes(booking.rawStatus);
-  const isStarted = ['in_progress', 'completed'].includes(booking.rawStatus);
-  const isCompleted = booking.rawStatus === 'completed';
-  const isCancelled = ['cancelled', 'rejected'].includes(booking.rawStatus);
+  // Determine timeline steps & client confirmation
+  const isConfirmedByClient = ['confirmed', 'in_progress', 'completed'].includes(booking?.rawStatus);
+  const isConfirmed = isConfirmedByClient;
+  const isStarted = ['in_progress', 'completed'].includes(booking?.rawStatus);
+  const isCompleted = booking?.rawStatus === 'completed';
+  const isCancelled = ['cancelled', 'rejected'].includes(booking?.rawStatus);
 
   return (
     <Modal
@@ -113,40 +135,52 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
             
-            {/* IN-APP CHAT AND CALL SHORTCUTS */}
-            {['accepted', 'in_progress', 'confirmed'].includes(booking?.rawStatus) && (
-              <View style={styles.contactContainer}>
-                <TouchableOpacity 
-                  style={[styles.chatBubbleFull, { marginRight: 5 }]} 
-                  onPress={() => {
-                    onClose();
-                    initiateCall(booking.id, booking.customerId, 'client', booking.name);
-                  }}
-                >
-                  <Ionicons name="call" size={20} color="#FF4F8F" />
-                  <Text style={styles.contactLabel}>Call Client</Text>
-                </TouchableOpacity>
+            {/* IN-APP CHAT AND CALL SHORTCUTS (Greyed out until confirmed by client) */}
+            <View style={styles.contactContainer}>
+              <TouchableOpacity 
+                style={[
+                  styles.chatBubbleFull, 
+                  { marginRight: 5 },
+                  !isConfirmedByClient && styles.chatBubbleDisabled
+                ]} 
+                onPress={() => {
+                  if (!isConfirmedByClient) {
+                    Alert.alert('Not Available', 'Calling will be enabled once the client confirms the booking.');
+                    return;
+                  }
+                  onClose();
+                  initiateCall(booking.id, booking.customerId, 'client', booking.name);
+                }}
+                activeOpacity={isConfirmedByClient ? 0.7 : 0.9}
+              >
+                <Ionicons name="call" size={20} color={isConfirmedByClient ? "#FF4F8F" : "#A0A0A0"} />
+                <Text style={[styles.contactLabel, !isConfirmedByClient && styles.contactLabelDisabled]}>
+                  Call Client
+                </Text>
+              </TouchableOpacity>
 
-                <TouchableOpacity 
-                  style={[styles.chatBubbleFull, { marginLeft: 5 }]} 
-                  onPress={() => {
-                    onClose();
-                    if (onChatPress) onChatPress(booking);
-                  }}
-                >
-                  <Ionicons name="chatbubbles" size={20} color="#FF4F8F" />
-                  <Text style={styles.contactLabel}>Chat with Client</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* STYLE INSPIRATION PHOTOS */}
-            <Text style={styles.sectionTitle}>STYLE & PREFERENCES</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoRow}>
-              {STYLE_PREFERENCES.map((url, index) => (
-                <Image key={index} source={{ uri: url }} style={styles.prefPhoto} />
-              ))}
-            </ScrollView>
+              <TouchableOpacity 
+                style={[
+                  styles.chatBubbleFull, 
+                  { marginLeft: 5 },
+                  !isConfirmedByClient && styles.chatBubbleDisabled
+                ]} 
+                onPress={() => {
+                  if (!isConfirmedByClient) {
+                    Alert.alert('Not Available', 'Chatting will be enabled once the client confirms the booking.');
+                    return;
+                  }
+                  onClose();
+                  if (onChatPress) onChatPress(booking);
+                }}
+                activeOpacity={isConfirmedByClient ? 0.7 : 0.9}
+              >
+                <Ionicons name="chatbubbles" size={20} color={isConfirmedByClient ? "#FF4F8F" : "#A0A0A0"} />
+                <Text style={[styles.contactLabel, !isConfirmedByClient && styles.contactLabelDisabled]}>
+                  Chat with Client
+                </Text>
+              </TouchableOpacity>
+            </View>
 
             {/* SERVICE LOCATION ADDRESS */}
             <Text style={styles.sectionTitle}>SERVICE LOCATION</Text>
@@ -161,26 +195,22 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
             <Text style={styles.sectionTitle}>PAYMENT BREAKDOWN</Text>
             <View style={styles.invoiceCard}>
               <View style={styles.invoiceRow}>
-                <Text style={styles.invoiceLabel}>Service Rate</Text>
-                <Text style={styles.invoiceValue}>₹{rawPrice}</Text>
+                <Text style={styles.invoiceLabel}>Total Service Rate</Text>
+                <Text style={styles.invoiceValue}>₹{totalBookingAmount.toLocaleString('en-IN')}</Text>
               </View>
               <View style={styles.invoiceRow}>
-                <Text style={styles.invoiceLabel}>Estimated Tax</Text>
-                <Text style={styles.invoiceValue}>₹{tax}</Text>
-              </View>
-              <View style={styles.invoiceRow}>
-                <Text style={styles.invoiceLabel}>Client Tip</Text>
-                <Text style={styles.invoiceValue}>₹{tip}</Text>
+                <Text style={styles.invoiceLabel}>Platform Fee (10% Advance)</Text>
+                <Text style={[styles.invoiceValue, { color: '#CF1322', fontWeight: '600' }]}>-₹{platformFee.toLocaleString('en-IN')}</Text>
               </View>
               <View style={styles.invoiceDivider} />
               <View style={styles.invoiceRow}>
-                <Text style={[styles.invoiceLabel, styles.invoiceTotalLabel]}>Total Amount</Text>
-                <Text style={[styles.invoiceValue, styles.invoiceTotalVal]}>₹{total}</Text>
+                <Text style={[styles.invoiceLabel, styles.invoiceTotalLabel]}>Artist Net Payout</Text>
+                <Text style={[styles.invoiceValue, styles.invoiceTotalVal]}>₹{artistNetPayout.toLocaleString('en-IN')}</Text>
               </View>
             </View>
 
-            {/* STATUS LOGS TIMELINE */}
-            <Text style={styles.sectionTitle}>STATUS HISTORY</Text>
+            {/* STATUS TIMELINE */}
+            <Text style={styles.sectionTitle}>STATUS</Text>
             <View style={styles.timelineContainer}>
               <View style={styles.timelineRow}>
                 <Ionicons name="checkmark-circle" size={18} color="#389E0D" />
@@ -199,12 +229,24 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
                 <>
                   <View style={styles.timelineRow}>
                     <Ionicons 
-                      name={isConfirmed ? "checkmark-circle" : "ellipse-outline"} 
+                      name={['accepted', 'confirmed', 'in_progress', 'completed'].includes(booking?.rawStatus) ? "checkmark-circle" : "ellipse-outline"} 
                       size={18} 
-                      color={isConfirmed ? "#389E0D" : "#8A7D77"} 
+                      color={['accepted', 'confirmed', 'in_progress', 'completed'].includes(booking?.rawStatus) ? "#389E0D" : "#8A7D77"} 
                     />
-                    <Text style={[styles.timelineText, !isConfirmed && styles.timelinePendingText]}>
-                      Booking Confirmed
+                    <Text style={[styles.timelineText, !['accepted', 'confirmed', 'in_progress', 'completed'].includes(booking?.rawStatus) && styles.timelinePendingText]}>
+                      Accepted by Artist
+                    </Text>
+                  </View>
+                  <View style={styles.timelineLine} />
+
+                  <View style={styles.timelineRow}>
+                    <Ionicons 
+                      name={isConfirmedByClient ? "checkmark-circle" : "ellipse-outline"} 
+                      size={18} 
+                      color={isConfirmedByClient ? "#389E0D" : "#8A7D77"} 
+                    />
+                    <Text style={[styles.timelineText, !isConfirmedByClient && styles.timelinePendingText]}>
+                      {isConfirmedByClient ? 'Booking Confirmed' : 'Waiting for Client Confirmation'}
                     </Text>
                   </View>
                   <View style={styles.timelineLine} />
@@ -246,7 +288,7 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
                   <View style={styles.doubleActions}>
                     <TouchableOpacity 
                       style={[styles.actionBtn, styles.acceptBtn]}
-                      onPress={() => handleAction(acceptArtistBooking, 'Booking confirmed successfully.')}
+                      onPress={() => handleAction(acceptArtistBooking, 'Booking accepted successfully. Waiting for client confirmation.')}
                     >
                       <Text style={styles.actionBtnText}>Accept Booking</Text>
                     </TouchableOpacity>
@@ -265,6 +307,24 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
 
                 {booking.rawStatus === 'accepted' && (
                   <View style={styles.doubleActions}>
+                    <View style={[styles.actionBtn, styles.disabledBtn]}>
+                      <Text style={styles.disabledBtnText}>Waiting for Confirmation</Text>
+                    </View>
+                    <TouchableOpacity 
+                      style={[styles.actionBtn, styles.declineBtn]}
+                      onPress={() => {
+                        setDialogType('cancel');
+                        setRejectionReasonText('');
+                        setRejectModalVisible(true);
+                      }}
+                    >
+                      <Text style={[styles.actionBtnText, styles.declineText]}>Cancel</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {booking.rawStatus === 'confirmed' && (
+                  <View style={styles.doubleActions}>
                     {isTimeReached ? (
                       <TouchableOpacity 
                         style={[styles.actionBtn, styles.startBtn]}
@@ -273,9 +333,12 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
                         <Text style={styles.actionBtnText}>Start Service</Text>
                       </TouchableOpacity>
                     ) : (
-                      <View style={[styles.actionBtn, styles.disabledBtn]}>
-                        <Text style={styles.disabledBtnText}>Starts {booking.rawTime}</Text>
-                      </View>
+                      <TouchableOpacity 
+                        style={[styles.actionBtn, styles.disabledBtn]}
+                        onPress={() => Alert.alert('Appointment Time Pending', `Service can only be started when the scheduled appointment time (${booking.date}) arrives.`)}
+                      >
+                        <Text style={styles.disabledBtnText}>Starts {booking.date}</Text>
+                      </TouchableOpacity>
                     )}
                     <TouchableOpacity 
                       style={[styles.actionBtn, styles.declineBtn]}
@@ -469,12 +532,20 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
   },
+  chatBubbleDisabled: {
+    backgroundColor: '#F5F5F5',
+    borderWidth: 1,
+    borderColor: '#EAEAEA',
+  },
   contactLabel: {
     fontSize: 11,
     fontWeight: '700',
     color: '#FF4F8F',
     marginLeft: 6,
     fontFamily: 'serif',
+  },
+  contactLabelDisabled: {
+    color: '#A0A0A0',
   },
   sectionTitle: {
     fontSize: 11,

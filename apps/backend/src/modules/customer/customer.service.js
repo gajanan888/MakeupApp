@@ -11,6 +11,7 @@ export const getArtists = async ({ minPrice, maxPrice, experience, location, id,
 
   if (id) {
     where.id = id;
+    delete where.isVerified;
   }
 
   // Fetch all to perform reliable JS filtering & mapping (since prices are strings like "₹1,500")

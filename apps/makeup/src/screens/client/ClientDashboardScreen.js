@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -14,15 +14,17 @@ import {
 } from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
 import { getArtists, getTrendingArtists } from '../../api/auth';
+import { getUniqueProfileImage } from '../../utils/artistImageHelper';
 import { useIsFocused } from '@react-navigation/native';
+import PRECALCULATED_TRENDING_ARTISTS from '../../data/trendingArtistsData';
 
 const ClientDashboardScreen = ({ navigation, onNavigate }) => {
   const isFocused = useIsFocused();
   const [customerName, setCustomerName] = useState('');
   const [artists, setArtists] = useState([]);
-  const [trendingArtists, setTrendingArtists] = useState([]);
+  const [trendingArtists, setTrendingArtists] = useState(PRECALCULATED_TRENDING_ARTISTS);
   const [loading, setLoading] = useState(true);
-  const [loadingTrending, setLoadingTrending] = useState(true);
+  const [loadingTrending, setLoadingTrending] = useState(false);
   const [locationName, setLocationName] = useState('Detecting location...');
   const [currentCity, setCurrentCity] = useState('Pune');
   const [loadingLocation, setLoadingLocation] = useState(true);
@@ -183,14 +185,22 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
     };
   }, []);
 
-  // Fetch artists from backend based on city
+  const lastFetchedCityRef = useRef(null);
+
+  // Fetch artists from backend based on city (with graceful fallback if location has no registered artists)
   const fetchArtists = async (city, silent = false) => {
+    const queryCity = city || 'Pune';
     if (!silent) setLoading(true);
     try {
-      const queryCity = city || 'Pune';
-      const data = await getArtists({ location: queryCity });
-      const list = Array.isArray(data) ? data : [];
+      let data = await getArtists({ location: queryCity });
+      let list = Array.isArray(data) ? data : [];
+      // Fallback: if no artists found for exact location/suburb, fetch all verified artists so dashboard is never empty
+      if (list.length === 0) {
+        const fallbackData = await getArtists({});
+        list = Array.isArray(fallbackData) ? fallbackData : [];
+      }
       setArtists(list);
+      lastFetchedCityRef.current = queryCity;
     } catch (err) {
       console.warn('Failed to fetch artists:', err?.message);
     } finally {
@@ -204,57 +214,41 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
       if (name) setCustomerName(name);
     });
 
-    // Fetch trending artists from backend
-    const fetchTrending = async (silent = false) => {
-      if (!silent) setLoadingTrending(true);
+    // Fetch trending artists from backend with pre-calculated fallback
+    const fetchTrending = async () => {
       try {
         const data = await getTrendingArtists();
-        const list = Array.isArray(data) ? data : [];
-        setTrendingArtists(list);
+        if (Array.isArray(data) && data.length > 0) {
+          setTrendingArtists(data);
+        }
       } catch (err) {
         console.warn('Failed to fetch trending artists:', err?.message);
-      } finally {
-        if (!silent) setLoadingTrending(false);
       }
     };
 
     fetchTrending();
-
-    // Auto-refresh every 5 minutes (silent to avoid layout jumps/spinners)
-    const interval = setInterval(() => {
-      AsyncStorage.getItem('customerName').then(name => {
-        if (name) setCustomerName(name);
-      });
-      fetchTrending(true);
-      AsyncStorage.getItem('detectedCity')
-        .then(city => {
-          fetchArtists(city || 'Pune', true);
-        })
-        .catch(() => {
-          fetchArtists('Pune', true);
-        });
-    }, 30 * 1000); // 30 seconds
-
-    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
-    const reloadLocationAndArtists = async () => {
+    const checkLocationAndReload = async () => {
       try {
         const storedCity = await AsyncStorage.getItem('detectedCity');
         const activeCity = storedCity || 'Pune';
         setCurrentCity(activeCity);
         setLocationName(activeCity);
-        await fetchArtists(activeCity);
+        // Only fetch if city changed or initial fetch hasn't occurred
+        if (lastFetchedCityRef.current !== activeCity) {
+          await fetchArtists(activeCity);
+        }
       } catch (err) {
         console.warn('Failed to reload location and artists:', err);
       }
     };
 
-    if (isFocused && !loadingLocation) {
-      reloadLocationAndArtists();
+    if (isFocused) {
+      checkLocationAndReload();
     }
-  }, [isFocused, loadingLocation]);
+  }, [isFocused]);
 
   const displayedTrending = trendingArtists;
 
@@ -423,18 +417,10 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
                   }
                 >
                   <View style={styles.artistImagePlaceholder}>
-                    {artist.profile?.profileImage ? (
-                      <Image
-                        source={{ uri: artist.profile.profileImage }}
-                        style={styles.artistProfileImage}
-                      />
-                    ) : (
-                      <View style={styles.artistInitialsCircle}>
-                        <Text style={styles.artistInitialsText}>
-                          {artist.name?.charAt(0)?.toUpperCase() || 'A'}
-                        </Text>
-                      </View>
-                    )}
+                    <Image
+                      source={{ uri: getUniqueProfileImage(artist) }}
+                      style={styles.artistProfileImage}
+                    />
                     <View style={styles.imageGradientOverlay} />
                   </View>
                   {/* Rating badge */}
@@ -494,7 +480,34 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
             <Text style={styles.sectionTitle}>Popular Near You</Text>
           </View>
 
-          {!loading &&
+          {loading ? (
+            <ActivityIndicator
+              color="#FF4F87"
+              size="large"
+              style={{ marginVertical: 20 }}
+            />
+          ) : artists.length === 0 ? (
+            <View style={styles.emptyPopularCard}>
+              <View style={styles.emptyPopularIconCircle}>
+                <Ionicons name="location-outline" size={24} color="#FF4F87" />
+              </View>
+              <View style={styles.emptyPopularTextContainer}>
+                <Text style={styles.emptyPopularTitle}>
+                  No Artists at this Location
+                </Text>
+                <Text style={styles.emptyPopularSubText}>
+                  No registered artists are available in {currentCity || 'this location'} right now.
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.changeLocBtn}
+                onPress={() => navigation.navigate('SelectLocation', { fromDashboard: true })}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.changeLocBtnText}>Change</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
             artists.slice(0, 5).map(artist => (
               <TouchableOpacity
                 key={artist.id}
@@ -502,16 +515,10 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
                 onPress={() => navigation.navigate('ArtistDetails', { artist })}
               >
                 <View style={styles.popularImage}>
-                  {artist.profile?.profileImage ? (
-                    <Image
-                      source={{ uri: artist.profile.profileImage }}
-                      style={styles.popularProfileImage}
-                    />
-                  ) : (
-                    <Text style={styles.popularInitials}>
-                      {artist.name?.charAt(0)?.toUpperCase() || 'A'}
-                    </Text>
-                  )}
+                  <Image
+                    source={{ uri: getUniqueProfileImage(artist) }}
+                    style={styles.popularProfileImage}
+                  />
                 </View>
                 <View style={styles.popularInfo}>
                   <Text style={styles.popularName} numberOfLines={1}>
@@ -534,7 +541,7 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
                 <View style={styles.popularRatingBox}>
                   <Ionicons name="star" size={14} color="#FFB800" />
                   <Text style={styles.popularRatingText}>
-                    {artist.profile?.experience || '4.5'}
+                    {artist.profile?.rating ? Number(artist.profile.rating).toFixed(1) : '4.5'}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -549,7 +556,8 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
                   />
                 </TouchableOpacity>
               </TouchableOpacity>
-            ))}
+            ))
+          )}
         </View>
       </ScrollView>
     </View>
@@ -913,5 +921,57 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 4,
+  },
+  emptyPopularCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FFE0EA',
+    elevation: 2,
+    shadowColor: '#FF4F87',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+  },
+  emptyPopularIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFF0F5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  emptyPopularTextContainer: {
+    flex: 1,
+  },
+  emptyPopularTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#222',
+  },
+  emptyPopularSubText: {
+    fontSize: 12,
+    color: '#777',
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  changeLocBtn: {
+    backgroundColor: '#FFF0F5',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    marginLeft: 8,
+    borderWidth: 1,
+    borderColor: '#FFD1DF',
+  },
+  changeLocBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FF4F87',
   },
 });

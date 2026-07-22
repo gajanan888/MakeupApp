@@ -1,19 +1,9 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Wishlist API helpers
-export const addArtistToWishlist = async (artistId) => api.post('/wishlist/add', { artistId });
-export const removeArtistFromWishlist = async (artistId) => api.post('/wishlist/remove', { artistId });
-export const fetchWishlist = async () => api.get('/wishlist');
-
-// Host Wi-Fi IP address: 10.145.106.179
 export const API_BASE_URLS = [
-  'http://10.145.106.212:5000',       // adb reverse loopback (numeric, bypasses ROM DNS resolution)
+  'http://10.213.74.212:5000',       // Current Wi-Fi IP / host
   'http://localhost:5000',           // adb reverse localhost fallback
-  'http://10.145.106.212:5000',        // Stashed Wi-Fi IP fallback
-  'http://172.19.16.171:5000',        // Upstream Wi-Fi IP fallback
-  'http://10.145.106.179:5000',        // Stashed Wi-Fi IP fallback from merge
-  'http://10.55.133.172:5000',        // Previous Wi-Fi IP fallback from merge
   'http://10.0.2.2:5000',            // Android Emulator loopback
   'http://192.168.56.1:5000',        // VirtualBox host-only adapter
 ];
@@ -23,7 +13,7 @@ const api = axios.create({
   timeout: 10000,
 });
 
-// Dynamic base URL resolver callbacks to synchronize ports with AI backend
+// Dynamic base URL resolver callback to synchronize active host
 let onBaseURLResolved = null;
 export const setBaseURLResolver = (cb) => {
   onBaseURLResolved = cb;

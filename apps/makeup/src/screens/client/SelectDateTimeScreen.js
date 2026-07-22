@@ -25,10 +25,16 @@ const MONTH_NAMES = [
 ];
 
 const TIME_SLOTS = [
-  '09:00 AM', '10:00 AM', '11:00 AM',
-  '01:00 PM', '02:00 PM', '03:00 PM',
-  '04:00 PM', '05:00 PM',
+  'Morning Slot (7:00 AM - 11:00 AM)',
+  'Afternoon Slot (11:00 AM - 3:00 PM)',
+  'Evening Slot (3:00 PM - 8:00 PM)',
 ];
+
+const SLOT_END_HOURS = {
+  'Morning Slot (7:00 AM - 11:00 AM)': 11,
+  'Afternoon Slot (11:00 AM - 3:00 PM)': 15,
+  'Evening Slot (3:00 PM - 8:00 PM)': 20,
+};
 
 // Build calendar grid for a given month/year
 // Returns array of {day, isCurrentMonth, isToday, isPast} objects padded to full weeks
@@ -146,19 +152,11 @@ const SelectDateTimeScreen = ({ navigation, route }) => {
 
       // 2. Check if slot has already passed today
       if (isTodaySelected) {
-        const [timeStr, modifier] = slot.split(' ');
-        let [hours, minutes] = timeStr.split(':').map(Number);
-        if (modifier === 'PM' && hours !== 12) {
-          hours += 12;
-        }
-        if (modifier === 'AM' && hours === 12) {
-          hours = 0;
-        }
+        const endHour = SLOT_END_HOURS[slot] || 23;
+        const slotEndTime = new Date(selectedDate);
+        slotEndTime.setHours(endHour, 0, 0, 0);
 
-        const slotDate = new Date(selectedDate);
-        slotDate.setHours(hours, minutes, 0, 0);
-
-        if (slotDate <= now) {
+        if (now >= slotEndTime) {
           return false;
         }
       }
@@ -536,15 +534,14 @@ const styles = StyleSheet.create({
     letterSpacing: 0.1,
   },
   timeSlotsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: 'column',
     gap: 10,
     marginBottom: 32,
   },
   timeChip: {
-    paddingVertical: 11,
-    paddingHorizontal: 14,
-    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 14,
     backgroundColor: '#FFF',
     borderWidth: 1.5,
     borderColor: '#EBEBEB',
@@ -553,8 +550,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 4,
     elevation: 1,
-    minWidth: 98,
+    width: '100%',
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   timeChipActive: {
     backgroundColor: '#FF4F87',
@@ -565,9 +564,9 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   timeChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#444',
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#333',
   },
   timeChipTextActive: {
     color: '#FFF',

@@ -13,6 +13,7 @@ import {
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getArtists } from '../../api/auth';
+import { getUniqueProfileImage } from '../../utils/artistImageHelper';
 
 const ArtistsListByLocationScreen = ({ navigation, route }) => {
   const { location } = route.params;
@@ -54,15 +55,7 @@ const ArtistsListByLocationScreen = ({ navigation, route }) => {
         }
       >
         <View style={styles.imageContainer}>
-          {item.profile?.profileImage ? (
-            <Image source={{ uri: item.profile.profileImage }} style={styles.profileImage} />
-          ) : (
-            <View style={styles.initialsContainer}>
-              <Text style={styles.initialsText}>
-                {item.name?.charAt(0).toUpperCase() || 'A'}
-              </Text>
-            </View>
-          )}
+          <Image source={{ uri: getUniqueProfileImage(item) }} style={styles.profileImage} />
         </View>
 
         <View style={styles.infoArea}>
@@ -150,11 +143,11 @@ const ArtistsListByLocationScreen = ({ navigation, route }) => {
       ) : artists.length === 0 ? (
         <View style={styles.centerContainer}>
           <View style={styles.emptyIconCircle}>
-            <Ionicons name="people-outline" size={40} color="#FF4F87" />
+            <Ionicons name="location-outline" size={40} color="#FF4F87" />
           </View>
-          <Text style={styles.emptyText}>No Artists Found</Text>
+          <Text style={styles.emptyText}>No artist at our location</Text>
           <Text style={styles.emptySubText}>
-            We couldn't find any registered artists in {location} right now.
+            No registered artists are available in {location} right now.
           </Text>
           <TouchableOpacity
             style={styles.retryButton}

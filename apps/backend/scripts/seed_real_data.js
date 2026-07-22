@@ -13,67 +13,162 @@ import { encryptSensitiveValue } from "../src/utils/paymentEncryption.js";
 
 const DEFAULT_PASSWORD = "Test@1234";
 
-const sampleClients = [
-  { name: "Aarav Sharma", email: "aarav.sharma@gmail.com", phone: "9876500001", profileImage: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150" },
-  { name: "Priya Patel", email: "priya.patel@gmail.com", phone: "9876500002", profileImage: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150" },
-  { name: "Rohan Das", email: "rohan.das@gmail.com", phone: "9876500003", profileImage: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150" },
-  { name: "Anjali Nair", email: "anjali.nair@gmail.com", phone: "9876500004", profileImage: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150" },
-  { name: "Vikram Singh", email: "vikram.singh@gmail.com", phone: "9876500005", profileImage: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150" },
-  { name: "Sneha Reddy", email: "sneha.reddy@gmail.com", phone: "9876500006", profileImage: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150" },
-  { name: "Kabir Malhotra", email: "kabir.malhotra@gmail.com", phone: "9876500007", profileImage: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150" },
-  { name: "Meera Joshi", email: "meera.joshi@gmail.com", phone: "9876500008", profileImage: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150" },
-  { name: "Aditya Verma", email: "aditya.verma@gmail.com", phone: "9876500009", profileImage: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150" },
-  { name: "Diya Sengupta", email: "diya.sengupta@gmail.com", phone: "9876500010", profileImage: "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=150" },
-  { name: "Arjun Mehta", email: "arjun.mehta@gmail.com", phone: "9876500011", profileImage: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150" },
-  { name: "Neha Kapoor", email: "neha.kapoor@gmail.com", phone: "9876500012", profileImage: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150" },
-  { name: "Devendra Yadav", email: "devendra.yadav@gmail.com", phone: "9876500013", profileImage: "https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=150" },
-  { name: "Tanvi Hegde", email: "tanvi.hegde@gmail.com", phone: "9876500014", profileImage: "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=150" },
-  { name: "Ishaan Gupta", email: "ishaan.gupta@gmail.com", phone: "9876500015", profileImage: "https://images.unsplash.com/photo-1552058544-f2b08422138a?w=150" },
+// Unsplash base photo IDs for authentic faces and makeup photography
+const femaleFacePhotoIds = [
+  "photo-1494790108377-be9c29b29330",
+  "photo-1544005313-94ddf0286df2",
+  "photo-1534528741775-53994a69daeb",
+  "photo-1517841905240-472988babdf9",
+  "photo-1531746020798-e6953c6e8e04",
+  "photo-1580489944761-15a19d654956",
+  "photo-1531123897727-8f129e1688ce",
+  "photo-1508214751196-bcfd4ca60f91",
+  "photo-1542838132-92c53300491e",
+  "photo-1524504388940-b1c1722653e1",
+  "photo-1529626455594-4ff0802cfb7e",
+  "photo-1488426862026-3ee34a7d66df",
+  "photo-1522337360788-8b13dee7a37e",
+  "photo-1512496015851-a90fb38ba796",
+  "photo-1596462502278-27bfdc403348",
+  "photo-1503104834685-7205e8607eb9",
+  "photo-1573496359142-b8d87734a5a2",
+  "photo-1567532939604-b6b5b0db2604",
+  "photo-1544717305-2782549b5136",
+  "photo-1573497019940-1c28c88b4f3e",
+  "photo-1534180477871-5d65836b1971",
+  "photo-1520813792240-56fc4a3765a7",
+  "photo-1509967419530-da38b4704bc6",
+  "photo-1514315384763-ba401779410f",
+  "photo-1523824921871-d6f1a15151f1",
+  "photo-1534308983496-4fabb1a015ee",
+  "photo-1513956589380-bad6acb9b9d4",
+  "photo-1534528741775-53994a69daeb",
+  "photo-1524504388940-b1c1722653e1",
+  "photo-1517841905240-472988babdf9"
 ];
 
+const maleFacePhotoIds = [
+  "photo-1539571696357-5a69c17a67c6",
+  "photo-1507003211169-0a1dd7228f2d",
+  "photo-1500648767791-00dcc994a43e",
+  "photo-1506794778202-cad84cf45f1d",
+  "photo-1522075469751-3a6694fb2f61",
+  "photo-1519085360753-af0119f7cbe7",
+  "photo-1501196354995-cbb51c65aaea",
+  "photo-1552058544-f2b08422138a",
+  "photo-1535713875002-d1d0cf377fde",
+  "photo-1570295999919-56ceb5ecca61",
+  "photo-1560250097-0b93528c311a",
+  "photo-1500648767791-00dcc994a43e",
+  "photo-1492562080023-ab3db95bfbce",
+  "photo-1506794778202-cad84cf45f1d",
+  "photo-1519085360753-af0119f7cbe7"
+];
+
+const beforeMakeupPhotoIds = [
+  "photo-1522337360788-8b13dee7a37e",
+  "photo-1512496015851-a90fb38ba796",
+  "photo-1596462502278-27bfdc403348",
+  "photo-1517841905240-472988babdf9",
+  "photo-1506794778202-cad84cf45f1d",
+  "photo-1521119989659-a83eee488004",
+  "photo-1548142813-c348350df52b",
+  "photo-1508214751196-bcfd4ca60f91",
+  "photo-1531746020798-e6953c6e8e04",
+  "photo-1542838132-92c53300491e"
+];
+
+const afterMakeupPhotoIds = [
+  "photo-1488426862026-3ee34a7d66df",
+  "photo-1524504388940-b1c1722653e1",
+  "photo-1503104834685-7205e8607eb9",
+  "photo-1508214751196-bcfd4ca60f91",
+  "photo-1542838132-92c53300491e",
+  "photo-1519085360753-af0119f7cbe7",
+  "photo-1522075469751-3a6694fb2f61",
+  "photo-1534528741775-53994a69daeb",
+  "photo-1544005313-94ddf0286df2",
+  "photo-1494790108377-be9c29b29330"
+];
+
+// Helper to generate guaranteed unique image URLs with distinct parameters
+let urlCounter = 1;
+function getUniqueImageUrl(photoId, width = 500, tag = "img") {
+  const url = `https://images.unsplash.com/${photoId}?w=${width}&auto=format&fit=crop&q=80&uid=${tag}_${urlCounter++}`;
+  return url;
+}
+
+// ── Real Customer Data (20 Distinct Indian Customers) ──────────────────────────
+const rawClients = [
+  { name: "Aarav Sharma", email: "aarav.sharma@gmail.com", phone: "9876500001", gender: "Male" },
+  { name: "Priya Patel", email: "priya.patel@gmail.com", phone: "9876500002", gender: "Female" },
+  { name: "Rohan Das", email: "rohan.das@gmail.com", phone: "9876500003", gender: "Male" },
+  { name: "Anjali Nair", email: "anjali.nair@gmail.com", phone: "9876500004", gender: "Female" },
+  { name: "Vikram Singh", email: "vikram.singh@gmail.com", phone: "9876500005", gender: "Male" },
+  { name: "Sneha Reddy", email: "sneha.reddy@gmail.com", phone: "9876500006", gender: "Female" },
+  { name: "Kabir Malhotra", email: "kabir.malhotra@gmail.com", phone: "9876500007", gender: "Male" },
+  { name: "Meera Joshi", email: "meera.joshi@gmail.com", phone: "9876500008", gender: "Female" },
+  { name: "Aditya Verma", email: "aditya.verma@gmail.com", phone: "9876500009", gender: "Male" },
+  { name: "Diya Sengupta", email: "diya.sengupta@gmail.com", phone: "9876500010", gender: "Female" },
+  { name: "Arjun Mehta", email: "arjun.mehta@gmail.com", phone: "9876500011", gender: "Male" },
+  { name: "Neha Kapoor", email: "neha.kapoor@gmail.com", phone: "9876500012", gender: "Female" },
+  { name: "Devendra Yadav", email: "devendra.yadav@gmail.com", phone: "9876500013", gender: "Male" },
+  { name: "Tanvi Hegde", email: "tanvi.hegde@gmail.com", phone: "9876500014", gender: "Female" },
+  { name: "Ishaan Gupta", email: "ishaan.gupta@gmail.com", phone: "9876500015", gender: "Male" },
+  { name: "Kavya Kulkarni", email: "kavya.kulkarni@gmail.com", phone: "9876500016", gender: "Female" },
+  { name: "Siddharth Rao", email: "siddharth.rao@gmail.com", phone: "9876500017", gender: "Male" },
+  { name: "Pooja Deshmukh", email: "pooja.deshmukh@gmail.com", phone: "9876500018", gender: "Female" },
+  { name: "Rahul Saxena", email: "rahul.saxena@gmail.com", phone: "9876500019", gender: "Male" },
+  { name: "Riya Chatterjee", email: "riya.chatterjee@gmail.com", phone: "9876500020", gender: "Female" },
+];
+
+const sampleClients = rawClients.map((client, idx) => {
+  const photoId = client.gender === "Male"
+    ? maleFacePhotoIds[idx % maleFacePhotoIds.length]
+    : femaleFacePhotoIds[idx % femaleFacePhotoIds.length];
+  return {
+    ...client,
+    profileImage: getUniqueImageUrl(photoId, 150, `client_pfp_${idx + 1}`),
+  };
+});
+
+// ── Base Real Makeup Artists (15 Cities Across India) ─────────────────────────
 const sampleArtists = [
   {
     name: "Pooja Sharma Makeovers",
     email: "pooja.mumbai@makeupglam.in",
     phone: "9812345601",
     profile: {
-      profileImage: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150",
+      profileImagePhotoId: "photo-1544005313-94ddf0286df2",
       gender: "Female",
-      bio: "Over 10 years of experience styling Bollywood celebrities and high-profile brides in Mumbai. Specializing in luxury makeup and airbrush styling.",
+      bio: "Over 10 years of experience styling Bollywood celebrities and high-profile brides in Mumbai. Specializing in luxury bridal and airbrush styling.",
       location: "Mumbai",
       experience: "10",
-      parlourName: "Glamour Zone Studio",
+      parlourName: "Glamour Zone Studio Juhu",
       parlourAddress: "Flat 102, Beach Haven, Juhu, Mumbai - 400049",
-      rating: 4.8,
-      reviewCount: 92,
+      rating: 4.9,
+      reviewCount: 124,
     },
-    specializations: ["Bridal", "HD Makeup", "Airbrush", "Fashion"],
+    specializations: ["Bridal", "HD Makeup", "Airbrush", "Celebrity"],
     services: [
       { specialization: "Bridal Makeup", duration: "3 hrs", timeRange: "8 AM - 12 PM", priceRange: "₹12,000" },
       { specialization: "HD Makeup", duration: "2 hrs", timeRange: "10 AM - 6 PM", priceRange: "₹7,000" },
     ],
-    portfolio: [
-      {
-        beforeImageUrl: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=500",
-        afterImageUrl: "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=500",
-        tag: "Bridal Glow",
-        description: "Traditional Marathi Bridal makeup with gold accents.",
-      }
-    ],
+    portfolioTags: ["Marathi Bridal Glow", "Airbrush Royalty", "Glam Cocktail", "Subtle Nude Bride"],
     certificate: {
-      fileName: "mumbai_makeup_cert.pdf",
+      fileName: "pooja_sharma_mumbai_cert.pdf",
       fileUrl: "https://res.cloudinary.com/djonmzyiu/image/upload/v1782465082/gvvmptwr4nw5cmrgdjbu.pdf",
       fileSize: 45000,
       fileType: "application/pdf",
       certificateNumber: "MUM-2021-998",
-      instituteName: "Mumbai Makeup Academy",
+      instituteName: "Mumbai Academy of Celebrity Makeup",
     },
     payment: {
       accountHolder: "Pooja Sharma",
       bankName: "HDFC Bank",
       accountNumber: "50100412345601",
       ifscCode: "HDFC0000060",
-      upiId: "pooja@okhdfc",
+      upiId: "pooja.mumbai@okhdfc",
     }
   },
   {
@@ -81,14 +176,14 @@ const sampleArtists = [
     email: "rohan.delhi@makeupglam.in",
     phone: "9812345602",
     profile: {
-      profileImage: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150",
+      profileImagePhotoId: "photo-1506794778202-cad84cf45f1d",
       gender: "Male",
-      bio: "Elite celebrity makeup artist based in Delhi. Known for sophisticated, high-fashion looks and airbrush flawless finishes.",
+      bio: "Elite celebrity makeup artist based in Delhi. Known for sophisticated, high-fashion looks and flawless airbrush finishes.",
       location: "Delhi",
       experience: "8",
-      parlourName: "Rohan Kapoor Artistry",
+      parlourName: "Rohan Kapoor Artistry GK2",
       parlourAddress: "M-Block Market, Greater Kailash 2, New Delhi - 110048",
-      rating: 4.9,
+      rating: 4.8,
       reviewCount: 156,
     },
     specializations: ["High Fashion", "Editorial", "Bridal", "Airbrush"],
@@ -96,16 +191,9 @@ const sampleArtists = [
       { specialization: "Editorial Makeup", duration: "2.5 hrs", timeRange: "9 AM - 5 PM", priceRange: "₹10,000" },
       { specialization: "Bridal Airbrush", duration: "3.5 hrs", timeRange: "6 AM - 11 AM", priceRange: "₹18,000" },
     ],
-    portfolio: [
-      {
-        beforeImageUrl: "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?w=500",
-        afterImageUrl: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=500",
-        tag: "Fashion Ramp",
-        description: "Bold avant-garde look for Delhi Fashion Week.",
-      }
-    ],
+    portfolioTags: ["Vogue Editorial", "Delhi Runway Ramp", "Golden Hour Bridal", "Sharp Sculpted Contour"],
     certificate: {
-      fileName: "delhi_fashion_cert.pdf",
+      fileName: "rohan_kapoor_delhi_cert.pdf",
       fileUrl: "https://res.cloudinary.com/djonmzyiu/image/upload/v1782465082/gvvmptwr4nw5cmrgdjbu.pdf",
       fileSize: 52000,
       fileType: "application/pdf",
@@ -117,7 +205,7 @@ const sampleArtists = [
       bankName: "ICICI Bank",
       accountNumber: "00040112345602",
       ifscCode: "ICIC0000004",
-      upiId: "rohan@okicici",
+      upiId: "rohan.delhi@okicici",
     }
   },
   {
@@ -125,31 +213,24 @@ const sampleArtists = [
     email: "deepa.blr@makeupglam.in",
     phone: "9812345603",
     profile: {
-      profileImage: "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=150",
+      profileImagePhotoId: "photo-1531746020798-e6953c6e8e04",
       gender: "Female",
-      bio: "Specialist in traditional South Indian bridal transformations. Exquisite saree draping and classic hairstyles.",
+      bio: "Specialist in traditional South Indian bridal transformations. Exquisite silk saree draping and classic temple hairstyles.",
       location: "Bangalore",
       experience: "12",
       parlourName: "Deepa's Bridal Sanctuary",
       parlourAddress: "80 Feet Road, Indiranagar, Bangalore - 560038",
-      rating: 4.7,
-      reviewCount: 88,
+      rating: 4.9,
+      reviewCount: 188,
     },
     specializations: ["Bridal", "HD Makeup", "Hairstyling", "Saree Draping"],
     services: [
       { specialization: "South Indian Bridal", duration: "4 hrs", timeRange: "5 AM - 9 AM", priceRange: "₹15,000" },
       { specialization: "HD Party Glow", duration: "1.5 hrs", timeRange: "11 AM - 8 PM", priceRange: "₹5,000" },
     ],
-    portfolio: [
-      {
-        beforeImageUrl: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=500",
-        afterImageUrl: "https://images.unsplash.com/photo-1503104834685-7205e8607eb9?w=500",
-        tag: "South Bridal",
-        description: "Traditional silk saree draping with temple jewelry look.",
-      }
-    ],
+    portfolioTags: ["Kanjeevaram Bride", "Temple Gold Glam", "Classic Jasmine Gajra", "Radiant Silk Finish"],
     certificate: {
-      fileName: "bangalore_makeup_cert.pdf",
+      fileName: "deepa_nair_bangalore_cert.pdf",
       fileUrl: "https://res.cloudinary.com/djonmzyiu/image/upload/v1782465082/gvvmptwr4nw5cmrgdjbu.pdf",
       fileSize: 48000,
       fileType: "application/pdf",
@@ -169,31 +250,24 @@ const sampleArtists = [
     email: "snehal.pune@makeupglam.in",
     phone: "9812345604",
     profile: {
-      profileImage: "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?w=150",
+      profileImagePhotoId: "photo-1508214751196-bcfd4ca60f91",
       gender: "Female",
-      bio: "Passion for minimalist and natural-looking makeup. Certified professional from international academy.",
+      bio: "Passion for minimalist and natural-looking glass skin makeup. Certified professional from international academy in Pune.",
       location: "Pune",
       experience: "6",
-      parlourName: "Snehal Patil Artistry",
+      parlourName: "Snehal Patil Artistry FC Road",
       parlourAddress: "F.C. Road, Shivajinagar, Pune - 411005",
-      rating: 4.5,
-      reviewCount: 42,
+      rating: 4.7,
+      reviewCount: 94,
     },
     specializations: ["Nude Makeup", "Cocktail Party", "HD Makeup"],
     services: [
       { specialization: "Cocktail Glam", duration: "2 hrs", timeRange: "12 PM - 7 PM", priceRange: "₹6,000" },
       { specialization: "Minimalist Nude Look", duration: "1 hr", timeRange: "9 AM - 6 PM", priceRange: "₹4,000" },
     ],
-    portfolio: [
-      {
-        beforeImageUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=500",
-        afterImageUrl: "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?w=500",
-        tag: "Dewy Skin",
-        description: "Glass skin dewy makeup for evening events.",
-      }
-    ],
+    portfolioTags: ["Glass Skin Glow", "Dewy Engagement", "Peach Blossom Glam", "Soft Velvet Matte"],
     certificate: {
-      fileName: "pune_academy_cert.pdf",
+      fileName: "snehal_patil_pune_cert.pdf",
       fileUrl: "https://res.cloudinary.com/djonmzyiu/image/upload/v1782465082/gvvmptwr4nw5cmrgdjbu.pdf",
       fileSize: 39000,
       fileType: "application/pdf",
@@ -205,7 +279,7 @@ const sampleArtists = [
       bankName: "State Bank of India",
       accountNumber: "30012345604",
       ifscCode: "SBIN0000300",
-      upiId: "snehal@oksbi",
+      upiId: "snehal.pune@oksbi",
     }
   },
   {
@@ -213,31 +287,24 @@ const sampleArtists = [
     email: "sangeetha.chennai@makeupglam.in",
     phone: "9812345605",
     profile: {
-      profileImage: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
+      profileImagePhotoId: "photo-1534528741775-53994a69daeb",
       gender: "Female",
-      bio: "Specialized in long-lasting matte makeup suitable for humid weather, particularly classical temple bridal styling.",
+      bio: "Specialized in long-lasting matte makeup suitable for humid weather, particularly classical temple bridal styling in Chennai.",
       location: "Chennai",
       experience: "9",
-      parlourName: "Sangeetha's Royal Salon",
+      parlourName: "Sangeetha's Royal Salon Nungambakkam",
       parlourAddress: "Khader Nawaz Khan Road, Nungambakkam, Chennai - 600006",
-      rating: 4.6,
-      reviewCount: 75,
+      rating: 4.8,
+      reviewCount: 115,
     },
     specializations: ["Temple Bridal", "Matte Look", "Hairstyling"],
     services: [
       { specialization: "Temple Bridal Gold", duration: "3.5 hrs", timeRange: "4 AM - 8 AM", priceRange: "₹14,000" },
       { specialization: "Matte Event Makeup", duration: "1.5 hrs", timeRange: "10 AM - 7 PM", priceRange: "₹4,500" },
     ],
-    portfolio: [
-      {
-        beforeImageUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500",
-        afterImageUrl: "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=500",
-        tag: "Classical Bride",
-        description: "Vibrant traditional bridal makeover with heavy jasmine gajra.",
-      }
-    ],
+    portfolioTags: ["Classical Tamil Bride", "Matte Waterproof Finish", "Royal Temple Gold", "Traditional Andaman Braid"],
     certificate: {
-      fileName: "chennai_school_cert.pdf",
+      fileName: "sangeetha_chennai_cert.pdf",
       fileUrl: "https://res.cloudinary.com/djonmzyiu/image/upload/v1782465082/gvvmptwr4nw5cmrgdjbu.pdf",
       fileSize: 42000,
       fileType: "application/pdf",
@@ -249,7 +316,7 @@ const sampleArtists = [
       bankName: "Canara Bank",
       accountNumber: "123410112345605",
       ifscCode: "CNRB0001234",
-      upiId: "sangeetha@okaxis",
+      upiId: "sangeetha@okcanara",
     }
   },
   {
@@ -257,31 +324,24 @@ const sampleArtists = [
     email: "amina.hyd@makeupglam.in",
     phone: "9812345606",
     profile: {
-      profileImage: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=150",
+      profileImagePhotoId: "photo-1542838132-92c53300491e",
       gender: "Female",
-      bio: "Expert in royal Nizami and Hyderabadi Muslim bridal look, specializing in heavy eye makeup and flawless foundation base.",
+      bio: "Expert in royal Nizami and Hyderabadi Muslim bridal looks, specializing in heavy eye makeup and flawless foundation base.",
       location: "Hyderabad",
       experience: "11",
-      parlourName: "Amina's Royal Makeovers",
+      parlourName: "Amina's Royal Makeovers Jubilee Hills",
       parlourAddress: "Road No. 36, Jubilee Hills, Hyderabad - 500033",
-      rating: 4.8,
-      reviewCount: 110,
+      rating: 4.9,
+      reviewCount: 140,
     },
     specializations: ["Nizami Bridal", "Heavy Glam", "Airbrush"],
     services: [
       { specialization: "Nizami Bridal Royale", duration: "4 hrs", timeRange: "7 AM - 12 PM", priceRange: "₹20,000" },
       { specialization: "Heavy Glitter Glam", duration: "2 hrs", timeRange: "3 PM - 9 PM", priceRange: "₹8,000" },
     ],
-    portfolio: [
-      {
-        beforeImageUrl: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=500",
-        afterImageUrl: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=500",
-        tag: "Nizami Bridal",
-        description: "Glitter cut-crease eye makeup with flawless airbrush base.",
-      }
-    ],
+    portfolioTags: ["Nizami Velvet Cut-Crease", "Smokey Glitter Shimmer", "Pearl Jhumar Bridal", "Hyderabadi Royal Base"],
     certificate: {
-      fileName: "hyd_academy_cert.pdf",
+      fileName: "amina_khan_hyd_cert.pdf",
       fileUrl: "https://res.cloudinary.com/djonmzyiu/image/upload/v1782465082/gvvmptwr4nw5cmrgdjbu.pdf",
       fileSize: 47000,
       fileType: "application/pdf",
@@ -293,7 +353,7 @@ const sampleArtists = [
       bankName: "Kotak Mahindra Bank",
       accountNumber: "9912345606",
       ifscCode: "KKBK0000001",
-      upiId: "amina@okkotak",
+      upiId: "amina.hyd@okkotak",
     }
   },
   {
@@ -301,31 +361,24 @@ const sampleArtists = [
     email: "debasree.kol@makeupglam.in",
     phone: "9812345607",
     profile: {
-      profileImage: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150",
+      profileImagePhotoId: "photo-1519085360753-af0119f7cbe7",
       gender: "Female",
-      bio: "Famous for traditional Bengali bridal looks with intricate Chandan designs and dramatic kohl eyes.",
+      bio: "Famous for traditional Bengali bridal looks with intricate Chandan designs, deep kohl eyes, and red Benarasi styling in Kolkata.",
       location: "Kolkata",
       experience: "7",
-      parlourName: "Debasree Sen Artistry",
+      parlourName: "Debasree Sen Artistry Gariahat",
       parlourAddress: "Rashbehari Avenue, Gariahat, Kolkata - 700029",
-      rating: 4.4,
-      reviewCount: 38,
+      rating: 4.7,
+      reviewCount: 98,
     },
     specializations: ["Traditional Bengali", "Kohl Eyes", "Saree Draping"],
     services: [
       { specialization: "Bengali Bridal Chandan", duration: "3.5 hrs", timeRange: "12 PM - 6 PM", priceRange: "₹12,000" },
       { specialization: "Kohl-Eye Party Look", duration: "1.5 hrs", timeRange: "11 AM - 9 PM", priceRange: "₹4,000" },
     ],
-    portfolio: [
-      {
-        beforeImageUrl: "https://images.unsplash.com/photo-1521119989659-a83eee488004?w=500",
-        afterImageUrl: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=500",
-        tag: "Bengali Bride",
-        description: "Intricate chandan forehead art with dramatic traditional eyes.",
-      }
-    ],
+    portfolioTags: ["Chandan Artistry Bride", "Kohl Wings Bengali", "Red Benarasi Glow", "Reception Saree Styling"],
     certificate: {
-      fileName: "kolkata_fine_style_cert.pdf",
+      fileName: "debasree_sen_kolkata_cert.pdf",
       fileUrl: "https://res.cloudinary.com/djonmzyiu/image/upload/v1782465082/gvvmptwr4nw5cmrgdjbu.pdf",
       fileSize: 51000,
       fileType: "application/pdf",
@@ -334,10 +387,10 @@ const sampleArtists = [
     },
     payment: {
       accountHolder: "Debasree Sen",
-      bankName: "United Bank of India",
+      bankName: "State Bank of India",
       accountNumber: "098765432107",
-      ifscCode: "UTBI0GHT290",
-      upiId: "debasree@okaxis",
+      ifscCode: "SBIN0000009",
+      upiId: "debasree.kol@oksbi",
     }
   },
   {
@@ -345,31 +398,24 @@ const sampleArtists = [
     email: "meera.jaipur@makeupglam.in",
     phone: "9812345608",
     profile: {
-      profileImage: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150",
+      profileImagePhotoId: "photo-1522075469751-3a6694fb2f61",
       gender: "Female",
-      bio: "Specialized in royal Rajasthani and Rajputi poshak styling with heavy traditional bridal makeovers.",
+      bio: "Specialized in royal Rajasthani and Rajputi poshak styling with heavy traditional bridal makeovers in Jaipur.",
       location: "Jaipur",
       experience: "9",
-      parlourName: "Rajputana Queen Studio",
-      parlourAddress: "MI Road, Jaipur - 302001",
-      rating: 4.6,
-      reviewCount: 60,
+      parlourName: "Rajputana Queen Studio MI Road",
+      parlourAddress: "MI Road, Pink City, Jaipur - 302001",
+      rating: 4.8,
+      reviewCount: 110,
     },
     specializations: ["Rajputi Bridal", "Smokey Eyes", "Jewelry Styling"],
     services: [
       { specialization: "Rajputi Royal Bridal", duration: "4 hrs", timeRange: "7 AM - 11 AM", priceRange: "₹17,000" },
       { specialization: "Royal Smokey Event", duration: "2 hrs", timeRange: "1 PM - 8 PM", priceRange: "₹6,500" },
     ],
-    portfolio: [
-      {
-        beforeImageUrl: "https://images.unsplash.com/photo-1548142813-c348350df52b?w=500",
-        afterImageUrl: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=500",
-        tag: "Rajputi Royal",
-        description: "Warm undertones and rich gold eyeshadow for Rajputi royal look.",
-      }
-    ],
+    portfolioTags: ["Rajputi Royal Poshak", "Amber Fort Golden Glow", "Kundan Borla Bride", "Deep Royal Smokey Eye"],
     certificate: {
-      fileName: "jaipur_salon_cert.pdf",
+      fileName: "meera_rathore_jaipur_cert.pdf",
       fileUrl: "https://res.cloudinary.com/djonmzyiu/image/upload/v1782465082/gvvmptwr4nw5cmrgdjbu.pdf",
       fileSize: 44000,
       fileType: "application/pdf",
@@ -381,7 +427,7 @@ const sampleArtists = [
       bankName: "Bank of Baroda",
       accountNumber: "40012345608",
       ifscCode: "BARB0MIROAD",
-      upiId: "meera@okbaroda",
+      upiId: "meera.jaipur@okbaroda",
     }
   },
   {
@@ -389,447 +435,431 @@ const sampleArtists = [
     email: "komal.ahmedabad@makeupglam.in",
     phone: "9812345609",
     profile: {
-      profileImage: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150",
+      profileImagePhotoId: "photo-1507003211169-0a1dd7228f2d",
       gender: "Female",
-      bio: "Renowned for vibrant Garba makeovers and elegant Gujarati Panetar bridal makeovers in Ahmedabad.",
+      bio: "Renowned for vibrant Garba night makeovers and elegant Gujarati Panetar bridal makeovers in Ahmedabad.",
       location: "Ahmedabad",
       experience: "5",
-      parlourName: "Komal Shah Beauty Point",
+      parlourName: "Komal Shah Beauty Point Navrangpura",
       parlourAddress: "C.G. Road, Navrangpura, Ahmedabad - 380009",
-      rating: 4.3,
-      reviewCount: 29,
+      rating: 4.6,
+      reviewCount: 78,
     },
-    specializations: ["Garba Glam", "Bridal", "Heavy Glitter"],
+    specializations: ["Gujarati Panetar", "Garba Glam", "HD Base"],
     services: [
-      { specialization: "Navratri Garba Special", duration: "1.5 hrs", timeRange: "3 PM - 10 PM", priceRange: "₹3,500" },
-      { specialization: "Gujarati Panetar Bridal", duration: "3 hrs", timeRange: "9 AM - 2 PM", priceRange: "₹11,000" },
+      { specialization: "Gujarati Bridal Panetar", duration: "3 hrs", timeRange: "8 AM - 1 PM", priceRange: "₹11,000" },
+      { specialization: "Garba Night Glam", duration: "1.5 hrs", timeRange: "5 PM - 10 PM", priceRange: "₹3,500" },
     ],
-    portfolio: [
-      {
-        beforeImageUrl: "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=500",
-        afterImageUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500",
-        tag: "Garba Queen",
-        description: "Sweat-proof, highly colorful makeup for festive garba dancing.",
-      }
-    ],
+    portfolioTags: ["Panetar Saree Bride", "Navratri Garba Velvet", "Bright Eye Pop", "Matte Waterproof Base"],
     certificate: {
-      fileName: "ahmedabad_academy_cert.pdf",
+      fileName: "komal_shah_ahmedabad_cert.pdf",
       fileUrl: "https://res.cloudinary.com/djonmzyiu/image/upload/v1782465082/gvvmptwr4nw5cmrgdjbu.pdf",
       fileSize: 41000,
       fileType: "application/pdf",
-      certificateNumber: "AHM-2021-344",
-      instituteName: "Ahmedabad Festive Art Academy",
+      certificateNumber: "AHM-2021-301",
+      instituteName: "Ahmedabad Styling School",
     },
     payment: {
       accountHolder: "Komal Shah",
-      bankName: "State Bank of India",
-      accountNumber: "300012345609",
-      ifscCode: "SBIN0003009",
-      upiId: "komalshah@oksbi",
+      bankName: "IndusInd Bank",
+      accountNumber: "15012345609",
+      ifscCode: "INDB0000015",
+      upiId: "komal.ahmedabad@okindus",
     }
   },
   {
-    name: "Anjali Menon Bridal Lounge",
-    email: "anjali.kochi@makeupglam.in",
+    name: "Simran Kaur Royal Brides",
+    email: "simran.chd@makeupglam.in",
     phone: "9812345610",
     profile: {
-      profileImage: "https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?w=150",
+      profileImagePhotoId: "photo-1531123897727-8f129e1688ce",
       gender: "Female",
-      bio: "Specialized in the iconic white-and-gold Kasavu bridal makeover, creating stunning natural skin tones with fresh flowers.",
-      location: "Kochi",
-      experience: "8",
-      parlourName: "Menon Bridal Lounge",
-      parlourAddress: "MG Road, Ernakulam, Kochi - 682016",
-      rating: 4.7,
-      reviewCount: 84,
-    },
-    specializations: ["Kerala Kasavu Bridal", "Natural Glow", "Flowery Hairdo"],
-    services: [
-      { specialization: "Kasavu Golden Bridal", duration: "3.5 hrs", timeRange: "5 AM - 9 AM", priceRange: "₹13,000" },
-      { specialization: "Pastel Engagement Look", duration: "2 hrs", timeRange: "10 AM - 6 PM", priceRange: "₹5,500" },
-    ],
-    portfolio: [
-      {
-        beforeImageUrl: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=500",
-        afterImageUrl: "https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?w=500",
-        tag: "Kerala Kasavu",
-        description: "Soft peach makeup matching traditional white and gold saree.",
-      }
-    ],
-    certificate: {
-      fileName: "kochi_academy_cert.pdf",
-      fileUrl: "https://res.cloudinary.com/djonmzyiu/image/upload/v1782465082/gvvmptwr4nw5cmrgdjbu.pdf",
-      fileSize: 43000,
-      fileType: "application/pdf",
-      certificateNumber: "KOC-2018-090",
-      instituteName: "Kerala Academy of Bridal Artistry",
-    },
-    payment: {
-      accountHolder: "Anjali Menon",
-      bankName: "Federal Bank",
-      accountNumber: "10012345610",
-      ifscCode: "FDRL0001001",
-      upiId: "anjalim@okfederal",
-    }
-  },
-  {
-    name: "Harpreet Kaur Punjabi Glow",
-    email: "harpreet.chd@makeupglam.in",
-    phone: "9812345611",
-    profile: {
-      profileImage: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150",
-      gender: "Female",
-      bio: "Punjabi bridal expert who delivers heavy contouring, bold eyes, and glamorous base makeup.",
+      bio: "Master of Punjabi bridal transformations, heavy passa hairstyles, and vibrant pink blush wedding looks in Chandigarh.",
       location: "Chandigarh",
-      experience: "7",
-      parlourName: "Royal Punjabi Salon",
+      experience: "8",
+      parlourName: "Simran Kaur Artistry Sector 17",
       parlourAddress: "Sector 17-C, Chandigarh - 160017",
-      rating: 4.8,
-      reviewCount: 104,
+      rating: 4.9,
+      reviewCount: 132,
     },
-    specializations: ["Punjabi Bridal", "Heavy Contour", "Glitter Eyes"],
+    specializations: ["Punjabi Bridal", "Passa Hairstyling", "Airbrush"],
     services: [
-      { specialization: "Punjabi Heavy Bridal", duration: "3.5 hrs", timeRange: "6 AM - 12 PM", priceRange: "₹16,000" },
-      { specialization: "Shimmery Party Glam", duration: "2 hrs", timeRange: "12 PM - 9 PM", priceRange: "₹6,000" },
+      { specialization: "Punjabi Bridal Royale", duration: "3.5 hrs", timeRange: "6 AM - 11 AM", priceRange: "₹16,000" },
+      { specialization: "Sangeet Glam", duration: "2 hrs", timeRange: "2 PM - 8 PM", priceRange: "₹6,000" },
     ],
-    portfolio: [
-      {
-        beforeImageUrl: "https://images.unsplash.com/photo-1554151228-14d9def656e4?w=500",
-        afterImageUrl: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150",
-        tag: "Punjabi Bride",
-        description: "Bold pink lips and glittery eyes for traditional salwar suit look.",
-      }
-    ],
+    portfolioTags: ["Punjabi Phulkari Bride", "Passa Crown Braid", "Sangeet Pink Blush", "High Gloss Lip Glam"],
     certificate: {
-      fileName: "chandigarh_cert.pdf",
-      fileUrl: "https://res.cloudinary.com/djonmzyiu/image/upload/v1782465082/gvvmptwr4nw5cmrgdjbu.pdf",
-      fileSize: 46000,
-      fileType: "application/pdf",
-      certificateNumber: "CHD-2019-543",
-      instituteName: "Chandigarh Fashion Academy",
-    },
-    payment: {
-      accountHolder: "Harpreet Kaur",
-      bankName: "Punjab National Bank",
-      accountNumber: "0112345611",
-      ifscCode: "PUNB0011234",
-      upiId: "harpreet@okpnb",
-    }
-  },
-  {
-    name: "Farhana Begum Awadhi Makeovers",
-    email: "farhana.lko@makeupglam.in",
-    phone: "9812345612",
-    profile: {
-      profileImage: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
-      gender: "Female",
-      bio: "Renowned for soft Awadhi makeovers, classic winged liners, and elegant velvet touch foundations.",
-      location: "Lucknow",
-      experience: "10",
-      parlourName: "Awadh Queen Artistry",
-      parlourAddress: "Hazratganj, Lucknow - 226001",
-      rating: 4.5,
-      reviewCount: 48,
-    },
-    specializations: ["Awadhi Bridal", "Nude Look", "Classic Liner"],
-    services: [
-      { specialization: "Awadhi Royal Bridal", duration: "4 hrs", timeRange: "8 AM - 1 PM", priceRange: "₹15,000" },
-      { specialization: "Classic Nawabi Look", duration: "1.5 hrs", timeRange: "10 AM - 8 PM", priceRange: "₹5,000" },
-    ],
-    portfolio: [
-      {
-        beforeImageUrl: "https://images.unsplash.com/photo-1504257404762-569612ee7859?w=500",
-        afterImageUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500",
-        tag: "Awadhi Royalty",
-        description: "Gold-dusted eyes and soft blush matching heavy Lucknowi chikankari.",
-      }
-    ],
-    certificate: {
-      fileName: "lucknow_design_cert.pdf",
+      fileName: "simran_kaur_chd_cert.pdf",
       fileUrl: "https://res.cloudinary.com/djonmzyiu/image/upload/v1782465082/gvvmptwr4nw5cmrgdjbu.pdf",
       fileSize: 49000,
       fileType: "application/pdf",
-      certificateNumber: "LKO-2015-776",
-      instituteName: "Lucknow Royal Institute of Design",
+      certificateNumber: "CHD-2018-512",
+      instituteName: "VLCC Institute Chandigarh",
     },
     payment: {
-      accountHolder: "Farhana Begum",
+      accountHolder: "Simran Kaur",
+      bankName: "Punjab National Bank",
+      accountNumber: "02340012345610",
+      ifscCode: "PUNB0023400",
+      upiId: "simran.chd@okpnb",
+    }
+  },
+  {
+    name: "Farheen Rizvi Makeovers",
+    email: "farheen.lko@makeupglam.in",
+    phone: "9812345611",
+    profile: {
+      profileImagePhotoId: "photo-1544717305-2782549b5136",
+      gender: "Female",
+      bio: "Specialist in Nawabi bridal looks, heavy kohl eye styling, and traditional Lakhnavi gharara draping in Lucknow.",
+      location: "Lucknow",
+      experience: "10",
+      parlourName: "Farheen's Nawabi Makeovers Hazratganj",
+      parlourAddress: "Hazratganj Main Market, Lucknow - 226001",
+      rating: 4.8,
+      reviewCount: 106,
+    },
+    specializations: ["Nawabi Bridal", "Kohl Smokey", "Gharara Styling"],
+    services: [
+      { specialization: "Nawabi Nikah Look", duration: "4 hrs", timeRange: "8 AM - 1 PM", priceRange: "₹18,000" },
+      { specialization: "Party Soft Glam", duration: "1.5 hrs", timeRange: "12 PM - 7 PM", priceRange: "₹4,500" },
+    ],
+    portfolioTags: ["Nawabi Nikah Bride", "Lakhnavi Gharara Glam", "Deep Emerald Smokey", "Classic Velvet Lip"],
+    certificate: {
+      fileName: "farheen_rizvi_lko_cert.pdf",
+      fileUrl: "https://res.cloudinary.com/djonmzyiu/image/upload/v1782465082/gvvmptwr4nw5cmrgdjbu.pdf",
+      fileSize: 46000,
+      fileType: "application/pdf",
+      certificateNumber: "LKO-2016-204",
+      instituteName: "Jawad Habib Academy Lucknow",
+    },
+    payment: {
+      accountHolder: "Farheen Rizvi",
+      bankName: "Union Bank of India",
+      accountNumber: "56010112345611",
+      ifscCode: "UBIN0556010",
+      upiId: "farheen.lko@okunion",
+    }
+  },
+  {
+    name: "Natasha Fernandes Sun & Glow",
+    email: "natasha.goa@makeupglam.in",
+    phone: "9812345612",
+    profile: {
+      profileImagePhotoId: "photo-1573496359142-b8d87734a5a2",
+      gender: "Female",
+      bio: "Destination wedding specialist in Goa. Known for waterproof bronzed glow, beachy waves, and sunset cocktail looks.",
+      location: "Goa",
+      experience: "7",
+      parlourName: "Natasha's Beach Glam Panaji",
+      parlourAddress: "MG Road, Panaji, Goa - 403001",
+      rating: 4.9,
+      reviewCount: 160,
+    },
+    specializations: ["Destination Beach", "Waterproof Glam", "Beachy Waves"],
+    services: [
+      { specialization: "Beach Destination Wedding", duration: "3 hrs", timeRange: "1 PM - 6 PM", priceRange: "₹15,000" },
+      { specialization: "Sunset Cocktail Glow", duration: "1.5 hrs", timeRange: "3 PM - 8 PM", priceRange: "₹5,500" },
+    ],
+    portfolioTags: ["Goa Beach Destination Bride", "Bronze Sun-Kissed Skin", "Beachy Sunset Waves", "Coral Nude Glam"],
+    certificate: {
+      fileName: "natasha_goa_cert.pdf",
+      fileUrl: "https://res.cloudinary.com/djonmzyiu/image/upload/v1782465082/gvvmptwr4nw5cmrgdjbu.pdf",
+      fileSize: 43000,
+      fileType: "application/pdf",
+      certificateNumber: "GOA-2019-901",
+      instituteName: "Goa International Beauty School",
+    },
+    payment: {
+      accountHolder: "Natasha Fernandes",
       bankName: "HDFC Bank",
       accountNumber: "50100412345612",
-      ifscCode: "HDFC0000080",
-      upiId: "farhana@okhdfc",
+      ifscCode: "HDFC0000201",
+      upiId: "natasha.goa@okhdfc",
     }
   },
   {
-    name: "Jessica D'Souza Beach Glam",
-    email: "jessica.goa@makeupglam.in",
+    name: "Anupama Menon Kerala Grace",
+    email: "anupama.kochi@makeupglam.in",
     phone: "9812345613",
     profile: {
-      profileImage: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=150",
+      profileImagePhotoId: "photo-1567532939604-b6b5b0db2604",
       gender: "Female",
-      bio: "Top destination wedding makeup artist based in Goa. Master of waterproof, sweat-resistant, sun-kissed bridal makeup.",
-      location: "Goa",
-      experience: "6",
-      parlourName: "Jessica's Beach Glam Studio",
-      parlourAddress: "Colva Beach Road, Margao, Goa - 403601",
+      bio: "Specializing in traditional Kerala Christian and Hindu Kasavu bridal styling, golden accessories, and soft glowing base in Kochi.",
+      location: "Kochi",
+      experience: "9",
+      parlourName: "Anupama's Grace Studio MG Road",
+      parlourAddress: "MG Road, Ernakulam, Kochi - 682016",
       rating: 4.8,
-      reviewCount: 124,
+      reviewCount: 95,
     },
-    specializations: ["Beach Wedding", "Sun-kissed Glam", "Waterproof Makeup"],
+    specializations: ["Kasavu Bridal", "Christian Gown Makeup", "Jasmine Hair"],
     services: [
-      { specialization: "Beach Destination Bridal", duration: "3 hrs", timeRange: "1 PM - 6 PM", priceRange: "₹18,000" },
-      { specialization: "Sun-kissed Bronze Party", duration: "1.5 hrs", timeRange: "12 PM - 8 PM", priceRange: "₹7,000" },
+      { specialization: "Kerala Kasavu Bridal", duration: "3.5 hrs", timeRange: "5 AM - 9 AM", priceRange: "₹13,000" },
+      { specialization: "Christian Gown Glam", duration: "2 hrs", timeRange: "9 AM - 3 PM", priceRange: "₹7,500" },
     ],
-    portfolio: [
-      {
-        beforeImageUrl: "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=500",
-        afterImageUrl: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=500",
-        tag: "Sun-kissed Glow",
-        description: "Bronze-toned makeup perfect for outdoor sunset beach ceremonies.",
-      }
-    ],
+    portfolioTags: ["Kerala Kasavu Bride", "Christian White Lace Glow", "Golden Temple Braid", "Natural Dewy Blush"],
     certificate: {
-      fileName: "goa_beauty_cert.pdf",
+      fileName: "anupama_menon_kochi_cert.pdf",
       fileUrl: "https://res.cloudinary.com/djonmzyiu/image/upload/v1782465082/gvvmptwr4nw5cmrgdjbu.pdf",
-      fileSize: 45000,
+      fileSize: 44000,
       fileType: "application/pdf",
-      certificateNumber: "GOA-2020-098",
-      instituteName: "Goa Academy of Beauty & Fashion",
+      certificateNumber: "KOC-2017-678",
+      instituteName: "Kochi Academy of Styling",
     },
     payment: {
-      accountHolder: "Jessica DSouza",
-      bankName: "ICICI Bank",
-      accountNumber: "00040112345613",
-      ifscCode: "ICIC0000004",
-      upiId: "jessica@okicici",
+      accountHolder: "Anupama Menon",
+      bankName: "State Bank of India",
+      accountNumber: "30012345613",
+      ifscCode: "SBIN0008016",
+      upiId: "anupama.kochi@oksbi",
     }
   },
   {
-    name: "Radhika Agrawal Festive Looks",
-    email: "radhika.indore@makeupglam.in",
+    name: "Bhavna Patel Diamond Studio",
+    email: "bhavna.surat@makeupglam.in",
     phone: "9812345614",
     profile: {
-      profileImage: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150",
+      profileImagePhotoId: "photo-1573497019940-1c28c88b4f3e",
       gender: "Female",
-      bio: "Specializing in Central Indian bridal looks, rich contouring, and modern festive hairstyles.",
-      location: "Indore",
-      experience: "5",
-      parlourName: "Radhika's Beauty Zone",
-      parlourAddress: "Vijay Nagar, Indore - 452010",
-      rating: 4.4,
-      reviewCount: 31,
+      bio: "Surat's leading artist for heavy diamond jewelry styling, royal Gharchola bridal looks, and high-shine glitter makeovers.",
+      location: "Surat",
+      experience: "11",
+      parlourName: "Bhavna's Diamond Studio Ghoddod Road",
+      parlourAddress: "Ghoddod Road, Surat - 395007",
+      rating: 4.9,
+      reviewCount: 142,
     },
-    specializations: ["Festive Glam", "Bridal", "Hair Braiding"],
+    specializations: ["Gharchola Bridal", "Diamond Jewelry Glam", "Glitter Eye"],
     services: [
-      { specialization: "Malwa Bridal Special", duration: "3 hrs", timeRange: "8 AM - 1 PM", priceRange: "₹10,000" },
-      { specialization: "Festive Family Look", duration: "1.5 hrs", timeRange: "10 AM - 9 PM", priceRange: "₹4,500" },
+      { specialization: "Surat Royal Gharchola", duration: "4 hrs", timeRange: "7 AM - 12 PM", priceRange: "₹16,000" },
+      { specialization: "High Shine Party Glam", duration: "2 hrs", timeRange: "3 PM - 9 PM", priceRange: "₹6,000" },
     ],
-    portfolio: [
-      {
-        beforeImageUrl: "https://images.unsplash.com/photo-1542103749-8ef59b94f47e?w=500",
-        afterImageUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=500",
-        tag: "Malwa Festive",
-        description: "Bright festive look with red lips and long floral braid.",
-      }
-    ],
+    portfolioTags: ["Gharchola Royal Bride", "Diamond Shimmer Eye", "Surat Glitter Glow", "Rich Red Lip Accent"],
     certificate: {
-      fileName: "indore_beauty_cert.pdf",
+      fileName: "bhavna_patel_surat_cert.pdf",
       fileUrl: "https://res.cloudinary.com/djonmzyiu/image/upload/v1782465082/gvvmptwr4nw5cmrgdjbu.pdf",
-      fileSize: 42000,
+      fileSize: 48000,
       fileType: "application/pdf",
-      certificateNumber: "IND-2021-125",
-      instituteName: "Indore Beauty School",
+      certificateNumber: "SUR-2015-443",
+      instituteName: "Surat Fashion & Makeup Institute",
     },
     payment: {
-      accountHolder: "Radhika Agrawal",
-      bankName: "Bank of India",
-      accountNumber: "44012345614",
-      ifscCode: "BKID0004401",
-      upiId: "radhika@okboi",
+      accountHolder: "Bhavna Patel",
+      bankName: "ICICI Bank",
+      accountNumber: "00040112345614",
+      ifscCode: "ICIC0000395",
+      upiId: "bhavna.surat@okicici",
     }
   },
   {
-    name: "Neha Rawat Mountain Bridal",
-    email: "neha.dehradun@makeupglam.in",
+    name: "Ruchika Sharma Royal Touch",
+    email: "ruchika.indore@makeupglam.in",
     phone: "9812345615",
     profile: {
-      profileImage: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
+      profileImagePhotoId: "photo-1520813792240-56fc4a3765a7",
       gender: "Female",
-      bio: "Famous for traditional Pahadi bridal transformations. Specializes in winter skin hydration techniques.",
-      location: "Dehradun",
-      experience: "6",
-      parlourName: "Himalayan Glam Studio",
-      parlourAddress: "Rajpur Road, Dehradun - 248001",
-      rating: 4.6,
-      reviewCount: 52,
+      bio: "Premier makeup artist in Indore for Malwa bridal transformations, soft pastel engagement looks, and airbrush HD base.",
+      location: "Indore",
+      experience: "7",
+      parlourName: "Ruchika's Royal Touch Vijay Nagar",
+      parlourAddress: "Vijay Nagar Main Road, Indore - 452010",
+      rating: 4.7,
+      reviewCount: 89,
     },
-    specializations: ["Pahadi Bridal", "Matte Look", "Winter Hydration"],
+    specializations: ["Malwa Bridal", "Pastel Engagement", "Airbrush HD"],
     services: [
-      { specialization: "Garhwali Pahadi Bridal", duration: "3.5 hrs", timeRange: "7 AM - 11 AM", priceRange: "₹12,000" },
-      { specialization: "Dewy Winter Glow", duration: "2 hrs", timeRange: "10 AM - 6 PM", priceRange: "₹5,000" },
+      { specialization: "Indore Malwa Bridal", duration: "3.5 hrs", timeRange: "8 AM - 1 PM", priceRange: "₹13,000" },
+      { specialization: "Pastel Engagement Glam", duration: "2 hrs", timeRange: "11 AM - 6 PM", priceRange: "₹5,000" },
     ],
-    portfolio: [
-      {
-        beforeImageUrl: "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=500",
-        afterImageUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500",
-        tag: "Pahadi Nath Look",
-        description: "Traditional look highlighting the large Garhwali nath.",
-      }
-    ],
+    portfolioTags: ["Malwa Traditional Bride", "Pastel Pink Engagement", "Airbrush Satin Base", "Soft Winged Liner"],
     certificate: {
-      fileName: "dehradun_cosmetology_cert.pdf",
+      fileName: "ruchika_sharma_indore_cert.pdf",
       fileUrl: "https://res.cloudinary.com/djonmzyiu/image/upload/v1782465082/gvvmptwr4nw5cmrgdjbu.pdf",
-      fileSize: 40000,
+      fileSize: 41000,
       fileType: "application/pdf",
-      certificateNumber: "DEH-2020-044",
-      instituteName: "Dehradun Institute of Cosmetology",
+      certificateNumber: "IND-2019-332",
+      instituteName: "Indore Beauty Academy",
     },
     payment: {
-      accountHolder: "Neha Rawat",
-      bankName: "State Bank of India",
-      accountNumber: "300012345615",
-      ifscCode: "SBIN0003001",
-      upiId: "neharawat@oksbi",
+      accountHolder: "Ruchika Sharma",
+      bankName: "Axis Bank",
+      accountNumber: "915010012345615",
+      ifscCode: "UTIB0000452",
+      upiId: "ruchika.indore@okaxis",
     }
   }
 ];
 
+// Additional first and last names for unique local artists per city
+const extraFirstNames = [
+  "Aashi", "Ishita", "Radhika", "Simran", "Tarun", "Natasha", "Farhan", "Bhavna",
+  "Ruchika", "Tanvi", "Sonali", "Payal", "Garima", "Kriti", "Shruti", "Divya",
+  "Alok", "Sameer", "Harsh", "Deepak", "Nisha", "Swati", "Rashmi", "Varun"
+];
+
+const extraLastNames = [
+  "Sharma", "Verma", "Gupta", "Deshmukh", "Chowdhury", "Banerjee", "Sengupta", "Rao",
+  "Reddy", "Joshi", "Kulkarni", "Patel", "Shah", "Malhotra", "Kapoor", "Nair"
+];
+
 async function seed() {
   try {
+    console.log("🚀 Starting database seeding with 100% unique real data...");
     await sequelize.authenticate();
-    console.log("✅ Connected to the database");
+    console.log("✅ Connected to database.");
 
-    console.log("🔄 Synchronizing database tables...");
-    await sequelize.sync({ alter: true });
+    // Sync database tables securely
+    await sequelize.sync();
     console.log("✅ Database tables synchronized");
 
-    // 1. Seed Clients (Customers)
-    console.log("\n👤 Seeding Clients...");
     const clientHashedPassword = await bcrypt.hash(DEFAULT_PASSWORD, 10);
+    const artistHashedPassword = await bcrypt.hash(DEFAULT_PASSWORD, 10);
+
+    // 1. Seed Customers (Clients)
+    console.log("\n👤 Seeding Clients...");
     let clientsCreated = 0;
     let clientsUpdated = 0;
 
-    for (const c of sampleClients) {
-      const existing = await Customer.findOne({ where: { email: c.email } });
+    for (const cData of sampleClients) {
+      const existing = await Customer.findOne({ where: { email: cData.email } });
       if (existing) {
         await existing.update({
-          name: c.name,
-          phone: c.phone,
+          name: cData.name,
+          phone: cData.phone,
           password: clientHashedPassword,
-          profileImage: c.profileImage,
-          role: "user"
+          role: "user",
+          profileImage: cData.profileImage,
         });
         clientsUpdated++;
       } else {
         await Customer.create({
-          name: c.name,
-          email: c.email,
-          phone: c.phone,
+          name: cData.name,
+          email: cData.email,
+          phone: cData.phone,
           password: clientHashedPassword,
-          profileImage: c.profileImage,
-          role: "user"
+          role: "user",
+          profileImage: cData.profileImage,
         });
         clientsCreated++;
       }
     }
     console.log(`✅ Clients complete: Created ${clientsCreated}, Updated ${clientsUpdated}`);
 
-    // 2. Seed Artists with related tables
-    console.log("\n🎨 Seeding Artists and all required tables...");
-    const artistHashedPassword = await bcrypt.hash(DEFAULT_PASSWORD, 10);
-    let artistsCreated = 0;
-    let artistsUpdated = 0;
-
-    const extraFirstNames = [
-      "Amit", "Sunita", "Rahul", "Kiran", "Vijay", "Aisha", "Sanjay", "Ritu", "Deepak", "Nisha",
-      "Rajesh", "Pooja", "Vikram", "Sneha", "Arjun", "Kriti", "Manish", "Divya", "Suresh", "Karan",
-      "Alok", "Rashmi", "Varun", "Simran", "Harish", "Preeti", "Ramesh", "Komal", "Aditya", "Riya"
-    ];
-    const extraLastNames = [
-      "Sharma", "Verma", "Gupta", "Mehta", "Patel", "Reddy", "Nair", "Joshi", "Kapoor", "Sen",
-      "Singh", "Yadav", "Hegde", "Malhotra", "Das", "Rathore", "Begum", "Menon", "Kaur", "Agrawal"
-    ];
-
-    const femaleImages = [
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
-      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150",
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150",
-      "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150",
-      "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=150",
-      "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?w=150",
-      "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=150"
-    ];
-    const maleImages = [
-      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150",
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150",
-      "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150",
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150",
-      "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150"
-    ];
-
-    const getRandomProfileImage = (index, gender) => {
-      if (gender === "Male") {
-        return maleImages[index % maleImages.length];
-      }
-      return femaleImages[index % femaleImages.length];
-    };
-
+    // 2. Build 100% Unique Artists (Base + Location-based)
+    console.log("\n🎨 Building 100% Unique Artists...");
     const allArtistsToSeed = [];
-    allArtistsToSeed.push(...sampleArtists);
 
+    // Process base artists with guaranteed unique image URLs and portfolio items
+    sampleArtists.forEach((artist, idx) => {
+      const artPfp = getUniqueImageUrl(artist.profile.profileImagePhotoId, 150, `base_art_pfp_${idx + 1}`);
+
+      const uniquePortfolio = artist.portfolioTags.map((tag, pIdx) => {
+        const bId = beforeMakeupPhotoIds[(idx * 4 + pIdx) % beforeMakeupPhotoIds.length];
+        const aId = afterMakeupPhotoIds[(idx * 4 + pIdx) % afterMakeupPhotoIds.length];
+        const bUrl = getUniqueImageUrl(bId, 600, `base_${idx}_p_${pIdx}_before`);
+        const aUrl = getUniqueImageUrl(aId, 600, `base_${idx}_p_${pIdx}_after`);
+        return {
+          beforeImageUrl: bUrl,
+          afterImageUrl: aUrl,
+          tag,
+          description: `Signature ${tag} makeover created by ${artist.name} in ${artist.profile.location}.`,
+          images: [aUrl, bUrl],
+        };
+      });
+
+      allArtistsToSeed.push({
+        ...artist,
+        profile: {
+          ...artist.profile,
+          profileImage: artPfp,
+        },
+        portfolio: uniquePortfolio,
+      });
+    });
+
+    // Generate location artists with unique profile pictures & unique portfolio items
     sampleArtists.forEach((baseArtist, locIdx) => {
       const location = baseArtist.profile.location;
       for (let artIdx = 1; artIdx <= 4; artIdx++) {
+        const uniqueArtistIndex = locIdx * 4 + artIdx + 15;
         const nameIndex = (locIdx * 4 + artIdx) % extraFirstNames.length;
         const lastNameIndex = (locIdx * 4 + artIdx) % extraLastNames.length;
         const firstName = extraFirstNames[nameIndex];
         const lastName = extraLastNames[lastNameIndex];
+        const gender = (artIdx % 3 === 0) ? "Male" : "Female";
+        const photoPool = gender === "Male" ? maleFacePhotoIds : femaleFacePhotoIds;
+        const photoId = photoPool[uniqueArtistIndex % photoPool.length];
+
         const newName = `${firstName} ${lastName} Artistry`;
         const newEmail = `${firstName.toLowerCase()}.${lastName.toLowerCase()}.${location.toLowerCase()}@makeupglam.in`;
         const newPhone = `98200${String(locIdx).padStart(2, '0')}${String(artIdx).padStart(3, '0')}`;
-        
-        const rating = parseFloat((4.0 + Math.random() * 1.0).toFixed(1));
-        const reviewCount = Math.floor(10 + Math.random() * 150);
-        const experience = String(Math.floor(3 + Math.random() * 10));
-        
+
+        const rating = parseFloat((4.2 + (uniqueArtistIndex % 8) * 0.1).toFixed(1));
+        const reviewCount = 25 + uniqueArtistIndex * 3;
+        const experience = String(3 + (uniqueArtistIndex % 9));
+
+        const artPfp = getUniqueImageUrl(photoId, 150, `loc_art_pfp_${locIdx}_${artIdx}`);
+
         const newProfile = {
-          ...baseArtist.profile,
-          profileImage: getRandomProfileImage(artIdx, baseArtist.profile.gender),
-          bio: `Professional makeup artist in ${location} with ${experience} years of experience. Specializing in custom ${baseArtist.specializations[0]} and glamorous makeovers.`,
+          profileImage: artPfp,
+          gender,
+          bio: `Professional makeup artist in ${location} with ${experience} years of experience. Specializing in ${baseArtist.specializations[0]} and customized transformations.`,
+          location,
           experience,
-          parlourName: `${firstName}'s Glamour Hub`,
+          parlourName: `${firstName}'s Glamour Studio`,
           parlourAddress: `Studio #${100 + artIdx}, Main Road, ${location}`,
           rating,
           reviewCount,
         };
-        
-        const newServices = baseArtist.services.map(svc => {
-          const basePrice = parseInt(svc.priceRange.replace(/[^\d]/g, ''), 10);
-          const variedPrice = Math.round((basePrice * (0.8 + Math.random() * 0.4)) / 500) * 500;
+
+        const newServices = baseArtist.services.map((svc, sIdx) => {
+          const basePrice = 4000 + (uniqueArtistIndex * 350) + (sIdx * 1500);
           return {
-            ...svc,
-            priceRange: `₹${variedPrice.toLocaleString('en-IN')}`,
+            specialization: svc.specialization,
+            duration: svc.duration,
+            timeRange: svc.timeRange,
+            priceRange: `₹${basePrice.toLocaleString('en-IN')}`,
           };
         });
 
-        const newPortfolio = baseArtist.portfolio.map(port => ({
-          ...port,
-          tag: `${baseArtist.specializations[0]} Glam`,
-          description: `Stunning ${baseArtist.specializations[0]} transformation done for a client in ${location}.`,
-        }));
-        
+        const newPortfolioTags = [
+          `${location} Bridal Glam`,
+          `HD Airbrush ${firstName}`,
+          `Cocktail Glow Artistry`,
+          `Sangeet Night Shimmer`
+        ];
+
+        const newPortfolio = newPortfolioTags.map((tag, pIdx) => {
+          const bId = beforeMakeupPhotoIds[(uniqueArtistIndex * 4 + pIdx) % beforeMakeupPhotoIds.length];
+          const aId = afterMakeupPhotoIds[(uniqueArtistIndex * 4 + pIdx) % afterMakeupPhotoIds.length];
+          const bUrl = getUniqueImageUrl(bId, 600, `loc_${locIdx}_${artIdx}_p_${pIdx}_before`);
+          const aUrl = getUniqueImageUrl(aId, 600, `loc_${locIdx}_${artIdx}_p_${pIdx}_after`);
+          return {
+            beforeImageUrl: bUrl,
+            afterImageUrl: aUrl,
+            tag,
+            description: `Exclusive ${tag} styling by ${firstName} ${lastName} in ${location}.`,
+            images: [aUrl, bUrl],
+          };
+        });
+
+        const cityCode = location.substring(0, 3).toUpperCase();
         const newCertificate = {
-          ...baseArtist.certificate,
-          certificateNumber: `${location.substring(0, 3).toUpperCase()}-2022-${100 + locIdx * 4 + artIdx}`,
-          fileName: `${firstName.toLowerCase()}_cert.pdf`,
+          fileName: `${firstName.toLowerCase()}_${cityCode.toLowerCase()}_cert.pdf`,
+          fileUrl: "https://res.cloudinary.com/djonmzyiu/image/upload/v1782465082/gvvmptwr4nw5cmrgdjbu.pdf",
+          fileSize: 42000 + uniqueArtistIndex * 250,
+          fileType: "application/pdf",
+          certificateNumber: `${cityCode}-2023-${100 + uniqueArtistIndex}`,
+          instituteName: `${location} Professional Makeup Academy`,
         };
-        
+
         const newPayment = {
           accountHolder: `${firstName} ${lastName}`,
           bankName: baseArtist.payment.bankName,
-          accountNumber: `${baseArtist.payment.accountNumber}${artIdx}`,
+          accountNumber: `501004123${String(uniqueArtistIndex).padStart(4, '0')}`,
           ifscCode: baseArtist.payment.ifscCode,
-          upiId: `${firstName.toLowerCase()}@ok${baseArtist.payment.bankName.substring(0, 4).toLowerCase()}`,
+          upiId: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@ok${baseArtist.payment.bankName.substring(0, 4).toLowerCase()}`,
         };
 
         allArtistsToSeed.push({
@@ -846,11 +876,15 @@ async function seed() {
       }
     });
 
+    console.log(`🎨 Total Artists to Seed: ${allArtistsToSeed.length}`);
+
+    let artistsCreated = 0;
+    let artistsUpdated = 0;
+
     for (const artData of allArtistsToSeed) {
       let artist = await Artist.findOne({ where: { email: artData.email } });
 
       if (artist) {
-        // Update basic info
         await artist.update({
           name: artData.name,
           phone: artData.phone,
@@ -859,7 +893,6 @@ async function seed() {
         });
         artistsUpdated++;
       } else {
-        // Create new
         artist = await Artist.create({
           name: artData.name,
           email: artData.email,
@@ -881,7 +914,7 @@ async function seed() {
         });
       }
 
-      // Sync Specializations (Clear old ones first to prevent duplicates)
+      // Sync Specializations
       await ArtistSpecialization.destroy({ where: { artistId: artist.id } });
       for (const spec of artData.specializations) {
         await ArtistSpecialization.create({
@@ -890,7 +923,7 @@ async function seed() {
         });
       }
 
-      // Sync Services (Clear old ones first)
+      // Sync Services
       await ArtistService.destroy({ where: { artistId: artist.id } });
       for (const svc of artData.services) {
         await ArtistService.create({
@@ -899,7 +932,7 @@ async function seed() {
         });
       }
 
-      // Sync Portfolio (Clear old ones first)
+      // Sync Portfolio
       await ArtistPortfolio.destroy({ where: { artistId: artist.id } });
       for (const port of artData.portfolio) {
         await ArtistPortfolio.create({
@@ -908,7 +941,7 @@ async function seed() {
         });
       }
 
-      // Sync Certificate (Clear old ones first)
+      // Sync Certificate
       await ArtistCertificate.destroy({ where: { artistId: artist.id } });
       if (artData.certificate) {
         await ArtistCertificate.create({
@@ -917,7 +950,7 @@ async function seed() {
         });
       }
 
-      // Sync Payment (Encrypt account number and IFSC code)
+      // Sync Payment
       const encryptedAccountNumber = encryptSensitiveValue(artData.payment.accountNumber);
       const encryptedIfscCode = encryptSensitiveValue(artData.payment.ifscCode);
 
@@ -940,10 +973,8 @@ async function seed() {
           upiId: artData.payment.upiId
         });
       }
-
-      console.log(`   - Populated artist: "${artist.name}" in ${artData.profile.location}`);
     }
-    console.log(`✅ Artists complete: Created ${artistsCreated}, Updated/Synced ${artistsUpdated}`);
+    console.log(`✅ Artists complete: Created ${artistsCreated}, Synced ${artistsUpdated}`);
 
     // 3. Seed Bookings
     console.log("\n📅 Seeding Bookings...");
@@ -951,7 +982,7 @@ async function seed() {
     const allArtists = await Artist.findAll();
 
     const seededCustomerIds = allCustomers
-      .filter(c => c.email.endsWith("@gmail.com") && c.email !== "customer@test.com")
+      .filter(c => c.email.endsWith("@gmail.com"))
       .map(c => c.id);
 
     await Booking.destroy({
@@ -960,50 +991,45 @@ async function seed() {
       }
     });
 
-    const categories = ["Bridal", "Party", "Engagement", "Photoshoot", "Creative"];
+    const categories = ["Bridal", "Party", "Engagement", "Photoshoot", "Celebrity", "Editorial"];
     let bookingsCreated = 0;
 
-    const artistBookingCounts = [8, 12, 5, 3, 6, 10, 4, 2, 1, 7, 9, 0, 11, 2, 5];
+    for (let i = 0; i < Math.min(allArtists.length, 30); i++) {
+      const artist = allArtists[i];
+      const numBookings = 2 + (i % 4);
 
-    for (let i = 0; i < sampleArtists.length; i++) {
-      const artData = sampleArtists[i];
-      const artist = allArtists.find(a => a.email === artData.email);
-      if (!artist) continue;
-
-      const numBookings = artistBookingCounts[i] || 0;
       for (let b = 0; b < numBookings; b++) {
-        const customerId = allCustomers[b % allCustomers.length].id;
-        const date = new Date(Date.now() - (b + 1) * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-        const category = categories[b % categories.length];
-        const status = "completed";
+        const customer = allCustomers[(i + b) % allCustomers.length];
+        const date = new Date(Date.now() - (b + 1) * 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const category = categories[(i + b) % categories.length];
 
         await Booking.create({
-          customerId,
+          customerId: customer.id,
           artistId: artist.id,
           date,
           time: "11:00 AM",
           category,
-          price: 5000 + (b * 500),
-          status,
-          location: artData.profile.location,
-          totalPaid: 5000 + (b * 500),
+          price: 5000 + (b * 1000),
+          status: "completed",
+          location: "Studio",
+          totalPaid: 5000 + (b * 1000),
           advancePaid: true,
         });
         bookingsCreated++;
       }
 
-      // Add one pending future booking
-      const customerIdPending = allCustomers[i % allCustomers.length].id;
-      const futureDate = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      // Add a future pending booking
+      const futureCustomer = allCustomers[(i + 5) % allCustomers.length];
+      const futureDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       await Booking.create({
-        customerId: customerIdPending,
+        customerId: futureCustomer.id,
         artistId: artist.id,
         date: futureDate,
         time: "02:00 PM",
         category: categories[i % categories.length],
-        price: 6000,
+        price: 7500,
         status: "pending",
-        location: artData.profile.location,
+        location: "Client Place",
         advancePaid: false,
       });
       bookingsCreated++;
