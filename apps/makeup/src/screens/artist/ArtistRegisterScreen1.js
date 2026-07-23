@@ -15,7 +15,7 @@ import {
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { sendOtp } from '../../api/auth';
+import { sendOtp, sendEmailOtp } from '../../api/auth';
 import { useArtistRegistration } from '../../context/ArtistRegistrationContext';
 
 const ArtistRegisterScreen1 = ({ navigation }) => {
@@ -96,13 +96,18 @@ const ArtistRegisterScreen1 = ({ navigation }) => {
 
     try {
       setIsSubmitting(true);
+
+      // 1. Generate and send Email OTP code (does not create database account yet)
+      await sendEmailOtp(email.trim(), fullName.trim());
+
+      // 2. Request Mobile SMS OTP
       const response = await sendOtp(phone.trim());
 
       if (
         response?.Status &&
         String(response.Status).toLowerCase() !== 'success'
       ) {
-        throw new Error(response?.Details || 'Failed to send OTP');
+        throw new Error(response?.Details || 'Failed to send SMS OTP');
       }
 
       const sessionId =

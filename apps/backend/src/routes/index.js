@@ -3,7 +3,7 @@ import express from "express";
 import customerRoutes from "../modules/customer/customer.routes.js";
 import customerAuthRoutes from "../modules/customer/customerAuth.routes.js";
 import artistRoutes from "../modules/artist/artist.routes.js";
-import artistAuthRoutes from "../modules/artist/artistAuth.routes.js";
+import artistAuthRoutes from "../modules/artist/auth/auth.routes.js";
 import bookingRoutes from "../modules/booking/booking.routes.js";
 import adminAuthRoutes from "../modules/admin/auth.routes.js";
 import adminRoutes from "../modules/admin/admin.routes.js";

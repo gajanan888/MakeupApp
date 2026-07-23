@@ -1,8 +1,14 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Wishlist API helpers
+export const addArtistToWishlist = async (artistId) => api.post('/wishlist/add', { artistId });
+export const removeArtistFromWishlist = async (artistId) => api.post('/wishlist/remove', { artistId });
+export const fetchWishlist = async () => api.get('/wishlist');
+
 export const API_BASE_URLS = [
-  'http://10.213.74.212:5000',       // Current Wi-Fi IP / host
+  'http://172.19.20.153:5000',       // Current Wi-Fi IP / host
+  'http://10.103.15.179:5000',       // Previous Wi-Fi IP
   'http://localhost:5000',           // adb reverse localhost fallback
   'http://10.0.2.2:5000',            // Android Emulator loopback
   'http://192.168.56.1:5000',        // VirtualBox host-only adapter
@@ -82,3 +88,5 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+

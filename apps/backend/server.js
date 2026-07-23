@@ -5,6 +5,7 @@ import http from "http";
 import sequelize from "./src/config/db.js";
 import routes from "./src/routes/index.js";
 import initSocketServer from "./src/socket/index.js";
+import EmailOtp from "./src/models/EmailOtp.js";
 
 dotenv.config();
 
@@ -58,6 +59,18 @@ async function bootstrapDatabase() {
       await qi.addColumn("ArtistPortfolios", "images", { type: DataTypes.JSON, allowNull: true });
     } catch (e) {}
     console.log("Missing ArtistPortfolios columns synced successfully.");
+
+    // Inject email verification columns into Artists
+    try { await qi.addColumn("Artists", "verificationCode", { type: "VARCHAR(255)" }); } catch (e) {}
+    try { await qi.addColumn("Artists", "verificationCodeExpires", { type: "TIMESTAMP WITH TIME ZONE" }); } catch (e) {}
+    try { await qi.addColumn("Artists", "isEmailVerified", { type: "BOOLEAN", defaultValue: false }); } catch (e) {}
+    try { await qi.addColumn("Artists", "emailVerificationToken", { type: "VARCHAR(255)" }); } catch (e) {}
+    try { await qi.addColumn("Artists", "emailVerificationExpires", { type: "TIMESTAMP WITH TIME ZONE" }); } catch (e) {}
+    console.log("Email verification columns for Artists synced successfully.");
+
+    // Auto-create EmailOtps table if it doesn't exist
+    await EmailOtp.sync();
+    console.log("EmailOtps table synced successfully.");
 
   } catch (err) {
     console.error("Database connection failed:", err);

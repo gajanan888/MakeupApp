@@ -16,7 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Icon from 'react-native-vector-icons/Feather';
-import { registerArtist, sendOtp, verifyOtp } from '../../api/auth';
+import { registerArtist, sendOtp, verifyOtp, verifyEmailOtp } from '../../api/auth';
 
 const OTP_LENGTH = 6;
 const RESEND_SECONDS = 30;
@@ -68,6 +68,7 @@ const ArtistOTPVerificationScreen = ({ navigation, route }) => {
 
   const handleVerify = async () => {
     const otpValue = mobileOtp.join('');
+    const emailOtpValue = emailOtp.join('');
 
     if (!otpSessionId) {
       Alert.alert('OTP error', 'Session expired. Please resend OTP.');
@@ -79,17 +80,25 @@ const ArtistOTPVerificationScreen = ({ navigation, route }) => {
       return;
     }
 
+    if (emailOtpValue.length !== OTP_LENGTH || emailOtp.some(d => !d)) {
+      Alert.alert('Invalid OTP', 'Enter the 6-digit OTP sent to your email.');
+      return;
+    }
+
     try {
       setIsVerifying(true);
+
+      // 1. Verify Phone SMS OTP
       const verifyResponse = await verifyOtp(otpSessionId, otpValue);
 
       if (
         verifyResponse?.Status &&
         String(verifyResponse.Status).toLowerCase() !== 'success'
       ) {
-        throw new Error(verifyResponse?.Details || 'OTP verification failed');
+        throw new Error(verifyResponse?.Details || 'SMS OTP verification failed');
       }
 
+      // 2. Create the verified Artist account
       if (!fullName || !email || !phone || !password) {
         throw new Error(
           'Registration details are missing. Go back and try again.',
@@ -101,6 +110,7 @@ const ArtistOTPVerificationScreen = ({ navigation, route }) => {
         email: email?.trim(),
         phone: phone?.trim(),
         password,
+        emailOtpCode: emailOtpValue,
       });
 
       navigation.navigate('ArtistRegister2', {
@@ -206,9 +216,7 @@ const ArtistOTPVerificationScreen = ({ navigation, route }) => {
               />
             ))}
           </View>
-        </View>
-
-        {/* Email OTP Section */}
+        </View>        {/* Email OTP Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Email Verification</Text>
 
@@ -241,7 +249,6 @@ const ArtistOTPVerificationScreen = ({ navigation, route }) => {
             ))}
           </View>
         </View>
-
         {/* Timer */}
         <Text style={styles.timerText}>
           Resend available in{' '}

@@ -23,6 +23,26 @@ const Artist = sequelize.define("Artist", {
     type: DataTypes.BOOLEAN,
     defaultValue: false,
   },
+  verificationCode: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  verificationCodeExpires: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  isEmailVerified: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
+  emailVerificationToken: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  emailVerificationExpires: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
   // keep Artist model minimal; profile and related fields moved to normalized tables
 });
 

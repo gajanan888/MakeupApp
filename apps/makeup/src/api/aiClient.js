@@ -2,12 +2,9 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const AI_API_BASE_URLS = [
-  'http://127.0.0.1:8000',       // adb reverse loopback (numeric, bypasses ROM DNS resolution)
-  'http://localhost:8000',       // adb reverse localhost fallback
-  'http://10.145.106.179:8000',  // Current Wi-Fi IP fallback
-  'http://172.19.20.151:8000',   // Wi-Fi IP fallback (Previous computer IP)
-  'http://10.0.2.2:8000',        // Android Emulator loopback
-  'http://192.168.56.1:8000',    // VirtualBox host-only
+  'http://10.103.15.179:8000',
+  'http://10.0.2.2:8000',
+  'http://localhost:8000',
 ];
 
 const aiApi = axios.create({

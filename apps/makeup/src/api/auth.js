@@ -55,6 +55,16 @@ export const registerArtist = async (data) => {
   return payload;
 };
 
+export const verifyEmailOtp = async (email, code) => {
+  const response = await api.post('/api/artist/auth/verify-email', { email, code });
+  return response?.data;
+};
+
+export const sendEmailOtp = async (email, name) => {
+  const response = await api.post('/api/artist/auth/send-email-otp', { email, name });
+  return response?.data;
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ARTIST PROFILE & DASHBOARD
 // ─────────────────────────────────────────────────────────────────────────────
