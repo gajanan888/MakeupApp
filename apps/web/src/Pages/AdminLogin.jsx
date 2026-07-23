@@ -36,7 +36,11 @@ const AdminLogin = ({ onLoginSuccess }) => {
       
       onLoginSuccess(resData.data.token, resData.data, role);
     } catch (err) {
-      setError(err.message || "Something went wrong. Please try again.");
+      if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        setError("Unable to connect to backend server. Please verify backend service is running on port 5000.");
+      } else {
+        setError(err.message || "Something went wrong. Please try again.");
+      }
     } finally {
       setLoading(false);
     }

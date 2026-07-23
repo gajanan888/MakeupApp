@@ -277,7 +277,8 @@ export const getTechHealth = async () => {
   if (otpConfigured) {
     try {
       const response = await axios.get(
-        `https://2factor.in/API/V1/${process.env.OTP_API_KEY}/BAL/SMS`
+        `https://2factor.in/API/V1/${process.env.OTP_API_KEY}/BAL/SMS`,
+        { timeout: 4000 }
       );
       if (response.data && response.data.Status === "Success") {
         otpStatus = "healthy";
