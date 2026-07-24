@@ -2,6 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const AI_API_BASE_URLS = [
+  'http://172.19.20.153:8000',
   'http://10.103.15.179:8000',
   'http://10.0.2.2:8000',
   'http://localhost:8000',
@@ -230,6 +231,14 @@ export const sendPreviewChatMessage = async (selfieId, chatSessionId, message) =
     selfie_id: selfieId,
     chat_session_id: chatSessionId,
     message: message,
+  });
+  return response.data;
+};
+
+export const submitPreviewPreferences = async (selfieId, preferences) => {
+  const response = await aiApi.post('/api/v1/virtual-preview/submit-preferences', {
+    selfie_id: selfieId,
+    preferences: preferences,
   });
   return response.data;
 };

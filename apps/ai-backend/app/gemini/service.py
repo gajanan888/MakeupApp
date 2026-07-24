@@ -283,22 +283,74 @@ class GeminiService:
 
     async def generate_prompt(self, preferences: Dict[str, Any]) -> str:
         """
-        Converts JSON preferences into an optimized image editing prompt.
+        Converts JSON preferences into an optimized, highly structured image editing prompt.
         """
         logger.info(f"Generating prompt for preferences: {preferences}")
         
+        event = preferences.get('event', 'Wedding')
+        location = preferences.get('location', 'Indoor')
+        time = preferences.get('time', 'Evening')
+        outfit = preferences.get('outfit', 'Saree')
+        outfit_color = preferences.get('outfit_color', 'Pink')
+        style = preferences.get('style', 'Soft Glam')
+        boldness = preferences.get('boldness', '3 = Medium')
+        hair_type = preferences.get('hair_type', 'Wavy')
+        hairstyle = preferences.get('hairstyle', 'Keep Current Hairstyle')
+        jewelry = preferences.get('jewelry', 'Minimal')
         accessories = preferences.get('accessories', 'None')
-        if accessories == 'None' or not accessories:
-            accessories_str = "elegant jewelry (earrings, necklace), beautiful hairstyle"
-        else:
-            accessories_str = f"{accessories}, elegant jewelry (earrings, necklace), beautiful hairstyle"
-        
+
+        # Translate preferences to MUA cosmetics
+        fdn = preferences.get('foundation', 'Natural Beige')
+        lip = preferences.get('lipstick', 'Peach Nude')
+        blsh = preferences.get('blush', 'Soft Pink')
+        eye = preferences.get('eye_makeup', 'Champagne')
+        cntr = preferences.get('contour', 'Medium')
+        hlgt = preferences.get('highlight', 'Natural')
+
         prompt = (
-            f"A high-detail, luxury makeup look for a {preferences.get('event', 'Party')} event held {preferences.get('location', 'Indoor')} during the {preferences.get('time', 'Evening')}. "
-            f"The user is wearing a {preferences.get('outfit_color', 'Black')} {preferences.get('outfit', 'Western Dress')}. "
-            f"Apply a {preferences.get('style', 'Soft Glam')} makeup look with a boldness level of {preferences.get('boldness', '3 = Medium')}. "
-            f"Include accessories: {accessories_str}. "
-            f"Keep same face identity, do not change facial structure or skin tone. Photorealistic MUA finish."
+            f"You are an expert luxury makeup artist and professional beauty retouching AI.\n\n"
+            f"Generate a photorealistic virtual makeup look based on the following user preferences.\n\n"
+            f"### User Preferences\n\n"
+            f"Occasion: {event}\n"
+            f"Event Type: {location}\n"
+            f"Time of Day: {time}\n\n"
+            f"Outfit:\n"
+            f"- Type: {outfit}\n"
+            f"- Color: {outfit_color}\n\n"
+            f"Makeup Style:\n"
+            f"- Style: {style}\n"
+            f"- Intensity: {boldness}\n\n"
+            f"Hair:\n"
+            f"- Texture: {hair_type}\n"
+            f"- Preferred Hairstyle: {hairstyle}\n\n"
+            f"Jewelry:\n"
+            f"- Preference: {jewelry} Jewelry\n\n"
+            f"Accessories:\n"
+            f"- {accessories if accessories != 'None' else 'None'}\n\n"
+            f"### Makeup Details\n\n"
+            f"Create a luxury makeup look suitable for this event.\n"
+            f"Apply:\n"
+            f"- Smooth airbrushed foundation in {fdn} matching natural skin tone\n"
+            f"- {cntr} contour\n"
+            f"- {blsh} blush\n"
+            f"- {hlgt} highlighter\n"
+            f"- {eye} eyeshadow\n"
+            f"- Defined eyeliner and lashes\n"
+            f"- Naturally defined eyebrows\n"
+            f"- {lip} lipstick\n\n"
+            f"### Hairstyle\n\n"
+            f"Style: {hairstyle} (respecting natural {hair_type} texture if applicable).\n\n"
+            f"### Jewelry\n\n"
+            f"Add realistic {jewelry} earrings, matching necklace, and accessories matching options.\n\n"
+            f"### Image Style\n\n"
+            f"Luxury makeup finish. Professional makeup artist look. Ultra realistic. Photorealistic. "
+            f"High resolution. Natural skin texture. Balanced studio lighting.\n\n"
+            f"### Preserve\n\n"
+            f"Preserve the user's exact: Facial identity, face shape, facial proportions, eye shape, nose, "
+            f"lips, eyebrows, skin tone, expression, age, body proportions, camera angle, pose, and outfit. "
+            f"The person must remain instantly recognizable as the same individual.\n\n"
+            f"### Editing Rules\n\n"
+            f"Only modify: Makeup, Hairstyle, Jewelry, Accessories. Do not change facial features, clothing, background, or identity."
         )
         return prompt
 

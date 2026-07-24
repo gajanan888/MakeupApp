@@ -181,6 +181,15 @@ const VirtualPreviewResultScreen = ({ navigation, route }) => {
             </View>
           </View>
 
+          {/* AI Prompt Details */}
+          {preview.prompt ? (
+            <View style={styles.prescriptionCard}>
+              <Text style={styles.prescriptionTitle}>📝 AI Generation Prompt</Text>
+              <View style={styles.divider} />
+              <Text selectable={true} style={styles.promptText}>{preview.prompt}</Text>
+            </View>
+          ) : null}
+
           {/* Action Buttons */}
           <View style={styles.actionsContainer}>
             <TouchableOpacity
@@ -374,5 +383,13 @@ const styles = StyleSheet.create({
     color: '#FF4F87',
     fontSize: 13,
     fontWeight: '800',
+  },
+  promptText: {
+    fontSize: 12,
+    color: '#555',
+    lineHeight: 18,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    fontWeight: '600',
   },
 });

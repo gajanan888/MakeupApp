@@ -96,3 +96,8 @@ class PreviewResponse(BaseModel):
     preferences: Optional[dict[str, Any]] = None
     created_at: datetime
 
+
+class SubmitPreferencesRequest(BaseModel):
+    selfie_id: str
+    preferences: dict[str, Any]
+

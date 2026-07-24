@@ -22,6 +22,7 @@ from app.schemas.virtual_preview import (
     PromptGenerationResponse,
     GeneratePreviewRequest,
     PreviewResponse,
+    SubmitPreferencesRequest,
 )
 from app.config.config import get_preview_settings
 from app.storage.service import StorageService
@@ -67,11 +68,11 @@ async def upload_selfie(
             )
 
         # Save upload using storage service
-        file_path, image_url = await storage.save_upload(file_bytes, file.filename)
+        file_path, image_url = await storage.save_upload(file_bytes, file.filename or "upload.jpg")
 
         # Create database record
         selfie = SelfieModel(
-            filename=file.filename,
+            filename=file.filename or "upload.jpg",
             file_path=file_path,
             image_url=image_url,
         )
@@ -115,14 +116,14 @@ async def validate_image(
         is_valid, error_msg, checks = await validator.validate(selfie)
         
         # Update database
-        selfie.is_valid = is_valid
-        selfie.validation_error = error_msg if not is_valid else None
+        selfie.is_valid = is_valid  # type: ignore
+        selfie.validation_error = error_msg if not is_valid else None  # type: ignore
         db.commit()
 
         return ValidationResponse(
-            selfie_id=selfie.id,
+            selfie_id=str(selfie.id),
             is_valid=is_valid,
-            error_message=selfie.validation_error,
+            error_message=str(selfie.validation_error) if selfie.validation_error else None,
             checks_passed=checks,
         )
     except Exception as e:
@@ -173,31 +174,31 @@ async def analyze_face(
             analysis = FaceAnalysisModel(selfie_id=selfie.id)
             db.add(analysis)
             
-        analysis.landmarks = landmarks
-        analysis.lip_mask_path = masks.get("lip")
-        analysis.eye_mask_path = masks.get("eye")
-        analysis.eyebrow_mask_path = masks.get("eyebrow")
-        analysis.hair_mask_path = masks.get("hair")
-        analysis.skin_mask_path = masks.get("skin")
-        analysis.cheek_mask_path = masks.get("cheek")
-        analysis.forehead_mask_path = masks.get("forehead")
-        analysis.jawline_mask_path = masks.get("jawline")
+        analysis.landmarks = landmarks  # type: ignore
+        analysis.lip_mask_path = masks.get("lip")  # type: ignore
+        analysis.eye_mask_path = masks.get("eye")  # type: ignore
+        analysis.eyebrow_mask_path = masks.get("eyebrow")  # type: ignore
+        analysis.hair_mask_path = masks.get("hair")  # type: ignore
+        analysis.skin_mask_path = masks.get("skin")  # type: ignore
+        analysis.cheek_mask_path = masks.get("cheek")  # type: ignore
+        analysis.forehead_mask_path = masks.get("forehead")  # type: ignore
+        analysis.jawline_mask_path = masks.get("jawline")  # type: ignore
         
         db.commit()
         db.refresh(analysis)
 
         return FaceAnalysisResponse(
-            selfie_id=selfie.id,
-            landmarks=analysis.landmarks,
+            selfie_id=str(selfie.id),
+            landmarks=analysis.landmarks,  # type: ignore
             masks={
-                "lip": analysis.lip_mask_path,
-                "eye": analysis.eye_mask_path,
-                "eyebrow": analysis.eyebrow_mask_path,
-                "hair": analysis.hair_mask_path,
-                "skin": analysis.skin_mask_path,
-                "cheek": analysis.cheek_mask_path,
-                "forehead": analysis.forehead_mask_path,
-                "jawline": analysis.jawline_mask_path,
+                "lip": str(analysis.lip_mask_path) if analysis.lip_mask_path else None,
+                "eye": str(analysis.eye_mask_path) if analysis.eye_mask_path else None,
+                "eyebrow": str(analysis.eyebrow_mask_path) if analysis.eyebrow_mask_path else None,
+                "hair": str(analysis.hair_mask_path) if analysis.hair_mask_path else None,
+                "skin": str(analysis.skin_mask_path) if analysis.skin_mask_path else None,
+                "cheek": str(analysis.cheek_mask_path) if analysis.cheek_mask_path else None,
+                "forehead": str(analysis.forehead_mask_path) if analysis.forehead_mask_path else None,
+                "jawline": str(analysis.jawline_mask_path) if analysis.jawline_mask_path else None,
             }
         )
     except Exception as e:
@@ -252,17 +253,17 @@ async def chat_turn(
     try:
         reply, is_complete, preferences = await gemini.process_chat_turn(session, request.message)
         
-        session.is_complete = is_complete
+        session.is_complete = is_complete  # type: ignore
         if is_complete and preferences:
-            session.preferences = preferences
+            session.preferences = preferences  # type: ignore
             
         db.commit()
 
         return ChatResponse(
-            chat_session_id=session.id,
+            chat_session_id=str(session.id),
             reply=reply,
             is_complete=is_complete,
-            preferences=session.preferences,
+            preferences=session.preferences,  # type: ignore
         )
     except Exception as e:
         logger.error(f"Chat turn failed: {str(e)}")
@@ -299,9 +300,9 @@ async def generate_prompt(
         )
 
     try:
-        prompt = await gemini.generate_prompt(session.preferences)
+        prompt = await gemini.generate_prompt(session.preferences)  # type: ignore
         return PromptGenerationResponse(
-            chat_session_id=session.id,
+            chat_session_id=str(session.id),
             prompt=prompt,
         )
     except Exception as e:
@@ -360,7 +361,7 @@ async def generate_preview(
         }
         
         edited_image_url, quality_score = await generator.generate_makeup_preview(
-            selfie, request.prompt, masks, preferences
+            selfie, request.prompt, masks, preferences  # type: ignore
         )
 
         preview = MakeupPreviewModel(
@@ -417,3 +418,51 @@ async def get_preview(
         preview.selfie_image_url = preview.selfie.image_url
             
     return preview
+
+
+@router.post(
+    "/submit-preferences",
+    response_model=ChatResponse,
+    summary="Submit all makeup preferences at once from the questionnaire form",
+)
+async def submit_preferences(
+    request: SubmitPreferencesRequest,
+    db: Session = Depends(get_preview_db),
+    gemini: GeminiService = Depends(),
+) -> ChatResponse:
+    """
+    Submits all collected questionnaire preferences at once, compiles specific cosmetic options, and prepares for generation.
+    """
+    try:
+        # Create session
+        session = ChatSessionModel(selfie_id=request.selfie_id)
+        session.is_complete = True  # type: ignore
+        
+        # Populate history with form values for compatibility
+        history = []
+        for key, value in request.preferences.items():
+            history.append({"role": "model", "content": f"Form value for {key}", "key": key})
+            history.append({"role": "user", "content": str(value), "key": key})
+        session.history = history  # type: ignore
+        
+        # Compile preferences (calls Gemini for MUA product matching)
+        compiled_prefs = await gemini._compile_preferences(history)
+        session.preferences = compiled_prefs  # type: ignore
+        
+        db.add(session)
+        db.commit()
+        db.refresh(session)
+        
+        return ChatResponse(
+            chat_session_id=str(session.id),
+            reply="Preferences submitted successfully.",
+            is_complete=True,
+            preferences=session.preferences,  # type: ignore
+        )
+    except Exception as e:
+        logger.error(f"Failed to submit preferences: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to submit preferences: {str(e)}",
+        )
+
