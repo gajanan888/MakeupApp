@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getSavedAddresses } from '../../utils/addressStorage';
 import ScreenHeader from '../../components/ScreenHeader';
 
 const BookAppointmentScreen = ({ navigation, route }) => {
@@ -91,12 +92,8 @@ const BookAppointmentScreen = ({ navigation, route }) => {
   const totalServiceAmount = selectedServiceItems.reduce((sum, item) => sum + item.totalPrice, 0);
 
   useEffect(() => {
-    AsyncStorage.getItem('client_saved_addresses')
-      .then(stored => {
-        if (stored) {
-          setSavedAddresses(JSON.parse(stored));
-        }
-      })
+    getSavedAddresses()
+      .then(addresses => setSavedAddresses(addresses))
       .catch(err => console.warn('Failed to load saved addresses:', err));
   }, []);
 

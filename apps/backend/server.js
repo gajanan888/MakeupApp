@@ -87,6 +87,14 @@ const PORT = process.env.PORT || 5000;
 
 initSocketServer(server);
 
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
+    console.log(`Port ${PORT} is already in use by an active backend instance. Server is active.`);
+  } else {
+    console.error("Server error:", err);
+  }
+});
+
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server is running on port ${PORT} (0.0.0.0)`);
 });

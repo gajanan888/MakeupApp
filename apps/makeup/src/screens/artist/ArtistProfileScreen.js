@@ -81,6 +81,7 @@ const ArtistProfileScreen = ({ onBack }) => {
   // Portfolio Grid & Details States
   const [selectedPost, setSelectedPost] = useState(null);
   const [newPostDesc, setNewPostDesc] = useState('');
+  const [newPostTag, setNewPostTag] = useState('Bridal');
   const [newPostImages, setNewPostImages] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [editingPostIndex, setEditingPostIndex] = useState(null);
@@ -410,7 +411,7 @@ const ArtistProfileScreen = ({ onBack }) => {
           };
         }),
         description: newPostDesc,
-        tag: 'Work',
+        tag: newPostTag.trim() || 'Makeup Work',
       };
 
       const updatedPortfolio = [...(profile.portfolio || []), newPostItem];
@@ -421,6 +422,7 @@ const ArtistProfileScreen = ({ onBack }) => {
 
       Alert.alert('Success', 'Portfolio post added successfully!');
       setNewPostDesc('');
+      setNewPostTag('Bridal');
       setNewPostImages([]);
       setActiveModal(null);
       await loadProfile();
@@ -903,13 +905,50 @@ const ArtistProfileScreen = ({ onBack }) => {
         );
 
       case 'add_post':
+        const commonMakeupTags = ['Bridal', 'Party Makeup', 'HD Makeup', 'Airbrush', 'Engagement', 'Reception', 'Haldi', 'Sangeet', 'Editorial', 'Natural Look', 'Glam Makeup', 'SFX'];
+        
         return (
-          <View style={styles.modalBody}>
+          <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
             <Text style={styles.modalSubTitle}>Create New Post</Text>
             
+            {/* Makeup Type Tag Selection */}
+            <Text style={styles.inputLabel}>Makeup Type / Specialization Tag</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8, flexDirection: 'row' }}>
+              {commonMakeupTags.map((tag, tIdx) => {
+                const isSelected = newPostTag === tag;
+                return (
+                  <TouchableOpacity
+                    key={tIdx}
+                    style={{
+                      backgroundColor: isSelected ? '#FF4F8F' : '#FFF0F4',
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 16,
+                      marginRight: 8,
+                      borderWidth: 1,
+                      borderColor: isSelected ? '#FF4F8F' : '#FFE4ED',
+                    }}
+                    onPress={() => setNewPostTag(tag)}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: isSelected ? '#FFF' : '#FF4F8F' }}>
+                      {tag}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <TextInput
+              style={styles.textInput}
+              value={newPostTag}
+              onChangeText={setNewPostTag}
+              placeholder="Or type custom makeup type..."
+              placeholderTextColor="#B7A9A1"
+            />
+
             <Text style={styles.inputLabel}>Caption / Description</Text>
             <TextInput
-              style={[styles.textInput, { height: 80, textAlignVertical: 'top' }]}
+              style={[styles.textInput, { height: 75, textAlignVertical: 'top' }]}
               value={newPostDesc}
               onChangeText={setNewPostDesc}
               placeholder="Write a caption for your work..."
@@ -971,7 +1010,7 @@ const ArtistProfileScreen = ({ onBack }) => {
                 <Text style={styles.modalSubmitText}>Post to Profile</Text>
               )}
             </TouchableOpacity>
-          </View>
+          </ScrollView>
         );
 
       case 'adjust_image':
@@ -1205,6 +1244,16 @@ const ArtistProfileScreen = ({ onBack }) => {
                 </View>
               ) : (
                 <View>
+                  {selectedPost.tag ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                      <View style={{ backgroundColor: '#FFE4ED', borderWidth: 1, borderColor: '#FFD1E1', borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4, flexDirection: 'row', alignItems: 'center' }}>
+                        <Ionicons name="pricetag" size={12} color="#FF4F8F" style={{ marginRight: 5 }} />
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: '#FF4F8F' }}>
+                          {selectedPost.tag}
+                        </Text>
+                      </View>
+                    </View>
+                  ) : null}
                   <Text style={styles.instaCaptionText}>
                     <Text style={styles.instaCaptionUsername}>{profile.name} </Text>
                     {selectedPost.description || 'No description provided.'}

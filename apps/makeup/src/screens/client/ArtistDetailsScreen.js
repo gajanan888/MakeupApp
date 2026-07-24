@@ -200,9 +200,9 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
               <Ionicons name="checkmark-circle" size={18} color="#1890FF" style={{ marginLeft: 6 }} />
             </View>
             <View style={styles.ratingRow}>
-              <Ionicons name="star" size={14} color="#FFC53D" style={{ marginRight: 4 }} />
+              <Ionicons name="sparkles" size={14} color="#FF4F87" style={{ marginRight: 4 }} />
               <Text style={styles.ratingText}>
-                {currentArtist.profile?.rating ? currentArtist.profile.rating.toFixed(1) : currentArtist.rating || '4.8'}
+                {currentArtist.glamScore ? Number(currentArtist.glamScore).toFixed(1) : '95.0'} Glam Score
                 {' '}({currentArtist.profile?.reviewCount || currentArtist.profile?.bookingsCount || 8})
               </Text>
             </View>
@@ -224,9 +224,9 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
           <View style={styles.statDivider} />
           <View style={styles.statColumn}>
             <Text style={styles.statValue}>
-              {currentArtist.profile?.rating ? currentArtist.profile.rating.toFixed(1) : currentArtist.rating || '4.8'}
+              {currentArtist.glamScore ? Number(currentArtist.glamScore).toFixed(1) : '95.0'}
             </Text>
-            <Text style={styles.statLabel}>Rating</Text>
+            <Text style={styles.statLabel}>Glam Score</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statColumn}>
@@ -234,6 +234,20 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
               {currentArtist.profile?.experience ? `${currentArtist.profile.experience}+ Yrs` : '8+ Yrs'}
             </Text>
             <Text style={styles.statLabel}>Experience</Text>
+          </View>
+        </View>
+
+        {/* GLAM SCORE HERO BANNER */}
+        <View style={styles.glamScoreBanner}>
+          <View style={styles.glamScoreHeaderRow}>
+            <View style={styles.glamScoreBadge}>
+              <Ionicons name="sparkles" size={16} color="#FFF" style={{ marginRight: 4 }} />
+              <Text style={styles.glamScoreValue}>{currentArtist.glamScore ? Number(currentArtist.glamScore).toFixed(1) : '95.0'}</Text>
+              <Text style={styles.glamScoreMax}>/100</Text>
+            </View>
+            <View style={styles.glamScoreTitleCol}>
+              <Text style={styles.glamScoreTitle}>Glam Score™</Text>
+            </View>
           </View>
         </View>
 
@@ -264,13 +278,14 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
             {portfolioList && portfolioList.length > 0 ? (
               portfolioList.map((item, index) => {
                 const { imgUrl, scale, translateX, translateY, isMultiImage } = getPostMediaDetails(item);
+                const postTag = item.tag || item.specialization || item.category || 'Makeup Work';
 
                 return (
                   <TouchableOpacity 
                     key={index} 
                     style={styles.gridItemContainer} 
                     onPress={() => {
-                      setSelectedPost({ ...item, index });
+                      setSelectedPost({ ...item, index, tag: postTag });
                       setActiveSlideIndex(0);
                       setShowPostDetailModal(true);
                     }}
@@ -289,6 +304,10 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
                           }
                         ]} 
                       />
+                    </View>
+                    {/* Post Tag Pill on Thumbnail */}
+                    <View style={styles.gridTagBadge}>
+                      <Text style={styles.gridTagBadgeText} numberOfLines={1}>{postTag}</Text>
                     </View>
                     {isMultiImage && (
                       <View style={styles.carouselBadge}>
@@ -537,8 +556,16 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
                 );
               })()}
 
-              {/* Caption */}
-              <View style={[styles.instaCaptionContainer, { marginTop: 16 }]}>
+              {/* Caption & Tag */}
+              <View style={[styles.instaCaptionContainer, { marginTop: 14 }]}>
+                {(selectedPost?.tag || selectedPost?.specialization) ? (
+                  <View style={styles.postTagBadgeRow}>
+                    <View style={styles.postTagChip}>
+                      <Ionicons name="pricetag-outline" size={13} color="#FF4F87" style={{ marginRight: 4 }} />
+                      <Text style={styles.postTagChipText}>{selectedPost.tag || selectedPost.specialization}</Text>
+                    </View>
+                  </View>
+                ) : null}
                 <Text style={styles.instaCaptionText}>
                   <Text style={styles.instaCaptionUsername}>{currentArtist.name} </Text>
                   {selectedPost.description || 'No description provided.'}
@@ -1000,6 +1027,67 @@ const styles = StyleSheet.create({
     fontFamily: 'serif',
     marginTop: 2,
   },
+
+  // Glam Score Banner Styles
+  glamScoreBanner: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    backgroundColor: '#FFF0F5',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#FFD6E5',
+    shadowColor: '#FF4F8F',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  glamScoreHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  glamScoreBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FF4F8F',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    marginRight: 10,
+  },
+  glamScoreValue: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  glamScoreMax: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FFE4ED',
+    marginLeft: 2,
+  },
+  glamScoreTitleCol: {
+    flex: 1,
+  },
+  glamScoreTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111111',
+    fontFamily: 'serif',
+  },
+  glamScoreSubtitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FF4F8F',
+    marginTop: 1,
+  },
+  glamScoreDescription: {
+    fontSize: 11,
+    color: '#666666',
+    marginTop: 8,
+    lineHeight: 15,
+  },
   statDivider: {
     width: 1,
     height: '60%',
@@ -1033,6 +1121,42 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     padding: 4,
     zIndex: 2,
+  },
+  gridTagBadge: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    maxWidth: '82%',
+    zIndex: 2,
+  },
+  gridTagBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  postTagBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  postTagChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF0F5',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FFD6E5',
+  },
+  postTagChipText: {
+    color: '#FF4F87',
+    fontSize: 12,
+    fontWeight: '700',
   },
 
   // Modal Detail Styles

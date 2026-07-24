@@ -21,6 +21,7 @@ import BottomNavigation from '../../components/BottomNavigation';
 import { getCustomerProfile, updateCustomerProfile } from '../../api/auth';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { uploadFile } from '../../api/files';
+import { getSavedAddresses, deleteSavedAddress } from '../../utils/addressStorage';
 
 const FAQs = [
   {
@@ -49,6 +50,7 @@ const ProfileScreen = ({ navigation, isTab = false }) => {
   // Modal Visibility States
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [addressModalVisible, setAddressModalVisible] = useState(false);
+  const [savedAddresses, setSavedAddresses] = useState([]);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const [notifModalVisible, setNotifModalVisible] = useState(false);
   const [faqModalVisible, setFaqModalVisible] = useState(false);
@@ -85,8 +87,18 @@ const ProfileScreen = ({ navigation, isTab = false }) => {
     }
   };
 
+  const loadSavedAddresses = async () => {
+    try {
+      const addrs = await getSavedAddresses();
+      setSavedAddresses(addrs);
+    } catch (err) {
+      console.warn('Failed to load addresses:', err);
+    }
+  };
+
   useEffect(() => {
     fetchProfile();
+    loadSavedAddresses();
 
     const interval = setInterval(() => {
       fetchProfile(true);
@@ -94,6 +106,30 @@ const ProfileScreen = ({ navigation, isTab = false }) => {
 
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (addressModalVisible) {
+      loadSavedAddresses();
+    }
+  }, [addressModalVisible]);
+
+  const handleDeleteAddress = (id) => {
+    Alert.alert('Delete Address', 'Are you sure you want to delete this address?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const updated = await deleteSavedAddress(id);
+            setSavedAddresses(updated);
+          } catch (err) {
+            Alert.alert('Error', 'Failed to delete address.');
+          }
+        },
+      },
+    ]);
+  };
 
   const handleUpdateProfile = async () => {
     if (!editName.trim()) {
@@ -183,6 +219,8 @@ const ProfileScreen = ({ navigation, isTab = false }) => {
             try {
               await AsyncStorage.removeItem('token');
               await AsyncStorage.removeItem('customerName');
+              await AsyncStorage.removeItem('customerEmail');
+              await AsyncStorage.removeItem('customerId');
               await AsyncStorage.removeItem('userRole');
               navigation.reset({
                 index: 0,
@@ -356,17 +394,49 @@ const ProfileScreen = ({ navigation, isTab = false }) => {
       {/* My Addresses Modal */}
       <Modal visible={addressModalVisible} animationType="slide" transparent onRequestClose={() => setAddressModalVisible(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
+          <View style={[styles.modalContainer, { maxHeight: '80%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitleText}>My Addresses</Text>
               <TouchableOpacity onPress={() => setAddressModalVisible(false)}>
                 <Ionicons name="close" size={24} color="#111" />
               </TouchableOpacity>
             </View>
-            <View style={styles.modalContentBody}>
-              <Ionicons name="location-outline" size={48} color="#FF4F87" style={{ alignSelf: 'center', marginBottom: 12 }} />
-              <Text style={styles.placeholderModalText}>Address list is empty. You can set address requirements while booking makeup services.</Text>
-            </View>
+            <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
+              {savedAddresses.length > 0 ? (
+                savedAddresses.map((addr) => (
+                  <View key={addr.id} style={styles.addressCardItem}>
+                    <View style={styles.addressCardHeader}>
+                      <View style={[styles.addressBadge, { backgroundColor: addr.iconBg || '#E6FFED' }]}>
+                        <Ionicons name={addr.label === 'Home' ? 'home' : addr.label === 'Work' ? 'briefcase' : 'location'} size={14} color={addr.iconColor || '#389E0D'} />
+                        <Text style={[styles.addressBadgeText, { color: addr.iconColor || '#389E0D' }]}>{addr.label || 'Saved'}</Text>
+                      </View>
+                      <TouchableOpacity onPress={() => handleDeleteAddress(addr.id)} style={{ padding: 4 }}>
+                        <Ionicons name="trash-outline" size={18} color="#FF3B30" />
+                      </TouchableOpacity>
+                    </View>
+                    {addr.name ? <Text style={styles.addressNameText}>{addr.name}</Text> : null}
+                    <Text style={styles.addressLineText}>{addr.addressLine || addr.address}</Text>
+                    {addr.phone ? <Text style={styles.addressPhoneText}>Contact: {addr.phone}</Text> : null}
+                  </View>
+                ))
+              ) : (
+                <View style={styles.modalContentBody}>
+                  <Ionicons name="location-outline" size={48} color="#FF4F87" style={{ alignSelf: 'center', marginBottom: 12 }} />
+                  <Text style={styles.placeholderModalText}>Address list is empty. You can set address requirements while booking makeup services.</Text>
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={styles.addAddressBtn}
+                onPress={() => {
+                  setAddressModalVisible(false);
+                  navigation.navigate('SelectLocation');
+                }}
+              >
+                <Ionicons name="add" size={20} color="#FFF" />
+                <Text style={styles.addAddressBtnText}>Add New Address</Text>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -756,5 +826,64 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#666',
     lineHeight: 18,
+  },
+
+  /* Address Card Styles */
+  addressCardItem: {
+    backgroundColor: '#F9F9FB',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#EEEEF2',
+  },
+  addressCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  addressBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 4,
+  },
+  addressBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  addressNameText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111',
+    marginBottom: 4,
+  },
+  addressLineText: {
+    fontSize: 13,
+    color: '#444',
+    lineHeight: 18,
+    marginBottom: 4,
+  },
+  addressPhoneText: {
+    fontSize: 12,
+    color: '#777',
+  },
+  addAddressBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FF4F87',
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginTop: 8,
+    gap: 6,
+  },
+  addAddressBtnText: {
+    color: '#FFF',
+    fontWeight: '600',
+    fontSize: 14,
   },
 });

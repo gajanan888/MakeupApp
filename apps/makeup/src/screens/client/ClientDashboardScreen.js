@@ -219,7 +219,10 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
       try {
         const data = await getTrendingArtists();
         if (Array.isArray(data) && data.length > 0) {
-          setTrendingArtists(data);
+          const sortedTrending = [...data].sort(
+            (a, b) => (b.glamScore || b.trendingScore || 0) - (a.glamScore || a.trendingScore || 0)
+          );
+          setTrendingArtists(sortedTrending);
         }
       } catch (err) {
         console.warn('Failed to fetch trending artists:', err?.message);
@@ -251,6 +254,7 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
   }, [isFocused]);
 
   const displayedTrending = trendingArtists;
+  const displayedPopular = artists.length > 0 ? artists : PRECALCULATED_TRENDING_ARTISTS;
 
   return (
     <View style={{ flex: 1, backgroundColor: '#FAFAFA' }}>
@@ -486,29 +490,8 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
               size="large"
               style={{ marginVertical: 20 }}
             />
-          ) : artists.length === 0 ? (
-            <View style={styles.emptyPopularCard}>
-              <View style={styles.emptyPopularIconCircle}>
-                <Ionicons name="location-outline" size={24} color="#FF4F87" />
-              </View>
-              <View style={styles.emptyPopularTextContainer}>
-                <Text style={styles.emptyPopularTitle}>
-                  No Artists at this Location
-                </Text>
-                <Text style={styles.emptyPopularSubText}>
-                  No registered artists are available in {currentCity || 'this location'} right now.
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={styles.changeLocBtn}
-                onPress={() => navigation.navigate('SelectLocation', { fromDashboard: true })}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.changeLocBtnText}>Change</Text>
-              </TouchableOpacity>
-            </View>
           ) : (
-            artists.slice(0, 5).map(artist => (
+            displayedPopular.slice(0, 5).map(artist => (
               <TouchableOpacity
                 key={artist.id}
                 style={styles.popularCard}

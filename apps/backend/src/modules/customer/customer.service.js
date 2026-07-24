@@ -6,6 +6,46 @@ import ArtistService from "../../models/ArtistService.js";
 import Booking from "../../models/Booking.js";
 import ArtistPortfolio from "../../models/ArtistPortfolio.js";
 
+/**
+ * Calculates Bayesian Rating Score for artist ranking
+ * Bayesian Weighted Rating formula:
+ *   WR = (v / (v + m)) * R + (m / (v + m)) * C
+ * where:
+ *   v = number of reviews (reviewCount)
+ *   m = prior review weight threshold parameter (e.g. 5)
+ *   R = average rating of the artist
+ *   C = global mean rating across artists (prior mean)
+ *
+ * Final Bayesian Score includes a log-scaled completed booking volume multiplier:
+ *   Score = WR * (1 + ln(1 + completedBookingsCount))
+ */
+const calculateBayesianScore = (artistJson, globalMean, m_r = 5) => {
+  const R = Number(artistJson.profile?.rating ?? globalMean);
+  const vr = Number(artistJson.profile?.reviewCount ?? 0);
+  const vb = artistJson.bookings?.length ?? 0;
+
+  // Bayesian Weighted Rating
+  const bayesianRating = (vr / (vr + m_r)) * R + (m_r / (vr + m_r)) * globalMean;
+
+  // Log-scaled Completed Booking Volume Multiplier
+  const popularity = 1 + Math.log(1 + vb);
+
+  // Final score completely based on Bayesian rating algorithm
+  const bayesianScore = parseFloat((bayesianRating * popularity).toFixed(4));
+  const formattedBayesianRating = parseFloat(bayesianRating.toFixed(2));
+
+  // Dynamic 0-100 "Glam Score" based on Bayesian rating algorithm
+  // Base score starts at 60.0 and dynamically increases with every completed booking & review up to 99.9
+  const rawGlamScore = 60 + (bayesianScore - 4.5) * 4.0;
+  const glamScore = Math.max(50.0, Math.min(99.9, parseFloat(rawGlamScore.toFixed(1))));
+
+  return {
+    bayesianRating: formattedBayesianRating,
+    bayesianScore,
+    glamScore,
+  };
+};
+
 export const getArtists = async ({ minPrice, maxPrice, experience, location, id, page, limit, search, category, rating, priceRange, gender }) => {
   const where = { isVerified: true };
 
@@ -14,7 +54,7 @@ export const getArtists = async ({ minPrice, maxPrice, experience, location, id,
     delete where.isVerified;
   }
 
-  // Fetch all to perform reliable JS filtering & mapping (since prices are strings like "₹1,500")
+  // Fetch all verified artists to perform reliable filtering & Bayesian rating calculations
   const allArtists = await Artist.findAll({
     attributes: ["id", "name", "email", "phone", "createdAt"],
     where,
@@ -39,24 +79,69 @@ export const getArtists = async ({ minPrice, maxPrice, experience, location, id,
         as: "portfolio",
         attributes: ["id", "beforeImageUrl", "afterImageUrl", "tag", "description", "images"],
       },
+      {
+        model: Booking,
+        as: "bookings",
+        where: { status: "completed" },
+        required: false,
+        attributes: ["id"],
+      },
     ],
-    order: [["createdAt", "DESC"]],
+  });
+
+  const C_r = 4.5;
+  const m_r = 5;
+
+  const validRatings = allArtists
+    .map(a => Number(a.profile?.rating))
+    .filter(r => !isNaN(r) && r > 0);
+
+  const globalMean = validRatings.length > 0
+    ? validRatings.reduce((sum, r) => sum + r, 0) / validRatings.length
+    : C_r;
+
+  // Score every artist using the Bayesian rating algorithm
+  const scoredArtists = allArtists.map((artist) => {
+    const artistJson = artist.toJSON ? artist.toJSON() : artist;
+    const { bayesianRating, bayesianScore, glamScore } = calculateBayesianScore(artistJson, globalMean, m_r);
+
+    delete artistJson.bookings;
+
+    return {
+      ...artistJson,
+      bayesianRating,
+      bayesianScore,
+      glamScore,
+    };
   });
 
   // Filter in memory for maximum consistency and accuracy
-  let filtered = allArtists;
+  let filtered = scoredArtists;
 
   if (location) {
     const locLower = location.toLowerCase().trim();
-    filtered = filtered.filter(artist => 
-      artist.profile?.location && artist.profile.location.toLowerCase().includes(locLower)
-    );
+    const tokens = locLower.split(',').map(t => t.trim()).filter(Boolean);
+
+    const locFiltered = filtered.filter(artist => {
+      if (!artist.profile?.location) return false;
+      const artLoc = artist.profile.location.toLowerCase().trim();
+      return (
+        artLoc.includes(locLower) ||
+        locLower.includes(artLoc) ||
+        tokens.some(t => t.length > 2 && (artLoc.includes(t) || t.includes(artLoc)))
+      );
+    });
+
+    // If matching artists found for location, use them; otherwise keep all verified artists
+    if (locFiltered.length > 0) {
+      filtered = locFiltered;
+    }
   }
 
   if (rating) {
     const ratingNum = parseFloat(rating);
     filtered = filtered.filter(artist => {
-      const r = Number(artist.profile?.rating ?? artist.rating ?? 4.7);
+      const r = Number(artist.bayesianRating ?? artist.profile?.rating ?? 4.5);
       return r >= ratingNum;
     });
   }
@@ -112,6 +197,9 @@ export const getArtists = async ({ minPrice, maxPrice, experience, location, id,
     );
   }
 
+  // Sort completely based on the Bayesian rating algorithm score (descending)
+  filtered.sort((a, b) => b.bayesianScore - a.bayesianScore);
+
   // Paginate
   const pageNum = page ? parseInt(page, 10) : 1;
   const limitNum = limit ? parseInt(limit, 10) : 20;
@@ -155,42 +243,47 @@ export const getTrendingArtists = async () => {
     ],
   });
 
-  const C_r = 4.5; // prior mean rating
-  const m_r = 5;   // prior weight for reviews
+  const C_r = 4.5;
+  const m_r = 5;
+
+  const validRatings = artists
+    .map(a => Number(a.profile?.rating))
+    .filter(r => !isNaN(r) && r > 0);
+
+  const globalMean = validRatings.length > 0
+    ? validRatings.reduce((sum, r) => sum + r, 0) / validRatings.length
+    : C_r;
 
   const scoredArtists = artists.map((artist) => {
-    const R = artist.profile?.rating ?? 4.5;
-    const vr = artist.profile?.reviewCount ?? 0;
-    const vb = artist.bookings?.length ?? 0;
+    const artistJson = artist.toJSON ? artist.toJSON() : artist;
+    const { bayesianRating, bayesianScore, glamScore } = calculateBayesianScore(artistJson, globalMean, m_r);
+    const vb = artistJson.bookings?.length ?? 0;
 
-    // Bayesian Weighted Rating
-    const Wr = (vr / (vr + m_r)) * R + (m_r / (vr + m_r)) * C_r;
-
-    // Log-scaled Completed Booking Volume Multiplier
-    const popularity = 1 + Math.log(1 + vb);
-
-    // Final score
-    const score = Wr * popularity;
+    delete artistJson.bookings;
 
     return {
-      artist,
-      score,
+      artistJson,
+      score: bayesianScore,
+      bayesianRating,
+      glamScore,
       completedBookingsCount: vb,
     };
   });
 
-  // Sort descending by score
-  scoredArtists.sort((a, b) => b.score - a.score);
+  // Sort descending strictly based on Glam Score (Bayesian rating score)
+  scoredArtists.sort((a, b) => b.glamScore - a.glamScore);
 
   // Take top 10 and attach rank details
   return scoredArtists.slice(0, 10).map((item, index) => {
-    const artistJson = item.artist.toJSON();
-    delete artistJson.bookings;
     return {
-      ...artistJson,
+      ...item.artistJson,
+      bayesianRating: item.bayesianRating,
+      bayesianScore: item.score,
+      glamScore: item.glamScore,
       trendingRank: index + 1,
-      trendingScore: parseFloat(item.score.toFixed(2)),
+      trendingScore: item.glamScore,
       completedBookingsCount: item.completedBookingsCount,
     };
   });
 };
+

@@ -6,4 +6,4 @@ mediapipe==0.10.21
 pydantic-settings
 sqlalchemy
 psycopg[binary]
-httpx2
+httpx

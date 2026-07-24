@@ -17,6 +17,7 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import Geolocation from '@react-native-community/geolocation';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getSavedAddresses, saveAddresses, deleteSavedAddress } from '../../utils/addressStorage';
 
 const LOCATIONIQ_KEY = 'pk.a74ba553bc5de1a0d26527268257f8d4';
 
@@ -46,17 +47,8 @@ const SelectLocationScreen = ({ navigation, route }) => {
 
   const loadSavedAddresses = async () => {
     try {
-      const stored = await AsyncStorage.getItem('client_saved_addresses');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        const filtered = Array.isArray(parsed)
-          ? parsed.filter(item => !String(item.id).startsWith('default-'))
-          : [];
-        setSavedAddresses(filtered);
-        await AsyncStorage.setItem('client_saved_addresses', JSON.stringify(filtered));
-      } else {
-        setSavedAddresses([]);
-      }
+      const addresses = await getSavedAddresses();
+      setSavedAddresses(addresses);
     } catch (err) {
       console.warn('Failed to load saved addresses:', err);
     }
@@ -300,8 +292,7 @@ const SelectLocationScreen = ({ navigation, route }) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              const updated = savedAddresses.filter((item) => item.id !== address.id);
-              await AsyncStorage.setItem('client_saved_addresses', JSON.stringify(updated));
+              const updated = await deleteSavedAddress(address.id);
               setSavedAddresses(updated);
             } catch (err) {
               console.warn(err);
@@ -408,7 +399,7 @@ const SelectLocationScreen = ({ navigation, route }) => {
         updated = [newAddressObj, ...savedAddresses];
       }
 
-      await AsyncStorage.setItem('client_saved_addresses', JSON.stringify(updated));
+      await saveAddresses(updated);
       setSavedAddresses(updated);
       
       // Clear inputs
@@ -673,7 +664,7 @@ const SelectLocationScreen = ({ navigation, route }) => {
               <Text style={styles.modalLabel}>Recipient Name</Text>
               <TextInput
                 style={styles.modalInput}
-                placeholder="Enter name (e.g. Vedant)"
+                placeholder="Enter Your Name"
                 placeholderTextColor="#999"
                 value={newAddressName}
                 onChangeText={setNewAddressName}

@@ -70,7 +70,10 @@ const ArtistsListByLocationScreen = ({ navigation, route }) => {
           <View style={styles.ratingRow}>
             <Ionicons name="star" size={14} color="#FFB800" style={{ marginRight: 2 }} />
             <Text style={styles.ratingValue}>{rating}</Text>
-            <Text style={styles.reviewsCount}>({reviews} reviews)</Text>
+            <View style={styles.glamBadgeChip}>
+              <Ionicons name="sparkles" size={11} color="#FF4F87" style={{ marginRight: 2 }} />
+              <Text style={styles.glamBadgeText}>{item.glamScore ? Number(item.glamScore).toFixed(1) : '95.0'} Glam Score</Text>
+            </View>
           </View>
         </View>
 
@@ -380,5 +383,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#111111',
     paddingVertical: 0,
+  },
+  glamBadgeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF0F5',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    marginLeft: 8,
+    borderWidth: 1,
+    borderColor: '#FFD6E5',
+  },
+  glamBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FF4F87',
   },
 });

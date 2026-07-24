@@ -458,7 +458,10 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
                   <View style={styles.ratingRow}>
                     <Ionicons name="star" size={14} color="#FFB800" style={{ marginRight: 4 }} />
                     <Text style={styles.ratingText}>{Number(artist.profile?.rating || artist.rating || 4.7).toFixed(1)}</Text>
-                    <Text style={styles.distanceText}> ({artist.profile?.experience || '4'} years exp)</Text>
+                    <View style={styles.glamBadgeChip}>
+                      <Ionicons name="sparkles" size={11} color="#FF4F87" style={{ marginRight: 2 }} />
+                      <Text style={styles.glamBadgeText}>{artist.glamScore ? Number(artist.glamScore).toFixed(1) : '95.0'} Glam Score</Text>
+                    </View>
                   </View>
                   <Text style={styles.artistPrice}>
                     Starting: {artist.services?.[0]?.priceRange || '₹1,500'}
@@ -1421,6 +1424,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#444',
     flex: 1,
+  },
+  glamBadgeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF0F5',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    marginLeft: 8,
+    borderWidth: 1,
+    borderColor: '#FFD6E5',
+  },
+  glamBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FF4F87',
   },
 });
 

@@ -4,7 +4,13 @@ from app.api.v1.router import api_router
 from app.core.config import get_settings
 
 
+from app.database.base import Base
+from app.database.session import engine
+# Ensure models are imported for metadata registration
+from app.models import virtual_preview, beauty
+
 def create_app() -> FastAPI:
+    Base.metadata.create_all(bind=engine)
     settings = get_settings()
 
     application = FastAPI(

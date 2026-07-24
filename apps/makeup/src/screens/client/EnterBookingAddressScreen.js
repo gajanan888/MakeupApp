@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getSavedAddresses, addSavedAddress } from '../../utils/addressStorage';
 import ScreenHeader from '../../components/ScreenHeader';
 
 const LOCATIONIQ_KEY = 'pk.a74ba553bc5de1a0d26527268257f8d4';
@@ -48,10 +49,8 @@ const EnterBookingAddressScreen = ({ navigation, route }) => {
   useEffect(() => {
     const loadSaved = async () => {
       try {
-        const stored = await AsyncStorage.getItem('client_saved_addresses');
-        if (stored) {
-          setSavedAddresses(JSON.parse(stored));
-        }
+        const addresses = await getSavedAddresses();
+        setSavedAddresses(addresses);
       } catch (err) {
         console.warn('Failed to load saved addresses:', err);
       }
@@ -253,17 +252,8 @@ const EnterBookingAddressScreen = ({ navigation, route }) => {
         iconColor: addressLabel === 'Home' ? '#389E0D' : '#D46B08',
       };
 
-      let saved = [];
-      try {
-        const stored = await AsyncStorage.getItem('client_saved_addresses');
-        if (stored) {
-          saved = JSON.parse(stored);
-        }
-      } catch (err) {
-        console.warn(err);
-      }
-      const updated = [newAddressObj, ...saved];
-      await AsyncStorage.setItem('client_saved_addresses', JSON.stringify(updated));
+      const updated = await addSavedAddress(newAddressObj);
+      setSavedAddresses(updated);
 
       // Continue with booking flow
       navigation.replace('BookAppointment', {
@@ -364,7 +354,7 @@ const EnterBookingAddressScreen = ({ navigation, route }) => {
           <Text style={styles.label}>Recipient Name</Text>
           <TextInput
             style={styles.input}
-            placeholder="Enter name (e.g. Vedant)"
+            placeholder="Enter Your Name"
             placeholderTextColor="#999"
             value={addressName}
             onChangeText={setAddressName}

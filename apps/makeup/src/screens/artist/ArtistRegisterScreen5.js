@@ -336,6 +336,57 @@ const ArtistRegisterScreen5 = ({ navigation, route }) => {
             </Text>
           </View>
 
+          {/* SPECIALIZATION COVERAGE STATUS BANNER */}
+          {(data.specializations || []).length > 0 && (
+            <View style={styles.specCoverageBanner}>
+              <View style={styles.specCoverageHeader}>
+                <Ionicons name="sparkles" size={18} color="#FF4F8F" />
+                <Text style={styles.specCoverageTitle}>
+                  Upload Past Work for Selected Specializations
+                </Text>
+              </View>
+              <Text style={styles.specCoverageSub}>
+                Upload at least 1 photo post for each specialization you selected:
+              </Text>
+              <View style={styles.specChipsContainer}>
+                {(data.specializations || []).map((spec, sIdx) => {
+                  const isCovered = works.some(
+                    w =>
+                      w.images &&
+                      w.images.length > 0 &&
+                      (w.description?.toLowerCase().trim() === spec.toLowerCase().trim() ||
+                        w.tag?.toLowerCase().trim() === spec.toLowerCase().trim() ||
+                        w.description?.toLowerCase().includes(spec.toLowerCase()))
+                  );
+
+                  return (
+                    <View
+                      key={sIdx}
+                      style={[
+                        styles.specChipStatus,
+                        isCovered ? styles.specChipCovered : styles.specChipMissing,
+                      ]}
+                    >
+                      <Ionicons
+                        name={isCovered ? 'checkmark-circle' : 'alert-circle-outline'}
+                        size={15}
+                        color={isCovered ? '#2E7D32' : '#D32F2F'}
+                      />
+                      <Text
+                        style={[
+                          styles.specChipText,
+                          isCovered ? styles.specChipTextCovered : styles.specChipTextMissing,
+                        ]}
+                      >
+                        {spec}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
           {works.map((work, index) => (
             <View key={work?.id ?? index} style={styles.workCard}>
               {index > 0 && (
@@ -347,6 +398,43 @@ const ArtistRegisterScreen5 = ({ navigation, route }) => {
                   <Ionicons name="close-circle" size={24} color="#FF4F8F" />
                 </TouchableOpacity>
               )}
+
+              {/* Specialization Quick Selector Chips */}
+              {(data.specializations || []).length > 0 && (
+                <View style={{ marginBottom: 14 }}>
+                  <Text style={styles.quickSpecLabel}>Choose Specialization Tag:</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row', marginTop: 6 }}>
+                    {(data.specializations || []).map((spec, sIdx) => {
+                      const isSelected = work.description === spec;
+                      return (
+                        <TouchableOpacity
+                          key={sIdx}
+                          style={[
+                            styles.quickSpecChip,
+                            isSelected && styles.quickSpecChipSelected,
+                          ]}
+                          onPress={() => {
+                            updateWorkField(index, 'description', spec);
+                            if (!work.tag) {
+                              updateWorkField(index, 'tag', `${spec} Work`);
+                            }
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.quickSpecChipText,
+                              isSelected && styles.quickSpecChipTextSelected,
+                            ]}
+                          >
+                            {spec}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              )}
+
               {/* Event Name */}
               <View style={styles.inputGroup}>
                 <View style={styles.labelRow}>
@@ -364,7 +452,7 @@ const ArtistRegisterScreen5 = ({ navigation, route }) => {
               {/* Makeup Type */}
               <View style={styles.inputGroup}>
                 <View style={styles.labelRow}>
-                  <Text style={styles.fieldLabel}>Makeup Type</Text>
+                  <Text style={styles.fieldLabel}>Makeup Type / Specialization</Text>
                 </View>
                 <TextInput
                   placeholder="e.g. Bridal / HD / Airbrush"
@@ -485,6 +573,29 @@ const ArtistRegisterScreen5 = ({ navigation, route }) => {
                 
                 if (!w.images || w.images.length === 0) {
                   Alert.alert('Validation Error', `Please upload at least one Work (After) photo for work ${workNum}`);
+                  return;
+                }
+              }
+
+              // Validate that ALL selected specializations have past work uploaded
+              const selectedSpecs = data.specializations || [];
+              if (selectedSpecs.length > 0) {
+                const missingSpecs = selectedSpecs.filter(spec => {
+                  return !works.some(
+                    w =>
+                      w.images &&
+                      w.images.length > 0 &&
+                      (w.description?.toLowerCase().trim() === spec.toLowerCase().trim() ||
+                        w.tag?.toLowerCase().trim() === spec.toLowerCase().trim() ||
+                        w.description?.toLowerCase().includes(spec.toLowerCase()))
+                  );
+                });
+
+                if (missingSpecs.length > 0) {
+                  Alert.alert(
+                    'Portfolio Required For All Specializations',
+                    `You must upload past work photos for each of your selected specializations.\n\nMissing Specialization(s):\n• ${missingSpecs.join('\n• ')}`
+                  );
                   return;
                 }
               }
@@ -802,5 +913,93 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 20,
     fontWeight: '700',
+  },
+
+  // SPECIALIZATION COVERAGE BANNER STYLES
+  specCoverageBanner: {
+    backgroundColor: '#FFF',
+    borderWidth: 1.5,
+    borderColor: '#FFD1E1',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 20,
+  },
+  specCoverageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  specCoverageTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111',
+    marginLeft: 6,
+  },
+  specCoverageSub: {
+    fontSize: 12,
+    color: '#8A7D77',
+    marginBottom: 10,
+  },
+  specChipsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  specChipStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    marginRight: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+  },
+  specChipCovered: {
+    backgroundColor: '#E8F5E9',
+    borderColor: '#A5D6A7',
+  },
+  specChipMissing: {
+    backgroundColor: '#FFEBEE',
+    borderColor: '#FFCDD2',
+  },
+  specChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 5,
+  },
+  specChipTextCovered: {
+    color: '#2E7D32',
+  },
+  specChipTextMissing: {
+    color: '#D32F2F',
+  },
+
+  // QUICK SPEC CHIPS IN WORK CARD
+  quickSpecLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FF4F8F',
+    marginBottom: 4,
+  },
+  quickSpecChip: {
+    backgroundColor: '#FFE4ED',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#FFD1E1',
+  },
+  quickSpecChipSelected: {
+    backgroundColor: '#FF4F8F',
+    borderColor: '#FF4F8F',
+  },
+  quickSpecChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FF4F8F',
+  },
+  quickSpecChipTextSelected: {
+    color: '#FFF',
   },
 });
