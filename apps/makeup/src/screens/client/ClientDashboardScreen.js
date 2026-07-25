@@ -312,19 +312,39 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
         }}
       >
         <View style={styles.container}>
-          <View style={styles.aiCard}>
+          <View style={[styles.aiCard, { backgroundColor: '#B76E79', marginBottom: 20 }]}>
             <View style={styles.aiContent}>
-              <Text style={styles.aiTitle}>AI Match</Text>
+              <Text style={styles.aiTitle}>AI Beauty Lab</Text>
 
               <Text style={styles.aiDescription}>
-                Find Your Perfect Makeup Artist with AI Recommendations
+                Try on shades instantly, or generate a custom makeover using Generative AI for any occasion or outfit!
               </Text>
 
+              <View style={styles.combinedCardBtnRow}>
+                <TouchableOpacity
+                  style={styles.combinedCardBtn}
+                  onPress={() => navigation.navigate('VirtualTryOn')}
+                >
+                  <Ionicons name="camera-outline" size={14} color="#FF4F87" style={{ marginRight: 4 }} />
+                  <Text style={styles.combinedCardBtnText}>Try-On</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.combinedCardBtn, styles.combinedCardBtnSecondary]}
+                  onPress={() => navigation.navigate('FaceScan')}
+                >
+                  <Ionicons name="sparkles-outline" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+                  <Text style={[styles.combinedCardBtnText, styles.combinedCardBtnTextSecondary]}>AI Custom Look</Text>
+                </TouchableOpacity>
+              </View>
+
               <TouchableOpacity
-                style={styles.tryNowButton}
-                onPress={() => navigation.navigate('FaceScan')}
+                style={styles.combinedCardFullWidthBtn}
+                activeOpacity={0.88}
+                onPress={() => navigation.navigate('ReferenceImageSearch')}
               >
-                <Text style={styles.tryNowText}>Try Now</Text>
+                <Ionicons name="images-outline" size={14} color="#B76E79" style={{ marginRight: 6 }} />
+                <Text style={styles.combinedCardFullWidthBtnText}>Find Artist by Image</Text>
               </TouchableOpacity>
             </View>
 
@@ -601,17 +621,48 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
   },
-  tryNowButton: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#FF4F87',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 14,
-    marginTop: 16,
+  combinedCardBtnRow: {
+    flexDirection: 'row',
+    marginTop: 14,
+    gap: 8,
+    flexWrap: 'wrap',
   },
-  tryNowText: {
+  combinedCardBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
+  combinedCardBtnSecondary: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.40)',
+  },
+  combinedCardBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FF4F87',
+  },
+  combinedCardBtnTextSecondary: {
     color: '#FFFFFF',
-    fontWeight: '600',
+  },
+  combinedCardFullWidthBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    height: 36,
+    width: '100%',
+    marginTop: 8,
+  },
+  combinedCardFullWidthBtnText: {
+    color: '#B76E79',
+    fontSize: 11,
+    fontWeight: '800',
   },
   aiImage: {
     width: 110,

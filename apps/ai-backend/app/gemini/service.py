@@ -139,7 +139,8 @@ class GeminiService:
             ("Do you want any accessories in the preview? (Hairstyle, Earrings, Necklace, Bindi, Dupatta, Veil, None)", "accessories")
         ]
         
-        history = list(session.history)
+        raw_history = session.history
+        history: List[Dict[str, Any]] = list(raw_history) if raw_history else []  # type: ignore[arg-type]
 
         # 1. Identify what question the user is answering
         # Find the last model message in history to get its key
@@ -182,7 +183,7 @@ class GeminiService:
             history.append({"role": "model", "content": reply})
 
         # Re-assign history to trigger SQLAlchemy dirty tracking
-        session.history = history
+        session.history = history  # type: ignore[assignment]
         return reply, is_complete, preferences
 
     async def _compile_preferences(self, history: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -199,8 +200,8 @@ class GeminiService:
         }
         for msg in history:
             key = msg.get("key")
-            if key and msg.get("role") == "user":
-                prefs[key] = msg.get("content")
+            if key is not None and isinstance(key, str) and msg.get("role") == "user":
+                prefs[key] = str(msg.get("content", ""))
 
         # 2. Use Gemini to translate these high-level preferences into specific cosmetic colors/styles
         settings = get_preview_settings()
@@ -295,6 +296,7 @@ class GeminiService:
         style = preferences.get('style', 'Soft Glam')
         boldness = preferences.get('boldness', '3 = Medium')
         hair_type = preferences.get('hair_type', 'Wavy')
+        hair_length = preferences.get('hair_length', 'Long')
         hairstyle = preferences.get('hairstyle', 'Keep Current Hairstyle')
         jewelry = preferences.get('jewelry', 'Minimal')
         accessories = preferences.get('accessories', 'None')
@@ -307,50 +309,70 @@ class GeminiService:
         cntr = preferences.get('contour', 'Medium')
         hlgt = preferences.get('highlight', 'Natural')
 
-        prompt = (
-            f"You are an expert luxury makeup artist and professional beauty retouching AI.\n\n"
-            f"Generate a photorealistic virtual makeup look based on the following user preferences.\n\n"
-            f"### User Preferences\n\n"
-            f"Occasion: {event}\n"
-            f"Event Type: {location}\n"
-            f"Time of Day: {time}\n\n"
-            f"Outfit:\n"
-            f"- Type: {outfit}\n"
-            f"- Color: {outfit_color}\n\n"
-            f"Makeup Style:\n"
-            f"- Style: {style}\n"
-            f"- Intensity: {boldness}\n\n"
-            f"Hair:\n"
-            f"- Texture: {hair_type}\n"
-            f"- Preferred Hairstyle: {hairstyle}\n\n"
-            f"Jewelry:\n"
-            f"- Preference: {jewelry} Jewelry\n\n"
-            f"Accessories:\n"
-            f"- {accessories if accessories != 'None' else 'None'}\n\n"
-            f"### Makeup Details\n\n"
-            f"Create a luxury makeup look suitable for this event.\n"
-            f"Apply:\n"
-            f"- Smooth airbrushed foundation in {fdn} matching natural skin tone\n"
-            f"- {cntr} contour\n"
-            f"- {blsh} blush\n"
-            f"- {hlgt} highlighter\n"
-            f"- {eye} eyeshadow\n"
-            f"- Defined eyeliner and lashes\n"
-            f"- Naturally defined eyebrows\n"
-            f"- {lip} lipstick\n\n"
-            f"### Hairstyle\n\n"
-            f"Style: {hairstyle} (respecting natural {hair_type} texture if applicable).\n\n"
-            f"### Jewelry\n\n"
-            f"Add realistic {jewelry} earrings, matching necklace, and accessories matching options.\n\n"
-            f"### Image Style\n\n"
-            f"Luxury makeup finish. Professional makeup artist look. Ultra realistic. Photorealistic. "
-            f"High resolution. Natural skin texture. Balanced studio lighting.\n\n"
-            f"### Preserve\n\n"
-            f"Preserve the user's exact: Facial identity, face shape, facial proportions, eye shape, nose, "
-            f"lips, eyebrows, skin tone, expression, age, body proportions, camera angle, pose, and outfit. "
-            f"The person must remain instantly recognizable as the same individual.\n\n"
-            f"### Editing Rules\n\n"
-            f"Only modify: Makeup, Hairstyle, Jewelry, Accessories. Do not change facial features, clothing, background, or identity."
+        prompt_parts = []
+        
+        # 1. Base theme & style setting
+        prompt_parts.append(
+            f"A high-end fashion magazine editorial beauty portrait showcasing a professional {style} makeup style "
+            f"for a {event} themed event."
+        )
+        
+        # 2. Skin tone & foundation details
+        prompt_parts.append(
+            f"The skin is flawless, featuring a smooth, velvet airbrushed foundation in {fdn} that matches the "
+            f"natural skin tone perfectly while retaining realistic skin pores, fine texture, and a soft healthy glow."
+        )
+        
+        # 3. Contouring, blush and highlights
+        prompt_parts.append(
+            f"Structured cheekbones highlighted with a {hlgt} sheen on the high points, and a softly blended "
+            f"{cntr} contour defining the jawline and temples. A natural flush of {blsh} blush seamlessly blends "
+            f"into the cheeks."
+        )
+        
+        # 4. Eyes & eyebrows
+        prompt_parts.append(
+            f"The eyes feature a stunning, professionally blended gradient of {eye} eyeshadow. Bold, clean eyeliner "
+            f"and dense, long, realistically curled eyelashes frame the eyes with perfect definition. Eyebrows are "
+            f"naturally groomed, filled, and styled."
+        )
+        
+        # 5. Lips
+        prompt_parts.append(
+            f"The lips are beautifully defined with a clean, precise border, wearing a rich, highly pigmented {lip} lipstick."
+        )
+        
+        # 6. Hair & Hairstyle styling
+        if hairstyle.lower() != "keep current hairstyle":
+            prompt_parts.append(
+                f"The hair is styled in an elegant, professionally dressed {hairstyle}, accentuating the {hair_length} "
+                f"{hair_type} hair locks."
+            )
+        else:
+            prompt_parts.append(
+                f"The hairstyle maintains the natural look, highlighting clean, healthy {hair_length} {hair_type} hair."
+            )
+            
+        # 7. Jewelry & Accessories
+        if jewelry.lower() != "none":
+            prompt_parts.append(
+                f"The look is elevated with delicate, realistic {jewelry} jewelry, including matching earrings and a necklace."
+            )
+            
+        if accessories.lower() != "none" and accessories.strip() != "":
+            prompt_parts.append(f"Matching accessories are present: {accessories}.")
+            
+        # 8. Photography, Lighting & Quality tags
+        prompt_parts.append(
+            f"Shot on 85mm lens, f/1.4, sharp focus on the facial features, catching light in the pupils. "
+            f"Warm, balanced studio lighting, soft fill lights, elegant subtle shadows, depth of field with a clean "
+            f"soft-focus background. Photorealistic, hyper-detailed, luxury cosmetics finish, gorgeous aesthetic."
+        )
+        
+        prompt = "\n\n".join(prompt_parts)
+        prompt += (
+            "\n\nPreserve the exact facial features, identity, proportions, and expression of the person. "
+            "Only change makeup, hair style, jewelry, and accessories as specified."
         )
         return prompt
 

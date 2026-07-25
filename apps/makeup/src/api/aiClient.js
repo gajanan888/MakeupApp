@@ -1,7 +1,13 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 const AI_API_BASE_URLS = [
+  'http://172.19.20.151:5000',   // Active Wi-Fi IP (Current network host) via Express proxy
+  'http://127.0.0.1:5000',       // adb reverse loopback fallback
+  'http://localhost:5000',       // localhost fallback
+  'http://10.0.2.2:5000',        // Android Emulator loopback
+  'http://192.168.56.1:5000',    // VirtualBox host-only
   'http://172.19.20.153:8000',
   'http://10.103.15.179:8000',
   'http://10.0.2.2:8000',
@@ -261,6 +267,83 @@ export const generatePreview = async (selfieId, prompt, chatSessionId) => {
 
 export const getPreview = async (previewId) => {
   const response = await aiApi.get(`/api/v1/virtual-preview/preview/${previewId}`);
+  return response.data;
+};
+
+export const applyVirtualTryon = async (params) => {
+  const formData = new FormData();
+  
+  if (params.imageUri) {
+    let uri = params.imageUri;
+    let normalizedUri = uri;
+    if (!uri.startsWith('file://') && !uri.startsWith('content://')) {
+      if (uri.startsWith('file:')) {
+        normalizedUri = uri.replace(/^file:\/?\/?\/?/, 'file:///');
+      } else {
+        normalizedUri = `file://${uri}`;
+      }
+    }
+    formData.append('file', {
+      uri: normalizedUri,
+      name: params.imageName || 'selfie.jpg',
+      type: params.imageType || 'image/jpeg',
+    });
+  } else if (params.image) {
+    // Fallback if base64 is passed directly
+    formData.append('file', {
+      uri: params.image.startsWith('data:') ? params.image : `data:image/jpeg;base64,${params.image}`,
+      name: 'selfie.jpg',
+      type: 'image/jpeg',
+    });
+  }
+
+  formData.append('lipstick', params.lipstick ? 'true' : 'false');
+  formData.append('lipstickColor', params.lipstickColor || '');
+  formData.append('lipstickStyle', params.lipstickStyle || '');
+  formData.append('foundation', params.foundation ? 'true' : 'false');
+  formData.append('foundationShade', params.foundationShade || '');
+  formData.append('blush', params.blush ? 'true' : 'false');
+  formData.append('blushColor', params.blushColor || '');
+  formData.append('blushStyle', params.blushStyle || '');
+  formData.append('eyeshadow', params.eyeshadow ? 'true' : 'false');
+  formData.append('eyeshadowColor', params.eyeshadowColor || '');
+  formData.append('eyeshadowStyle', params.eyeshadowStyle || '');
+  formData.append('eyeliner', params.eyeliner ? 'true' : 'false');
+  formData.append('eyelinerColor', params.eyelinerColor || '');
+  formData.append('eyelinerStyle', params.eyelinerStyle || '');
+  formData.append('eyelashes', params.eyelashes ? 'true' : 'false');
+  formData.append('eyelashesStyle', params.eyelashesStyle || '');
+  formData.append('contour', params.contour ? 'true' : 'false');
+  formData.append('contourIntensity', String(params.contourIntensity || 50));
+  formData.append('highlighter', params.highlighter ? 'true' : 'false');
+  formData.append('eyebrow', params.eyebrow ? 'true' : 'false');
+  formData.append('eyebrowColor', params.eyebrowColor || '');
+  formData.append('intensity', String(params.intensity || 80));
+
+  const response = await aiApi.post('/api/v1/virtual-tryon/upload', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
+export const recommendArtistsByImage = async (imageAsset) => {
+  await probeAndLockBaseURL();
+  const formData = new FormData();
+  
+  const fileUri = Platform.OS === 'android' ? imageAsset.uri : imageAsset.uri.replace('file://', '');
+  formData.append('file', {
+    uri: fileUri,
+    type: imageAsset.type || 'image/jpeg',
+    name: imageAsset.fileName || 'reference_image.jpg',
+  });
+
+  const response = await aiApi.post('/api/artist/recommend', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
   return response.data;
 };
 

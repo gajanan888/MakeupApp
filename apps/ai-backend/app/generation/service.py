@@ -154,9 +154,34 @@ class ImageGenerationService:
                     logger.warning("No face landmarks found in DB for local simulation. Using original image.")
                     return selfie.image_url, 0.5
                 
+                # Retrieve the list of landmarks from dictionary wrappers if applicable
+                landmark_list = None
+                if isinstance(raw_landmarks, dict):
+                    landmark_list = raw_landmarks.get("landmarks") or raw_landmarks.get("landmarks_stub")
+                elif isinstance(raw_landmarks, list):
+                    landmark_list = raw_landmarks
+                
+                if not landmark_list:
+                    logger.warning("No face landmarks list found in DB for local simulation. Using original image.")
+                    return selfie.image_url, 0.5
+
                 # Convert list of dicts to list of FaceLandmark schemas
                 from app.schemas.face import FaceLandmark
-                landmarks = [FaceLandmark(**lm) for lm in raw_landmarks]
+                landmarks = []
+                for lm in landmark_list:
+                    if isinstance(lm, dict):
+                        lm_copy = dict(lm)
+                        # Map 'point' to 'index' if necessary for legacy compatibility
+                        if "point" in lm_copy and "index" not in lm_copy:
+                            lm_copy["index"] = lm_copy["point"]
+                        # Populate default values for coordinate schema parameters if missing
+                        if "z" not in lm_copy:
+                            lm_copy["z"] = 0.0
+                        if "x_px" not in lm_copy:
+                            lm_copy["x_px"] = 0
+                        if "y_px" not in lm_copy:
+                            lm_copy["y_px"] = 0
+                        landmarks.append(FaceLandmark(**lm_copy))
                 
                 # 2. Construct a RecommendedLook schema mapping chat preferences to simulation options
                 from app.schemas.makeup_recommendation import RecommendedLook, PersonalizedRecommendations, RecommendedFor, ProductRecommendations

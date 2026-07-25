@@ -7,7 +7,11 @@
 !.yarn/versions
 
 # Environment
-# .env
+.env
+apps/ai-backend/.env
+apps/ai-backend/generated/
+apps/ai-backend/uploads/
+apps/ai-backend/scratch/
 
 # Dependencies
 node_modules/

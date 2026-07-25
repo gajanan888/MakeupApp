@@ -224,6 +224,68 @@ SEED_LOOKS = [
                 "products": ["Rose-Pink Blush", "Dusty Rose Liquid Lipstick"]
             }
         ]
+    },
+    {
+        "id": "minimalist_clean",
+        "name": "Minimalist Clean",
+        "description": "Clean, barely-there look for a polished but natural appearance.",
+        "time_estimate": "10-15 min",
+        "coverage": "Light Coverage",
+        "long_description": "A minimalist look emphasizing skin hydration, light nude lips, and very subtle eyebrow shaping.",
+        "category": "Minimal",
+        "suitable_face_shapes": ["Oval", "Heart", "Round", "Square", "Rectangle", "Diamond"],
+        "suitable_skin_tones": ["Fair", "Light", "Medium", "Tan", "Deep"],
+        "suitable_undertones": ["Warm", "Cool", "Neutral", "Olive"],
+        "products": {
+            "lipstick": ["Nude", "Peach Nude"],
+            "blush": ["Soft Pink"],
+            "eyeshadow": ["Champagne"]
+        },
+        "steps": [
+            {
+                "step_number": 1,
+                "title": "Light Tint",
+                "instruction": "Apply a touch of light coverage skin tint to smooth redness.",
+                "products": ["CC Skin Tint"]
+            },
+            {
+                "step_number": 2,
+                "title": "Nude Lip",
+                "instruction": "Dab a subtle nude lipstick or gloss onto both lips.",
+                "products": ["Nude Lipstick"]
+            }
+        ]
+    },
+    {
+        "id": "artistic_creative",
+        "name": "Artistic Creative",
+        "description": "High-contrast colorful look with purple eyeshadow and coral lips.",
+        "time_estimate": "35-50 min",
+        "coverage": "Medium Coverage",
+        "long_description": "A vibrant, artistic style with deep purple eyelids, winged eyeliner, and bright coral lips.",
+        "category": "Creative",
+        "suitable_face_shapes": ["Oval", "Heart", "Round", "Diamond"],
+        "suitable_skin_tones": ["Fair", "Light", "Medium", "Tan", "Deep"],
+        "suitable_undertones": ["Warm", "Cool", "Neutral", "Olive"],
+        "products": {
+            "lipstick": ["Coral", "Red"],
+            "blush": ["Coral Pink"],
+            "eyeshadow": ["Purple", "Gold"]
+        },
+        "steps": [
+            {
+                "step_number": 1,
+                "title": "Vibrant Eyeshadow",
+                "instruction": "Sweep deep purple shadow across the lid, blending with a touch of gold shimmer.",
+                "products": ["Purple Eyeshadow", "Gold Shimmer"]
+            },
+            {
+                "step_number": 2,
+                "title": "Vivid Coral Lip",
+                "instruction": "Apply a bright coral lipstick layer to both lips.",
+                "products": ["Vivid Coral Lipstick"]
+            }
+        ]
     }
 ]
 

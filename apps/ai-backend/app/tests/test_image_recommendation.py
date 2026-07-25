@@ -69,6 +69,7 @@ class TestImageRecommendation(unittest.TestCase):
         
         mock_normalized = MagicMock()
         mock_tensor.__truediv__.return_value = mock_normalized
+        mock_tensor.pooler_output = mock_tensor
         
         # Mock features[0] (__getitem__) to return a mock tensor that returns our list
         mock_item = MagicMock()

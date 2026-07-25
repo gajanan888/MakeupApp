@@ -60,8 +60,11 @@ const MAKEUP_STYLES = [
 ];
 
 const HAIR_TYPES = [
-  'Straight', 'Wavy', 'Curly', 'Coily',
-  'Short Hair', 'Medium Length Hair', 'Long Hair', 'Tied Hair / Bun', 'Other'
+  'Straight', 'Wavy', 'Curly', 'Coily', 'Other'
+];
+
+const HAIR_LENGTHS = [
+  'Short', 'Medium', 'Long', 'Tied Hair / Bun', 'Other'
 ];
 
 const HAIRSTYLES = [
@@ -99,6 +102,7 @@ const VirtualPreviewChatScreen = ({ navigation, route }) => {
   const [makeupStyle, setMakeupStyle] = useState('Soft Glam');
   const [boldness, setBoldness] = useState('3 = Medium');
   const [hairType, setHairType] = useState(HAIR_TYPES[0]);
+  const [hairLength, setHairLength] = useState(HAIR_LENGTHS[2]); // Default to Long
   const [preferredHairstyle, setPreferredHairstyle] = useState('Keep Current Hairstyle');
   const [jewelryPreference, setJewelryPreference] = useState('None');
   const [selectedAccessories, setSelectedAccessories] = useState([]);
@@ -151,6 +155,7 @@ const VirtualPreviewChatScreen = ({ navigation, route }) => {
         style: makeupStyle,
         boldness: boldness,
         hair_type: hairType,
+        hair_length: hairLength,
         hairstyle: preferredHairstyle,
         jewelry: jewelryPreference,
         accessories: accs,
@@ -187,9 +192,8 @@ const VirtualPreviewChatScreen = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFF7FA" />
-      <View style={styles.shell}>
-        <ScreenHeader title="AI Try-On Preferences" onBack={() => navigation.goBack()} />
+      <StatusBar barStyle="dark-content" backgroundColor="#FCFCFC" />
+      <ScreenHeader title="AI Try-On Preferences" onBack={() => navigation.goBack()} />
 
         <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
           <Text style={styles.introText}>
@@ -359,9 +363,22 @@ const VirtualPreviewChatScreen = ({ navigation, route }) => {
             </TouchableOpacity>
           </View>
 
-          {/* 9. Preferred Hairstyle */}
+          {/* 9. Hair Length */}
           <View style={styles.sectionCard}>
-            <Text style={styles.questionLabel}>9. Preferred hairstyle <Text style={styles.optional}>(Optional)</Text></Text>
+            <Text style={styles.questionLabel}>9. What is your hair length? <Text style={styles.required}>*</Text></Text>
+            <TouchableOpacity
+              style={styles.dropdownBtn}
+              activeOpacity={0.8}
+              onPress={() => openPicker('Select Hair Length', HAIR_LENGTHS, hairLength, setHairLength)}
+            >
+              <Text style={styles.dropdownText}>{hairLength}</Text>
+              <Ionicons name="chevron-down" size={18} color="#FF4F87" />
+            </TouchableOpacity>
+          </View>
+
+          {/* 10. Preferred Hairstyle */}
+          <View style={styles.sectionCard}>
+            <Text style={styles.questionLabel}>10. Preferred hairstyle <Text style={styles.optional}>(Optional)</Text></Text>
             <TouchableOpacity
               style={styles.dropdownBtn}
               activeOpacity={0.8}
@@ -372,9 +389,9 @@ const VirtualPreviewChatScreen = ({ navigation, route }) => {
             </TouchableOpacity>
           </View>
 
-          {/* 10. Jewelry Preference */}
+          {/* 11. Jewelry Preference */}
           <View style={styles.sectionCard}>
-            <Text style={styles.questionLabel}>10. Jewelry preference <Text style={styles.optional}>(Optional)</Text></Text>
+            <Text style={styles.questionLabel}>11. Jewelry preference <Text style={styles.optional}>(Optional)</Text></Text>
             <TouchableOpacity
               style={styles.dropdownBtn}
               activeOpacity={0.8}
@@ -385,9 +402,9 @@ const VirtualPreviewChatScreen = ({ navigation, route }) => {
             </TouchableOpacity>
           </View>
 
-          {/* 11. Accessories Multi-select */}
+          {/* 12. Accessories Multi-select */}
           <View style={styles.sectionCard}>
-            <Text style={styles.questionLabel}>11. Do you want AI to add accessories? <Text style={styles.optional}>(Optional)</Text></Text>
+            <Text style={styles.questionLabel}>12. Do you want AI to add accessories? <Text style={styles.optional}>(Optional)</Text></Text>
             
             <View style={styles.pillContainer}>
               {/* None option */}
@@ -432,7 +449,6 @@ const VirtualPreviewChatScreen = ({ navigation, route }) => {
             <Text style={styles.submitBtnText}>Generate Custom Preview ✨</Text>
           </TouchableOpacity>
         </ScrollView>
-      </View>
 
       {/* Custom Dropdown Modal Picker */}
       <Modal visible={pickerVisible} transparent animationType="slide">
@@ -482,17 +498,8 @@ export default VirtualPreviewChatScreen;
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFF0F5',
+    backgroundColor: '#FCFCFC',
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
-  },
-  shell: {
-    flex: 1,
-    margin: 10,
-    borderRadius: 28,
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#FFD9E6',
-    overflow: 'hidden',
   },
   scrollContainer: {
     padding: 16,

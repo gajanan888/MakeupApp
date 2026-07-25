@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Float, JSON
+from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Float, JSON, Text
 from sqlalchemy.orm import relationship
 from app.database.base import Base
 
@@ -66,7 +66,7 @@ class MakeupPreviewModel(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     selfie_id = Column(String(36), ForeignKey("selfies.id", ondelete="CASCADE"), nullable=False)
     chat_session_id = Column(String(36), ForeignKey("chat_sessions.id", ondelete="CASCADE"), nullable=True)
-    prompt = Column(String(1024), nullable=True)
+    prompt = Column(Text, nullable=True)
     edited_image_url = Column(String(512), nullable=True)
     quality_score = Column(Float, nullable=True)
     is_approved = Column(Boolean, nullable=True)

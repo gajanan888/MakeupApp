@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 # Live reload trigger comment
 
-from app.api.v1.endpoints import face_detection, health, landmarks, face_shape, skin_tone, beauty, recommend, simulation, virtual_preview
+from app.api.v1.endpoints import face_detection, health, landmarks, face_shape, skin_tone, beauty, recommend, simulation, virtual_preview, tryon
 
 
 api_router = APIRouter()
@@ -14,4 +14,5 @@ api_router.include_router(beauty.router)
 api_router.include_router(recommend.router)
 api_router.include_router(simulation.router)
 api_router.include_router(virtual_preview.router)
+api_router.include_router(tryon.router)
 

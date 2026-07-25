@@ -13,6 +13,40 @@ const app = express();
 const server = http.createServer(app);
 
 app.use(cors());
+
+// ── Proxy to FastAPI AI Backend ───────────────────────────────────────────────
+// IMPORTANT: These MUST come before express.json() / express.urlencoded().
+// Body parsers consume the raw stream; if they run first, multipart uploads
+// arrive at FastAPI with an empty body and the upload hangs indefinitely.
+
+const makeProxy = (pathPrefix) => (req, res) => {
+  const options = {
+    hostname: "127.0.0.1",
+    port: 8000,
+    path: `${pathPrefix}${req.url}`,
+    method: req.method,
+    headers: { ...req.headers },
+  };
+  delete options.headers["host"];
+
+  const proxyReq = http.request(options, (proxyRes) => {
+    res.writeHead(proxyRes.statusCode, proxyRes.headers);
+    proxyRes.pipe(res, { end: true });
+  });
+
+  proxyReq.on("error", (err) => {
+    console.error(`[Proxy Error] ${pathPrefix} – FastAPI unreachable:`, err.message);
+    if (!res.headersSent) res.status(502).send("Bad Gateway: AI Backend is offline");
+  });
+
+  req.pipe(proxyReq, { end: true });
+};
+
+app.use("/api/v1", makeProxy("/api/v1"));
+app.use("/api/artist", makeProxy("/api/artist"));
+app.use("/generated", makeProxy("/generated"));
+
+// Body parsers for all other Express routes
 app.use(express.json());
 
 app.use("/api", routes);

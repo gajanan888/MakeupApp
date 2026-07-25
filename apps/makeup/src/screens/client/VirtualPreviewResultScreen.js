@@ -8,8 +8,10 @@ import {
   Platform,
   Image,
   ScrollView,
-  TouchableOpacity,
   ActivityIndicator,
+  TextInput,
+  TouchableOpacity,
+  Share,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import ScreenHeader from '../../components/ScreenHeader';
@@ -20,6 +22,22 @@ const VirtualPreviewResultScreen = ({ navigation, route }) => {
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('after'); // 'before' or 'after'
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyPrompt = async () => {
+    if (preview && preview.prompt) {
+      try {
+        setCopied(true);
+        await Share.share({
+          message: preview.prompt,
+        });
+        setTimeout(() => setCopied(false), 2000);
+      } catch (err) {
+        console.error('[Share] Error sharing/copying prompt:', err);
+        setCopied(false);
+      }
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -109,12 +127,11 @@ const VirtualPreviewResultScreen = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFF7FA" />
-      <View style={styles.shell}>
-        <ScreenHeader
-          title="Virtual Try-On Result"
-          onBack={() => navigation.navigate('FaceScan')}
-        />
+      <StatusBar barStyle="dark-content" backgroundColor="#FCFCFC" />
+      <ScreenHeader
+        title="Virtual Try-On Result"
+        onBack={() => navigation.navigate('FaceScan')}
+      />
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Image Display Card */}
@@ -184,9 +201,32 @@ const VirtualPreviewResultScreen = ({ navigation, route }) => {
           {/* AI Prompt Details */}
           {preview.prompt ? (
             <View style={styles.prescriptionCard}>
-              <Text style={styles.prescriptionTitle}>📝 AI Generation Prompt</Text>
+              <View style={styles.promptHeader}>
+                <Text style={styles.prescriptionTitle}>📝 AI Generation Prompt</Text>
+                <TouchableOpacity
+                  style={[styles.copyBtn, copied && styles.copyBtnActive]}
+                  onPress={handleCopyPrompt}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons 
+                    name={copied ? "checkmark-done-outline" : "share-social-outline"} 
+                    size={13} 
+                    color={copied ? "#FFF" : "#FF4F87"} 
+                  />
+                  <Text style={[styles.copyBtnText, copied && styles.copyBtnTextActive]}>
+                    {copied ? "Copied" : "Copy / Share"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
               <View style={styles.divider} />
-              <Text selectable={true} style={styles.promptText}>{preview.prompt}</Text>
+              <TextInput
+                value={preview.prompt}
+                editable={true}
+                selectTextOnFocus={true}
+                showSoftInputOnFocus={false}
+                multiline={true}
+                style={styles.promptInputText}
+              />
             </View>
           ) : null}
 
@@ -209,7 +249,6 @@ const VirtualPreviewResultScreen = ({ navigation, route }) => {
             </TouchableOpacity>
           </View>
         </ScrollView>
-      </View>
     </SafeAreaView>
   );
 };
@@ -219,23 +258,14 @@ export default VirtualPreviewResultScreen;
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFF0F5',
+    backgroundColor: '#FCFCFC',
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
-  },
-  shell: {
-    flex: 1,
-    margin: 10,
-    borderRadius: 28,
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#FFD9E6',
-    overflow: 'hidden',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFF0F5',
+    backgroundColor: '#FCFCFC',
   },
   loadingText: {
     marginTop: 12,
@@ -384,12 +414,47 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
   },
-  promptText: {
+  promptInputText: {
     fontSize: 12,
     color: '#555',
     lineHeight: 18,
     textAlign: 'center',
     fontStyle: 'italic',
     fontWeight: '600',
+    padding: 10,
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FFE0EC',
+  },
+  promptHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    paddingRight: 4,
+  },
+  copyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF0F5',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FFE0EC',
+    gap: 3,
+  },
+  copyBtnActive: {
+    backgroundColor: '#FF4F87',
+    borderColor: '#FF4F87',
+  },
+  copyBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FF4F87',
+  },
+  copyBtnTextActive: {
+    color: '#FFF',
   },
 });

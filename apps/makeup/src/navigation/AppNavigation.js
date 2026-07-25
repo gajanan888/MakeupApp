@@ -53,6 +53,9 @@ import ClientNotificationScreen from '../screens/client/ClientNotificationScreen
 import ArtistNotificationScreen from '../screens/artist/ArtistNotificationScreen';
 import VirtualPreviewChatScreen from '../screens/client/VirtualPreviewChatScreen';
 import VirtualPreviewResultScreen from '../screens/client/VirtualPreviewResultScreen';
+import VirtualTryOnScreen from '../screens/client/VirtualTryOnScreen';
+import ReferenceImageSearchScreen from '../screens/client/ReferenceImageSearchScreen';
+import ReferenceSearchResultsScreen from '../screens/client/ReferenceSearchResultsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -250,6 +253,9 @@ const AppNavigator = () => {
         <Stack.Screen name="ArtistNotification" component={ArtistNotificationScreen} />
         <Stack.Screen name="VirtualPreviewChat" component={VirtualPreviewChatScreen} />
         <Stack.Screen name="VirtualPreviewResult" component={VirtualPreviewResultScreen} />
+        <Stack.Screen name="VirtualTryOn" component={VirtualTryOnScreen} />
+        <Stack.Screen name="ReferenceImageSearch" component={ReferenceImageSearchScreen} />
+        <Stack.Screen name="ReferenceSearchResults" component={ReferenceSearchResultsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
