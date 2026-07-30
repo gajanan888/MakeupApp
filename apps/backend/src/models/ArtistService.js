@@ -19,6 +19,9 @@ const ArtistService = sequelize.define("ArtistService", {
   priceRange: {
     type: DataTypes.STRING,
   },
+}, {
+  timestamps: true,
+  paranoid: true,
 });
 
 Artist.hasMany(ArtistService, { foreignKey: "artistId", as: "services" });

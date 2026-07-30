@@ -73,7 +73,7 @@ class SocketService {
       });
 
       socketInstance.on('connect_error', (error) => {
-        console.error(`[SocketService] Connection Error for ${urlToUse}:`, error.message);
+        console.warn(`[SocketService] Connection warning for ${urlToUse}:`, error.message);
         
         // Fall back to next IP if we haven't successfully established a connection URL yet
         if (this.socket === socketInstance && !this.serverUrl) {
@@ -88,7 +88,7 @@ class SocketService {
       });
 
     } catch (error) {
-      console.error('[SocketService] Initialization error:', error);
+      console.warn('[SocketService] Initialization warning:', error);
     }
   }
 

@@ -11,6 +11,9 @@ const ArtistSpecialization = sequelize.define("ArtistSpecialization", {
     type: DataTypes.STRING,
     allowNull: false,
   },
+}, {
+  timestamps: true,
+  paranoid: true,
 });
 
 Artist.hasMany(ArtistSpecialization, {

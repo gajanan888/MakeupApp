@@ -25,6 +25,9 @@ const ArtistCertificate = sequelize.define("ArtistCertificate", {
   instituteName: {
     type: DataTypes.STRING,
   },
+}, {
+  timestamps: true,
+  paranoid: true,
 });
 
 Artist.hasMany(ArtistCertificate, {

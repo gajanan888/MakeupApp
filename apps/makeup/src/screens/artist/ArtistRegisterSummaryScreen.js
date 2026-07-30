@@ -58,8 +58,11 @@ const ArtistRegisterSummaryScreen = ({ navigation }) => {
         })),
         services,
         portfolio: portfolioItems.map(item => ({
-          beforeImage: item?.beforeImage,
-          afterImage: item?.afterImage,
+          beforeImage: item?.beforeImage || item?.beforeImageUrl,
+          afterImage: item?.afterImage || item?.afterImageUrl,
+          images: Array.isArray(item?.images) && item.images.length > 0
+            ? item.images
+            : (item?.afterImage || item?.afterImageUrl ? [item?.afterImage || item?.afterImageUrl] : []),
           tag: item?.tag,
           description: item?.description,
         })),

@@ -23,6 +23,9 @@ const ArtistPortfolio = sequelize.define("ArtistPortfolio", {
   description: {
     type: DataTypes.TEXT,
   },
+}, {
+  timestamps: true,
+  paranoid: true,
 });
 
 Artist.hasMany(ArtistPortfolio, {

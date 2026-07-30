@@ -10,6 +10,7 @@ import ArtistSpecialization from "../../models/ArtistSpecialization.js";
 import Booking from "../../models/Booking.js";
 import Customer from "../../models/Customer.js";
 import ArtistBlock from "../../models/ArtistBlock.js";
+import Review from "../../models/Review.js";
 import {
   encryptSensitiveValue,
   maskAccountNumber,
@@ -28,16 +29,29 @@ const artistIncludes = [
   { model: ArtistSpecialization, as: "specializations" },
 ];
 
-export const getArtistProfile = async (artistId) => {
-  const artist = await Artist.findByPk(artistId, {
-    include: artistIncludes,
-  });
-  if (!artist) {
-    throw new Error("Artist not found");
+export const formatArtistProfileData = async (artistInstance) => {
+  const artistData = artistInstance.toJSON ? artistInstance.toJSON() : artistInstance;
+  delete artistData.password;
+
+  const artistId = artistData.id;
+
+  // Calculate live rating and review count from Reviews table & real bookings count
+  const reviews = await Review.findAll({ where: { artistId } });
+  const totalBookings = await Booking.count({ where: { artistId } });
+
+  if (!artistData.profile) {
+    artistData.profile = {};
   }
 
-  const artistData = artist.toJSON();
-  delete artistData.password;
+  if (reviews && reviews.length > 0) {
+    const sum = reviews.reduce((acc, r) => acc + (r.rating || 0), 0);
+    artistData.profile.rating = Number((sum / reviews.length).toFixed(1));
+    artistData.profile.reviewCount = reviews.length;
+  } else {
+    artistData.profile.rating = 0;
+    artistData.profile.reviewCount = 0;
+  }
+  artistData.profile.bookingsCount = totalBookings || 0;
 
   if (artistData.payment) {
     artistData.payment = {
@@ -48,6 +62,17 @@ export const getArtistProfile = async (artistId) => {
   }
 
   return artistData;
+};
+
+export const getArtistProfile = async (artistId) => {
+  const artist = await Artist.findByPk(artistId, {
+    include: artistIncludes,
+  });
+  if (!artist) {
+    throw new Error("Artist not found");
+  }
+
+  return formatArtistProfileData(artist);
 };
 
 const hasAnyProfileField = (profile) => {
@@ -130,19 +155,38 @@ export const updateArtistProfile = async (artistId, data) => {
     }
 
     if (hasAnyProfileField(profilePayload)) {
-      await ArtistProfile.upsert(
-        {
-          artistId,
-          profileImage: profilePayload.profileImage,
-          gender: profilePayload.gender,
-          bio: profilePayload.bio,
-          location: profilePayload.location,
-          experience: profilePayload.experience,
-          parlourName: profilePayload.parlourName,
-          parlourAddress: profilePayload.parlourAddress,
-        },
-        { transaction },
-      );
+      let existingProfile = await ArtistProfile.findOne({
+        where: { artistId },
+        transaction,
+      });
+
+      const profileUpdates = {};
+      const fields = [
+        "profileImage",
+        "gender",
+        "bio",
+        "location",
+        "experience",
+        "parlourName",
+        "parlourAddress",
+      ];
+
+      for (const field of fields) {
+        if (profilePayload[field] !== undefined) {
+          profileUpdates[field] = profilePayload[field];
+        }
+      }
+
+      if (Object.keys(profileUpdates).length > 0) {
+        if (existingProfile) {
+          await existingProfile.update(profileUpdates, { transaction });
+        } else {
+          await ArtistProfile.create(
+            { artistId, ...profileUpdates },
+            { transaction },
+          );
+        }
+      }
     }
 
     if (Array.isArray(specializations)) {
@@ -153,8 +197,11 @@ export const updateArtistProfile = async (artistId, data) => {
 
       if (specializations.length > 0) {
         const specializationRows = specializations
-          .filter((name) => name)
-          .map((name) => ({ artistId, name }));
+          .filter((item) => item)
+          .map((item) => ({
+            artistId,
+            name: typeof item === "object" ? (item.name || item.specialization) : String(item),
+          }));
 
         if (specializationRows.length > 0) {
           await ArtistSpecialization.bulkCreate(specializationRows, {
@@ -202,14 +249,27 @@ export const updateArtistProfile = async (artistId, data) => {
       await ArtistPortfolio.destroy({ where: { artistId }, transaction });
 
       if (portfolio.length > 0) {
-        const portfolioRows = portfolio.map((item) => ({
-          artistId,
-          beforeImageUrl: item?.beforeImageUrl || item?.beforeImage,
-          afterImageUrl: item?.afterImageUrl || item?.afterImage,
-          images: Array.isArray(item?.images) ? item.images : (item?.images ? [item.images] : []),
-          tag: item?.tag,
-          description: item?.description,
-        }));
+        const portfolioRows = portfolio.map((item) => {
+          let imgs = [];
+          if (Array.isArray(item?.images) && item.images.length > 0) {
+            imgs = item.images;
+          } else if (item?.afterImageUrl || item?.afterImage) {
+            imgs = [item.afterImageUrl || item.afterImage];
+          }
+
+          const firstAfterUrl = imgs.length > 0
+            ? (typeof imgs[0] === 'object' && imgs[0] !== null ? imgs[0].url : imgs[0])
+            : (item?.afterImageUrl || item?.afterImage);
+
+          return {
+            artistId,
+            beforeImageUrl: item?.beforeImageUrl || item?.beforeImage,
+            afterImageUrl: firstAfterUrl,
+            images: imgs,
+            tag: item?.tag,
+            description: item?.description,
+          };
+        });
 
         await ArtistPortfolio.bulkCreate(portfolioRows, { transaction });
       }
@@ -244,20 +304,7 @@ export const updateArtistProfile = async (artistId, data) => {
     include: artistIncludes,
   });
 
-  const updated = updatedArtist?.toJSON();
-  if (updated) {
-    delete updated.password;
-
-    if (updated.payment) {
-      updated.payment = {
-        ...updated.payment,
-        accountNumber: maskAccountNumber(updated.payment.accountNumber),
-        ifscCode: maskIfscCode(updated.payment.ifscCode),
-      };
-    }
-  }
-
-  return updated;
+  return formatArtistProfileData(updatedArtist);
 };
 
 export const getArtistDashboardStats = async (artistId) => {
@@ -302,13 +349,24 @@ export const getArtistDashboardStats = async (artistId) => {
     limit: 5,
   });
 
+  const reviews = await Review.findAll({ where: { artistId } });
+  let liveRating = 0;
+  let reviewCount = 0;
+
+  if (reviews.length > 0) {
+    const sum = reviews.reduce((acc, r) => acc + (r.rating || 0), 0);
+    liveRating = Number((sum / reviews.length).toFixed(1));
+    reviewCount = reviews.length;
+  }
+
   return {
     stats: {
       totalBookings,
       completedBookings,
       cancelledBookings,
       totalEarnings,
-      rating: 4.8,
+      rating: liveRating,
+      reviewCount,
     },
     upcomingBookings,
   };

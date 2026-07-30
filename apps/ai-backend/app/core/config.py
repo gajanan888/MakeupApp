@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     generated_dir: Path = Field(default=Path("generated"))
     max_upload_size_mb: int = 8
     allowed_image_types: set[str] = {"image/jpeg", "image/png", "image/webp"}
-    database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/makeup_app"
+    database_url: str = "sqlite:///./ai_backend.db"
     embedding_model_name: str = "google/siglip-base-patch16-224"
 
     model_config = SettingsConfigDict(

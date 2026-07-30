@@ -11,7 +11,7 @@ const router = express.Router();
 
 router.get("/profile", protectCustomer, getProfile);
 router.put("/profile", protectCustomer, updateProfile);
-router.get("/artists", protectCustomer, getArtistsController);
-router.get("/trending-artists", protectCustomer, getTrendingArtistsController);
+router.get("/artists", getArtistsController);
+router.get("/trending-artists", getTrendingArtistsController);
 
 export default router;

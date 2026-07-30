@@ -119,6 +119,9 @@ const Booking = sequelize.define("Booking", {
     allowNull: false,
     defaultValue: "razorpay",
   },
+}, {
+  timestamps: true,
+  paranoid: true,
 });
 
 Customer.hasMany(Booking, { foreignKey: "customerId", as: "bookings" });

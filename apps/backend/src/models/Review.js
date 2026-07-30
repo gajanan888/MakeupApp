@@ -26,6 +26,9 @@ const Review = sequelize.define("Review", {
     type: DataTypes.TEXT,
     allowNull: true,
   },
+}, {
+  timestamps: true,
+  paranoid: true,
 });
 
 // Associations

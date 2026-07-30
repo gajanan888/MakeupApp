@@ -14,7 +14,8 @@ export const protectCustomer = async (req, res, next) => {
 
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const secret = process.env.JWT_SECRET || "makeup_app_jwt_secret_dev_key_2026";
+      decoded = jwt.verify(token, secret);
     } catch {
       return res.status(401).json({ success: false, message: "Session expired — please log in again" });
     }

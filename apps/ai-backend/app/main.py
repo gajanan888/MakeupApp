@@ -12,13 +12,13 @@ from app.models import virtual_preview, beauty, portfolio_embedding
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Pre-load Google's SigLIP model into memory on startup
-    from app.vision.siglip_encoder import siglip_encoder
-    siglip_encoder.load_model()
     yield
 
 def create_app() -> FastAPI:
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as err:
+        print(f"[AI Backend] Notice: Database auto-migration skipped ({err})")
     settings = get_settings()
 
     application = FastAPI(

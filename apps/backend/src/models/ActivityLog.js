@@ -31,6 +31,9 @@ const ActivityLog = sequelize.define("ActivityLog", {
     type: DataTypes.STRING,
     allowNull: true,
   },
+}, {
+  timestamps: true,
+  paranoid: true,
 });
 
 export default ActivityLog;

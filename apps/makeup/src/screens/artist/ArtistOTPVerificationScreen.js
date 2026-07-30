@@ -216,7 +216,8 @@ const ArtistOTPVerificationScreen = ({ navigation, route }) => {
               />
             ))}
           </View>
-        </View>        {/* Email OTP Section */}
+        </View>
+        {/* Email OTP Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Email Verification</Text>
 

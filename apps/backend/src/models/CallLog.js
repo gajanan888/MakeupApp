@@ -47,6 +47,9 @@ const CallLog = sequelize.define("CallLog", {
     type: DataTypes.STRING,
     allowNull: true,
   },
+}, {
+  timestamps: true,
+  paranoid: true,
 });
 
 // Associations

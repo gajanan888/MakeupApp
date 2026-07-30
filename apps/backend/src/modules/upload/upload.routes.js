@@ -6,10 +6,10 @@ const router = express.Router();
 
 const storage = multer.memoryStorage();
 
-// file size limit 2MB and filter allowed types
+// file size limit 5MB and filter allowed types
 const upload = multer({
 	storage,
-	limits: { fileSize: 2 * 1024 * 1024 },
+	limits: { fileSize: 5 * 1024 * 1024 },
 	fileFilter: (req, file, cb) => {
 		const { mimetype } = file;
 		if (mimetype.startsWith('image/')) return cb(null, true);
@@ -28,7 +28,7 @@ router.post('/', (req, res) => {
 	upload.single('file')(req, res, async (err) => {
 		if (err) {
 			if (err.code === 'LIMIT_FILE_SIZE') {
-				return res.status(400).json({ success: false, message: 'File must be under 2MB.' });
+				return res.status(400).json({ success: false, message: 'File must be under 5MB.' });
 			}
 			return res.status(400).json({ success: false, message: err.message || 'File upload error' });
 		}

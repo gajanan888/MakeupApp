@@ -48,17 +48,17 @@ const ArtistHomeScreen = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'Home':
-        return <ArtistDashboardScreen onNavigate={setActiveTab} />;
+        return <ArtistDashboardScreen onNavigate={setActiveTab} key={`home-${activeTab}`} />;
       case 'Bookings':
-        return <ArtistBookingScreen onBack={() => setActiveTab('Home')} />;
+        return <ArtistBookingScreen onBack={() => setActiveTab('Home')} key={`bookings-${activeTab}`} />;
       case 'Calendar':
-        return <ArtistCalenderScreen onBack={() => setActiveTab('Home')} />;
+        return <ArtistCalenderScreen onBack={() => setActiveTab('Home')} key={`calendar-${activeTab}`} />;
       case 'Earnings':
-        return <ArtistEarningScreen />;
+        return <ArtistEarningScreen key={`earnings-${activeTab}`} />;
       case 'Profile':
-        return <ArtistProfileScreen onBack={() => setActiveTab('Home')} />;
+        return <ArtistProfileScreen onBack={() => setActiveTab('Home')} key={`profile-${activeTab}`} />;
       default:
-        return <ArtistDashboardScreen />;
+        return <ArtistDashboardScreen key={`default-${activeTab}`} />;
     }
   };
 

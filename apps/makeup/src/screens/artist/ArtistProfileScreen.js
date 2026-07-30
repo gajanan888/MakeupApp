@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
@@ -17,7 +17,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { getArtistProfile, updateArtistProfile, getArtistDashboard, changeArtistPassword } from '../../api/auth';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { uploadFile } from '../../api/files';
@@ -46,7 +46,8 @@ const ArtistProfileScreen = ({ onBack }) => {
 
   const [stats, setStats] = useState({
     bookingsCount: 0,
-    rating: 4.8,
+    rating: 0,
+    reviewCount: 0,
   });
 
   // Notification States
@@ -78,10 +79,26 @@ const ArtistProfileScreen = ({ onBack }) => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  // Portfolio Grid & Details States
+  // Specializations, Locations & Certificates States
+  const [specializations, setSpecializations] = useState([]);
+  const [services, setServices] = useState([]);
+  const [newSpecName, setNewSpecName] = useState('');
+  const [newSpecPrice, setNewSpecPrice] = useState('');
+
+  const [locations, setLocations] = useState([]);
+  const [newLocationInput, setNewLocationInput] = useState('');
+  const [locationSuggestions, setLocationSuggestions] = useState([]);
+  const [loadingLocSuggestions, setLoadingLocSuggestions] = useState(false);
+
+  const [certificates, setCertificates] = useState([]);
+  const [newCertInstitute, setNewCertInstitute] = useState('');
+  const [newCertNumber, setNewCertNumber] = useState('');
+
+  // Portfolio Grid & Details States (Before & After Photos)
   const [selectedPost, setSelectedPost] = useState(null);
   const [newPostDesc, setNewPostDesc] = useState('');
   const [newPostTag, setNewPostTag] = useState('Bridal');
+  const [newPostBeforeImage, setNewPostBeforeImage] = useState(null);
   const [newPostImages, setNewPostImages] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [editingPostIndex, setEditingPostIndex] = useState(null);
@@ -104,11 +121,11 @@ const ArtistProfileScreen = ({ onBack }) => {
           name: data.name || '',
           email: data.email || '',
           phone: data.phone || '',
-          location: data.profile?.location || 'Location not set',
-          experience: data.profile?.experience || 'Experience not set',
+          location: data.profile?.location || '',
+          experience: data.profile?.experience || '',
           bio: data.profile?.bio || '',
           businessName: data.profile?.businessName || data.name || '',
-          businessHours: data.profile?.businessHours || '09:00 AM - 08:00 PM',
+          businessHours: data.profile?.businessHours || '',
           bankName: data.payment?.bankName || '',
           accountNumber: data.payment?.accountNumber || '',
           ifscCode: data.payment?.ifscCode || '',
@@ -118,6 +135,38 @@ const ArtistProfileScreen = ({ onBack }) => {
           portfolio: data.portfolio || [],
         };
         setProfile(mappedProfile);
+
+        // Specializations, services, certificates, locations
+        const loadedSpecs = (data.specializations || []).map(s => (typeof s === 'string' ? s : s.name)).filter(Boolean);
+        const loadedServices = data.services || [];
+        const loadedCerts = data.certificates || [];
+
+        // Parse location with pipe '|', semicolon ';', or fallback deduplicated array
+        let loadedLocs = [];
+        const rawLoc = data.profile?.location;
+        if (rawLoc) {
+          let rawItems = [];
+          if (rawLoc.includes('|')) {
+            rawItems = rawLoc.split('|');
+          } else if (rawLoc.includes(';')) {
+            rawItems = rawLoc.split(';');
+          } else {
+            rawItems = rawLoc.split(',');
+          }
+          loadedLocs = rawItems.map(l => cleanCityName(l)).filter(Boolean);
+          loadedLocs = Array.from(new Set(loadedLocs));
+        }
+
+        setSpecializations(loadedSpecs);
+        setServices(loadedServices);
+        setCertificates(loadedCerts);
+        setLocations(loadedLocs);
+
+        setStats({
+          rating: data.profile?.rating ?? 0,
+          reviewCount: data.profile?.reviewCount ?? 0,
+          bookingsCount: data.profile?.bookingsCount ?? 0,
+        });
 
         // Update edit states so they match the loaded data
         setEditName(mappedProfile.name);
@@ -137,8 +186,9 @@ const ArtistProfileScreen = ({ onBack }) => {
         const dashboardData = await getArtistDashboard();
         if (dashboardData && dashboardData.stats) {
           setStats({
-            bookingsCount: dashboardData.stats.totalBookings || 0,
-            rating: dashboardData.stats.rating || 4.8,
+            bookingsCount: dashboardData.stats.totalBookings ?? 0,
+            rating: dashboardData.stats.rating ?? 0,
+            reviewCount: dashboardData.stats.reviewCount ?? 0,
           });
         }
       } catch (dashError) {
@@ -152,9 +202,11 @@ const ArtistProfileScreen = ({ onBack }) => {
     }
   };
 
-  useEffect(() => {
-    loadProfile();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadProfile();
+    }, [])
+  );
 
   // Handle Save profile changes
   const handleSaveProfile = async () => {
@@ -324,6 +376,19 @@ const ArtistProfileScreen = ({ onBack }) => {
     );
   };
 
+  const handleSelectBeforeImage = () => {
+    launchImageLibrary({ mediaType: 'photo', quality: 0.8 }, (response) => {
+      if (response.didCancel || response.errorCode || !response.assets?.[0]) return;
+      const asset = response.assets[0];
+      setNewPostBeforeImage({
+        uri: asset.uri,
+        fileName: asset.fileName || 'before_look.jpg',
+        type: asset.type || 'image/jpeg',
+        fileSize: asset.fileSize || asset.size,
+      });
+    });
+  };
+
   const handleSelectPostImages = () => {
     const currentCount = newPostImages.length;
     if (currentCount >= 10) {
@@ -345,12 +410,278 @@ const ArtistProfileScreen = ({ onBack }) => {
           uri: asset.uri,
           fileName: asset.fileName || 'work_image.jpg',
           type: asset.type || 'image/jpeg',
+          fileSize: asset.fileSize || asset.size,
           scale: 1.0,
           translateX: 0,
           translateY: 0,
         }))
       ]);
     });
+  };
+
+  // Specialization Management
+  const handleAddSpecialization = async () => {
+    const trimmed = newSpecName.trim();
+    if (!trimmed) {
+      Alert.alert('Validation Error', 'Please enter a specialization name.');
+      return;
+    }
+    if (specializations.some(s => s.toLowerCase() === trimmed.toLowerCase())) {
+      Alert.alert('Duplicate', 'This specialization is already added to your profile.');
+      return;
+    }
+
+    const updatedSpecs = [...specializations, trimmed];
+    const priceRange = newSpecPrice.trim() || '₹5,000 - ₹15,000';
+    const updatedServices = [...services, { specialization: trimmed, priceRange, duration: '2-3 hrs' }];
+
+    try {
+      setLoading(true);
+      await updateArtistProfile({
+        specializations: updatedSpecs,
+        services: updatedServices,
+      });
+      setSpecializations(updatedSpecs);
+      setServices(updatedServices);
+      setNewSpecName('');
+      setNewSpecPrice('');
+      Alert.alert('Success', `Specialization '${trimmed}' added with price ${priceRange}.`);
+      await loadProfile();
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to add specialization.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveSpecialization = async (specToRemove) => {
+    const updatedSpecs = specializations.filter(s => s !== specToRemove);
+    const updatedServices = services.filter(s => s.specialization !== specToRemove);
+
+    try {
+      setLoading(true);
+      await updateArtistProfile({
+        specializations: updatedSpecs,
+        services: updatedServices,
+      });
+      setSpecializations(updatedSpecs);
+      setServices(updatedServices);
+      Alert.alert('Success', `Specialization '${specToRemove}' removed.`);
+      await loadProfile();
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to remove specialization.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Location Management
+  const cleanCityName = (locStr) => {
+    if (!locStr || typeof locStr !== 'string') return '';
+    const stateCountryWords = [
+      'maharashtra', 'india', 'karnataka', 'delhi', 'telangana', 'gujarat',
+      'west bengal', 'rajasthan', 'uttar pradesh', 'madhya pradesh',
+      'punjab', 'haryana', 'tamil nadu', 'kerala', 'andhra pradesh'
+    ];
+
+    let parts = locStr.split(',').map(p => p.trim()).filter(Boolean);
+    let filteredParts = parts.filter(p => !stateCountryWords.includes(p.toLowerCase()));
+
+    if (filteredParts.length > 0) {
+      return filteredParts[0];
+    }
+    return parts[0] || locStr.trim();
+  };
+
+  const POPULAR_CITIES = [
+    'Mumbai', 'Pune', 'Nagpur', 'Thane', 'Navi Mumbai', 'Delhi NCR',
+    'Bengaluru', 'Hyderabad', 'Ahmedabad', 'Kolkata', 'Jaipur',
+    'Lucknow', 'Indore', 'Surat', 'Chandigarh', 'Goa', 'Bhopal', 'Nashik'
+  ];
+  const LOCATIONIQ_KEY = 'pk.a74ba553bc5de1a0d26527268257f8d4';
+
+  const handleLocationInputChange = async (text) => {
+    setNewLocationInput(text);
+    const query = text.trim();
+
+    if (query.length === 0) {
+      setLocationSuggestions([]);
+      return;
+    }
+
+    const localMatches = POPULAR_CITIES.filter(city =>
+      city.toLowerCase().includes(query.toLowerCase())
+    );
+
+    setLocationSuggestions(localMatches);
+
+    if (query.length >= 2) {
+      setLoadingLocSuggestions(true);
+      try {
+        const response = await fetch(
+          `https://us1.locationiq.com/v1/autocomplete?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(query)}&countrycodes=in`
+        );
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          const apiSuggestions = data
+            .map((item) => {
+              const addr = item.address;
+              if (!addr) return null;
+              const rawCity = addr.city || addr.town || addr.village || addr.suburb || addr.county || '';
+              return cleanCityName(rawCity);
+            })
+            .filter(Boolean);
+
+          const combined = Array.from(new Set([...localMatches, ...apiSuggestions]));
+          setLocationSuggestions(combined);
+        }
+      } catch (err) {
+        console.warn('Location suggestion error:', err);
+      } finally {
+        setLoadingLocSuggestions(false);
+      }
+    }
+  };
+
+  const handleSelectLocationSuggestion = async (selectedLoc) => {
+    const cityName = cleanCityName(selectedLoc);
+    if (!cityName) return;
+
+    if (locations.some(l => l.toLowerCase() === cityName.toLowerCase())) {
+      Alert.alert('Duplicate', 'This city is already added.');
+      setLocationSuggestions([]);
+      setNewLocationInput('');
+      return;
+    }
+
+    const updatedLocs = [...locations, cityName];
+    const locString = updatedLocs.join(' | ');
+
+    try {
+      setLoading(true);
+      await updateArtistProfile({
+        location: locString,
+        profile: {
+          location: locString,
+        },
+      });
+      setLocations(updatedLocs);
+      setNewLocationInput('');
+      setLocationSuggestions([]);
+      Alert.alert('Success', `Location '${cityName}' added.`);
+      await loadProfile();
+    } catch (err) {
+      console.warn('Add location error:', err);
+      Alert.alert('Error', err.response?.data?.message || err.message || 'Failed to add location.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddLocation = async () => {
+    const cityName = cleanCityName(newLocationInput);
+    if (!cityName) {
+      Alert.alert('Validation Error', 'Please enter a valid city name.');
+      return;
+    }
+    if (locations.some(l => l.toLowerCase() === cityName.toLowerCase())) {
+      Alert.alert('Duplicate', 'This city is already added.');
+      return;
+    }
+
+    const updatedLocs = [...locations, cityName];
+    const locString = updatedLocs.join(' | ');
+    try {
+      setLoading(true);
+      await updateArtistProfile({
+        location: locString,
+        profile: {
+          location: locString,
+        },
+      });
+      setLocations(updatedLocs);
+      setNewLocationInput('');
+      setLocationSuggestions([]);
+      Alert.alert('Success', `Location '${cityName}' added.`);
+      await loadProfile();
+    } catch (err) {
+      console.warn('Add location error:', err);
+      Alert.alert('Error', err.response?.data?.message || err.message || 'Failed to add location.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveLocation = async (locToRemove) => {
+    const updatedLocs = locations.filter(l => l !== locToRemove);
+    const locString = updatedLocs.join(' | ');
+    try {
+      setLoading(true);
+      await updateArtistProfile({
+        location: locString,
+        profile: {
+          location: locString,
+        },
+      });
+      setLocations(updatedLocs);
+      Alert.alert('Success', `Location '${locToRemove}' removed.`);
+      await loadProfile();
+    } catch (err) {
+      console.warn('Remove location error:', err);
+      Alert.alert('Error', err.response?.data?.message || err.message || 'Failed to remove location.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Certificate Management
+  const handleAddCertificate = () => {
+    launchImageLibrary({ mediaType: 'photo', quality: 0.8 }, async (response) => {
+      if (response.didCancel || response.errorCode || !response.assets?.[0]) return;
+      const asset = response.assets[0];
+      try {
+        setLoading(true);
+        const uploadedUrl = await uploadFile({
+          uri: asset.uri,
+          name: asset.fileName || 'certificate.jpg',
+          type: asset.type || 'image/jpeg',
+        });
+
+        const newCert = {
+          fileName: asset.fileName || 'Certificate',
+          fileUrl: uploadedUrl,
+          certificateNumber: newCertNumber.trim(),
+          instituteName: newCertInstitute.trim(),
+        };
+
+        const updatedCerts = [...certificates, newCert];
+        await updateArtistProfile({ certificates: updatedCerts });
+        setCertificates(updatedCerts);
+        setNewCertInstitute('');
+        setNewCertNumber('');
+        Alert.alert('Success', 'Certificate added successfully.');
+        await loadProfile();
+      } catch (err) {
+        Alert.alert('Error', err.message || 'Failed to upload certificate.');
+      } finally {
+        setLoading(false);
+      }
+    });
+  };
+
+  const handleRemoveCertificate = async (indexToRemove) => {
+    const updatedCerts = certificates.filter((_, idx) => idx !== indexToRemove);
+    try {
+      setLoading(true);
+      await updateArtistProfile({ certificates: updatedCerts });
+      setCertificates(updatedCerts);
+      Alert.alert('Success', 'Certificate removed.');
+      await loadProfile();
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to remove certificate.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const startAdjustingImage = (index) => {
@@ -379,29 +710,75 @@ const ArtistProfileScreen = ({ onBack }) => {
   };
 
   const handleCreatePost = async () => {
+    if (!newPostBeforeImage) {
+      Alert.alert('Before Photo Required', 'Please select a Before photo for your work post.');
+      return;
+    }
+
     if (newPostImages.length === 0) {
-      Alert.alert('Error', 'Please select at least one image.');
+      Alert.alert('After Photo Required', 'Please select at least one After work photo.');
       return;
     }
 
-    if (newPostImages.length > 10) {
-      Alert.alert('Limit Exceeded', 'You can post a maximum of 10 photos at once.');
+    const selectedTag = newPostTag.trim() || 'Bridal';
+    const specExists = specializations.some(s => s.toLowerCase() === selectedTag.toLowerCase());
+
+    if (!specExists) {
+      Alert.alert(
+        'Add Specialization to Profile?',
+        `'${selectedTag}' is not in your profile specializations list. Would you like to add it to your profile specializations now before publishing?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Add & Publish',
+            onPress: () => processPostCreation(selectedTag, true),
+          },
+        ]
+      );
       return;
     }
 
+    await processPostCreation(selectedTag, false);
+  };
+
+  const processPostCreation = async (tag, isNewSpec) => {
     try {
       setUploading(true);
-      const uploadPromises = newPostImages.map(img => 
-        uploadFile({
+
+      // Upload Before Image
+      const beforeUrl = await uploadFile({
+        uri: newPostBeforeImage.uri,
+        name: newPostBeforeImage.fileName || 'before_look.jpg',
+        type: newPostBeforeImage.type || 'image/jpeg',
+      });
+
+      // Upload After Images
+      const uploadedAfterUrls = [];
+      for (const img of newPostImages) {
+        const url = await uploadFile({
           uri: img.uri,
           name: img.fileName,
           type: img.type,
-        })
-      );
-      const uploadedUrls = await Promise.all(uploadPromises);
+          fileSize: img.fileSize,
+        });
+        uploadedAfterUrls.push(url);
+      }
+
+      let currentSpecs = [...specializations];
+      let currentServices = [...services];
+
+      if (isNewSpec) {
+        currentSpecs.push(tag);
+        currentServices.push({
+          specialization: tag,
+          priceRange: '₹5,000 - ₹15,000',
+        });
+      }
 
       const newPostItem = {
-        images: uploadedUrls.map((url, index) => {
+        beforeImageUrl: beforeUrl,
+        afterImageUrl: uploadedAfterUrls[0],
+        images: uploadedAfterUrls.map((url, index) => {
           const img = newPostImages[index];
           return {
             url,
@@ -411,18 +788,21 @@ const ArtistProfileScreen = ({ onBack }) => {
           };
         }),
         description: newPostDesc,
-        tag: newPostTag.trim() || 'Makeup Work',
+        tag,
       };
 
       const updatedPortfolio = [...(profile.portfolio || []), newPostItem];
 
       await updateArtistProfile({
+        specializations: currentSpecs,
+        services: currentServices,
         portfolio: updatedPortfolio,
       });
 
-      Alert.alert('Success', 'Portfolio post added successfully!');
+      Alert.alert('Success', 'Portfolio work post published successfully!');
       setNewPostDesc('');
       setNewPostTag('Bridal');
+      setNewPostBeforeImage(null);
       setNewPostImages([]);
       setActiveModal(null);
       await loadProfile();
@@ -595,6 +975,193 @@ const ArtistProfileScreen = ({ onBack }) => {
               <Text style={styles.modalSubmitText}>Save Details</Text>
             </TouchableOpacity>
           </View>
+        );
+
+      case 'specializations':
+        return (
+          <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+            <Text style={styles.modalSubTitle}>Specializations & Pricing</Text>
+
+            <Text style={styles.inputLabel}>Current Specializations & Prices</Text>
+            {specializations.length > 0 ? (
+              specializations.map((spec, idx) => {
+                const serviceObj = services.find(s => s.specialization === spec);
+                const price = serviceObj?.priceRange || '₹5,000 - ₹15,000';
+                return (
+                  <View key={idx} style={styles.specManageRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.specManageTitle}>{spec}</Text>
+                      <Text style={styles.specManagePrice}>Price: {price}</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => handleRemoveSpecialization(spec)}>
+                      <Ionicons name="trash-outline" size={20} color="#FF4D4F" />
+                    </TouchableOpacity>
+                  </View>
+                );
+              })
+            ) : (
+              <Text style={{ fontSize: 13, color: '#8A7D77', marginBottom: 12, fontFamily: 'serif' }}>
+                No specializations added yet.
+              </Text>
+            )}
+
+            <View style={{ borderTopWidth: 1, borderTopColor: '#FFE4ED', paddingTop: 16, marginTop: 12 }}>
+              <Text style={styles.inputLabel}>Add New Specialization</Text>
+              <TextInput
+                style={styles.textInput}
+                value={newSpecName}
+                onChangeText={setNewSpecName}
+                placeholder="e.g. Bridal Makeup, Airbrush..."
+                placeholderTextColor="#B7A9A1"
+              />
+
+              <Text style={styles.inputLabel}>Price / Price Range</Text>
+              <TextInput
+                style={styles.textInput}
+                value={newSpecPrice}
+                onChangeText={setNewSpecPrice}
+                placeholder="e.g. ₹10,000 or ₹15,000 - ₹25,000"
+                placeholderTextColor="#B7A9A1"
+              />
+
+              <TouchableOpacity style={styles.modalSubmitButton} onPress={handleAddSpecialization}>
+                <Text style={styles.modalSubmitText}>Add Specialization & Price</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        );
+
+      case 'locations':
+        return (
+          <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+            <Text style={styles.modalSubTitle}>Service Locations</Text>
+
+            <Text style={styles.inputLabel}>Service Locations</Text>
+            {locations.length > 0 ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 16 }}>
+                {locations.map((loc, idx) => (
+                  <View key={idx} style={styles.locationChip}>
+                    <Ionicons name="location-outline" size={14} color="#FF4F8F" style={{ marginRight: 4 }} />
+                    <Text style={styles.locationChipText}>{loc}</Text>
+                    <TouchableOpacity onPress={() => handleRemoveLocation(loc)} style={{ marginLeft: 6 }}>
+                      <Ionicons name="close-circle" size={16} color="#FF4F8F" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={{ fontSize: 13, color: '#8A7D77', marginBottom: 12, fontFamily: 'serif' }}>
+                No locations set yet.
+              </Text>
+            )}
+
+            <View style={{ borderTopWidth: 1, borderTopColor: '#FFE4ED', paddingTop: 16, marginTop: 12 }}>
+              <Text style={styles.inputLabel}>Add New Location</Text>
+              <TextInput
+                style={styles.textInput}
+                value={newLocationInput}
+                onChangeText={handleLocationInputChange}
+                placeholder="Type city or area (e.g. Nagpur, Mumbai...)"
+                placeholderTextColor="#B7A9A1"
+              />
+
+              {/* LIVE SUGGESTIONS DROPDOWN */}
+              {loadingLocSuggestions && (
+                <View style={{ paddingVertical: 8, alignItems: 'center' }}>
+                  <ActivityIndicator size="small" color="#FF4F8F" />
+                </View>
+              )}
+
+              {locationSuggestions.length > 0 ? (
+                <View style={styles.suggestionsContainer}>
+                  <Text style={styles.suggestionHeader}>Location Suggestions</Text>
+                  {locationSuggestions.slice(0, 5).map((sug, sIdx) => (
+                    <TouchableOpacity
+                      key={sIdx}
+                      style={styles.suggestionRow}
+                      onPress={() => handleSelectLocationSuggestion(sug)}
+                    >
+                      <Ionicons name="location" size={16} color="#FF4F8F" style={{ marginRight: 8 }} />
+                      <Text style={styles.suggestionText}>{sug}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : null}
+
+              {/* POPULAR CITIES CHIPS */}
+              <Text style={[styles.inputLabel, { marginTop: 12 }]}>Popular Service Cities</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row', marginBottom: 16, paddingVertical: 4 }}>
+                {POPULAR_CITIES.map((popCity, pIdx) => (
+                  <TouchableOpacity
+                    key={pIdx}
+                    style={styles.popularCityChip}
+                    onPress={() => handleSelectLocationSuggestion(popCity)}
+                  >
+                    <Ionicons name="add-circle-outline" size={14} color="#FF4F8F" style={{ marginRight: 4 }} />
+                    <Text style={styles.popularCityText}>{popCity}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <TouchableOpacity style={styles.modalSubmitButton} onPress={handleAddLocation}>
+                <Text style={styles.modalSubmitText}>Add Location</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        );
+
+      case 'certificates':
+        return (
+          <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+            <Text style={styles.modalSubTitle}>Professional Certificates</Text>
+
+            <Text style={styles.inputLabel}>My Certificates</Text>
+            {certificates.length > 0 ? (
+              certificates.map((cert, idx) => (
+                <View key={idx} style={styles.certManageRow}>
+                  <Ionicons name="ribbon-outline" size={24} color="#FF4F8F" style={{ marginRight: 12 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.certManageTitle}>{cert.fileName || 'Certificate'}</Text>
+                    {cert.instituteName ? (
+                      <Text style={styles.certManageSub}>{cert.instituteName}</Text>
+                    ) : null}
+                  </View>
+                  <TouchableOpacity onPress={() => handleRemoveCertificate(idx)}>
+                    <Ionicons name="trash-outline" size={20} color="#FF4D4F" />
+                  </TouchableOpacity>
+                </View>
+              ))
+            ) : (
+              <Text style={{ fontSize: 13, color: '#8A7D77', marginBottom: 12, fontFamily: 'serif' }}>
+                No certificates uploaded yet.
+              </Text>
+            )}
+
+            <View style={{ borderTopWidth: 1, borderTopColor: '#FFE4ED', paddingTop: 16, marginTop: 12 }}>
+              <Text style={styles.inputLabel}>Institute / Academy Name (Optional)</Text>
+              <TextInput
+                style={styles.textInput}
+                value={newCertInstitute}
+                onChangeText={setNewCertInstitute}
+                placeholder="e.g. Lakmé Academy"
+                placeholderTextColor="#B7A9A1"
+              />
+
+              <Text style={styles.inputLabel}>Certificate Number (Optional)</Text>
+              <TextInput
+                style={styles.textInput}
+                value={newCertNumber}
+                onChangeText={setNewCertNumber}
+                placeholder="e.g. CERT-982341"
+                placeholderTextColor="#B7A9A1"
+              />
+
+              <TouchableOpacity style={styles.docUploadButton} onPress={handleAddCertificate}>
+                <Ionicons name="cloud-upload-outline" size={20} color="#FF4F8F" style={{ marginRight: 8 }} />
+                <Text style={styles.docUploadText}>Select & Upload Certificate</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
         );
 
       case 'documents':
@@ -811,9 +1378,9 @@ const ArtistProfileScreen = ({ onBack }) => {
               </View>
             )}
 
-            <TouchableOpacity style={styles.docUploadButton} onPress={handleUploadWork}>
+            <TouchableOpacity style={styles.docUploadButton} onPress={() => setActiveModal('add_post')}>
               <Ionicons name="cloud-upload-outline" size={20} color="#FF4F8F" style={{ marginRight: 8 }} />
-              <Text style={styles.docUploadText}>Upload Work Photo</Text>
+              <Text style={styles.docUploadText}>Create Work Post</Text>
             </TouchableOpacity>
           </View>
         );
@@ -826,6 +1393,33 @@ const ArtistProfileScreen = ({ onBack }) => {
               <View style={styles.optionLeft}>
                 <Ionicons name="pencil-outline" size={20} color="#555" />
                 <Text style={styles.optionLabel}>Edit Profile</Text>
+              </View>
+              <Ionicons name="chevron-forward-outline" size={16} color="#8A7D77" />
+            </TouchableOpacity>
+
+            {/* Specializations & Pricing */}
+            <TouchableOpacity style={styles.optionRow} onPress={() => setActiveModal('specializations')}>
+              <View style={styles.optionLeft}>
+                <Ionicons name="sparkles-outline" size={20} color="#555" />
+                <Text style={styles.optionLabel}>Specializations & Pricing</Text>
+              </View>
+              <Ionicons name="chevron-forward-outline" size={16} color="#8A7D77" />
+            </TouchableOpacity>
+
+            {/* Service Locations */}
+            <TouchableOpacity style={styles.optionRow} onPress={() => setActiveModal('locations')}>
+              <View style={styles.optionLeft}>
+                <Ionicons name="location-outline" size={20} color="#555" />
+                <Text style={styles.optionLabel}>Service Locations</Text>
+              </View>
+              <Ionicons name="chevron-forward-outline" size={16} color="#8A7D77" />
+            </TouchableOpacity>
+
+            {/* Certificates */}
+            <TouchableOpacity style={styles.optionRow} onPress={() => setActiveModal('certificates')}>
+              <View style={styles.optionLeft}>
+                <Ionicons name="ribbon-outline" size={20} color="#555" />
+                <Text style={styles.optionLabel}>Professional Certificates</Text>
               </View>
               <Ionicons name="chevron-forward-outline" size={16} color="#8A7D77" />
             </TouchableOpacity>
@@ -905,17 +1499,18 @@ const ArtistProfileScreen = ({ onBack }) => {
         );
 
       case 'add_post':
-        const commonMakeupTags = ['Bridal', 'Party Makeup', 'HD Makeup', 'Airbrush', 'Engagement', 'Reception', 'Haldi', 'Sangeet', 'Editorial', 'Natural Look', 'Glam Makeup', 'SFX'];
-        
+        const availableTags = Array.from(new Set([...specializations, 'Bridal', 'Party Makeup', 'HD Makeup', 'Airbrush', 'Engagement', 'Haldi', 'Sangeet', 'Editorial', 'Natural Look']));
+
         return (
           <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
-            <Text style={styles.modalSubTitle}>Create New Post</Text>
-            
-            {/* Makeup Type Tag Selection */}
-            <Text style={styles.inputLabel}>Makeup Type / Specialization Tag</Text>
+            <Text style={styles.modalSubTitle}>Create Work Post</Text>
+
+            {/* Specialization Selection */}
+            <Text style={styles.inputLabel}>Specialization / Makeup Tag</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8, flexDirection: 'row' }}>
-              {commonMakeupTags.map((tag, tIdx) => {
+              {availableTags.map((tag, tIdx) => {
                 const isSelected = newPostTag === tag;
+                const isProfileSpec = specializations.some(s => s.toLowerCase() === tag.toLowerCase());
                 return (
                   <TouchableOpacity
                     key={tIdx}
@@ -927,12 +1522,17 @@ const ArtistProfileScreen = ({ onBack }) => {
                       marginRight: 8,
                       borderWidth: 1,
                       borderColor: isSelected ? '#FF4F8F' : '#FFE4ED',
+                      flexDirection: 'row',
+                      alignItems: 'center',
                     }}
                     onPress={() => setNewPostTag(tag)}
                   >
                     <Text style={{ fontSize: 12, fontWeight: '700', color: isSelected ? '#FFF' : '#FF4F8F' }}>
                       {tag}
                     </Text>
+                    {isProfileSpec ? (
+                      <Ionicons name="checkmark-circle" size={12} color={isSelected ? '#FFF' : '#FF4F8F'} style={{ marginLeft: 4 }} />
+                    ) : null}
                   </TouchableOpacity>
                 );
               })}
@@ -942,45 +1542,61 @@ const ArtistProfileScreen = ({ onBack }) => {
               style={styles.textInput}
               value={newPostTag}
               onChangeText={setNewPostTag}
-              placeholder="Or type custom makeup type..."
+              placeholder="Or type custom makeup specialization..."
               placeholderTextColor="#B7A9A1"
             />
 
-            <Text style={styles.inputLabel}>Caption / Description</Text>
+            <Text style={styles.inputLabel}>Caption / Work Description</Text>
             <TextInput
               style={[styles.textInput, { height: 75, textAlignVertical: 'top' }]}
               value={newPostDesc}
               onChangeText={setNewPostDesc}
-              placeholder="Write a caption for your work..."
+              placeholder="Write details about this look..."
               placeholderTextColor="#B7A9A1"
               multiline
             />
 
+            {/* BEFORE PHOTO SECTION (REQUIRED) */}
+            <Text style={[styles.inputLabel, { color: '#111', fontWeight: '700', marginTop: 14 }]}>
+              1. Before Photo (Required) *
+            </Text>
+            {newPostBeforeImage ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16, backgroundColor: '#FFF0F4', padding: 10, borderRadius: 12, borderWidth: 1, borderColor: '#FFE4ED' }}>
+                <Image source={{ uri: newPostBeforeImage.uri }} style={{ width: 70, height: 70, borderRadius: 8, marginRight: 12 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#111', fontFamily: 'serif' }}>Before Look Selected</Text>
+                  <Text style={{ fontSize: 11, color: '#8A7D77', fontFamily: 'serif' }}>Ready for upload</Text>
+                </View>
+                <TouchableOpacity onPress={() => setNewPostBeforeImage(null)}>
+                  <Ionicons name="trash-outline" size={22} color="#FF4D4F" />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity style={[styles.docUploadButton, { marginBottom: 16 }]} onPress={handleSelectBeforeImage}>
+                <Ionicons name="camera-outline" size={20} color="#FF4F8F" style={{ marginRight: 8 }} />
+                <Text style={styles.docUploadText}>Select Before Photo *</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* AFTER PHOTO(S) SECTION (REQUIRED) */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <Text style={styles.inputLabel}>Select Photos</Text>
+              <Text style={[styles.inputLabel, { color: '#111', fontWeight: '700' }]}>
+                2. After / Work Photo(s) (Required) *
+              </Text>
               <Text style={{ fontSize: 12, fontWeight: '700', color: newPostImages.length >= 10 ? '#FF4F8F' : '#777' }}>
                 {newPostImages.length} / 10 photos
               </Text>
             </View>
-            
+
             {newPostImages.length > 0 ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16, paddingVertical: 4 }}>
                 {newPostImages.map((img, idx) => (
                   <View key={idx} style={{ marginRight: 10, position: 'relative' }}>
                     <Image source={{ uri: img.uri }} style={{ width: 80, height: 80, borderRadius: 8 }} />
-                    
-                    {/* Crop / Adjust Image Button */}
-                    <TouchableOpacity 
-                      style={styles.adjustImageBtn} 
-                      onPress={() => startAdjustingImage(idx)}
-                    >
+                    <TouchableOpacity style={styles.adjustImageBtn} onPress={() => startAdjustingImage(idx)}>
                       <Ionicons name="crop-outline" size={14} color="#FFF" />
                     </TouchableOpacity>
-
-                    <TouchableOpacity 
-                      style={styles.removeImageBadge} 
-                      onPress={() => setNewPostImages(prev => prev.filter((_, i) => i !== idx))}
-                    >
+                    <TouchableOpacity style={styles.removeImageBadge} onPress={() => setNewPostImages(prev => prev.filter((_, i) => i !== idx))}>
                       <Ionicons name="close-circle" size={20} color="#FF4F8F" />
                     </TouchableOpacity>
                   </View>
@@ -988,26 +1604,26 @@ const ArtistProfileScreen = ({ onBack }) => {
               </ScrollView>
             ) : null}
 
-            <TouchableOpacity 
-              style={[styles.docUploadButton, newPostImages.length >= 10 && { backgroundColor: '#F5F5F5', borderColor: '#DDD' }]} 
+            <TouchableOpacity
+              style={[styles.docUploadButton, newPostImages.length >= 10 && { backgroundColor: '#F5F5F5', borderColor: '#DDD' }]}
               onPress={handleSelectPostImages}
               disabled={newPostImages.length >= 10}
             >
               <Ionicons name="images-outline" size={20} color={newPostImages.length >= 10 ? '#AAA' : '#FF4F8F'} style={{ marginRight: 8 }} />
               <Text style={[styles.docUploadText, newPostImages.length >= 10 && { color: '#AAA' }]}>
-                {newPostImages.length >= 10 ? 'Photo Limit Reached (10/10)' : 'Select Images (Max 10)'}
+                {newPostImages.length >= 10 ? 'Limit Reached (10/10)' : 'Select After Photo(s) *'}
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={[styles.modalSubmitButton, (uploading || newPostImages.length === 0) && { backgroundColor: '#E8E8E8' }]} 
+            <TouchableOpacity
+              style={[styles.modalSubmitButton, (uploading || !newPostBeforeImage || newPostImages.length === 0) && { backgroundColor: '#E8E8E8' }]}
               onPress={handleCreatePost}
-              disabled={uploading || newPostImages.length === 0}
+              disabled={uploading || !newPostBeforeImage || newPostImages.length === 0}
             >
               {uploading ? (
                 <ActivityIndicator size="small" color="#FFF" />
               ) : (
-                <Text style={styles.modalSubmitText}>Post to Profile</Text>
+                <Text style={styles.modalSubmitText}>Publish Work Post</Text>
               )}
             </TouchableOpacity>
           </ScrollView>
@@ -1123,9 +1739,44 @@ const ArtistProfileScreen = ({ onBack }) => {
 
       case 'post_detail':
         if (!selectedPost) return null;
-        const postImages = selectedPost.images && selectedPost.images.length > 0
-          ? selectedPost.images
-          : [selectedPost.afterImageUrl || selectedPost.beforeImageUrl];
+
+        let postImages = [];
+
+        // 1. Add Before photo if available
+        if (selectedPost.beforeImageUrl || selectedPost.beforeImage) {
+          postImages.push({
+            url: selectedPost.beforeImageUrl || selectedPost.beforeImage,
+            isBefore: true,
+            label: 'BEFORE',
+          });
+        }
+
+        // 2. Add all After / Work photos
+        if (Array.isArray(selectedPost.images) && selectedPost.images.length > 0) {
+          selectedPost.images.forEach(imgItem => {
+            const url = typeof imgItem === 'object' && imgItem !== null ? imgItem.url : imgItem;
+            if (url) {
+              postImages.push({
+                url,
+                scale: typeof imgItem === 'object' ? (imgItem.scale || 1) : 1,
+                translateX: typeof imgItem === 'object' ? (imgItem.translateX || 0) : 0,
+                translateY: typeof imgItem === 'object' ? (imgItem.translateY || 0) : 0,
+                isBefore: false,
+                label: 'AFTER',
+              });
+            }
+          });
+        } else if (selectedPost.afterImageUrl || selectedPost.afterImage) {
+          postImages.push({
+            url: selectedPost.afterImageUrl || selectedPost.afterImage,
+            isBefore: false,
+            label: 'AFTER',
+          });
+        }
+
+        if (postImages.length === 0) {
+          postImages = [{ url: 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?auto=format&fit=crop&w=500&q=80', isBefore: false, label: '' }];
+        }
         
         return (
           <View style={styles.modalBody}>
@@ -1188,6 +1839,21 @@ const ArtistProfileScreen = ({ onBack }) => {
                         ]}
                         resizeMode="cover"
                       />
+                      {imgItem.label ? (
+                        <View style={{
+                          position: 'absolute',
+                          top: 12,
+                          left: 12,
+                          backgroundColor: imgItem.isBefore ? 'rgba(0,0,0,0.75)' : 'rgba(255, 79, 143, 0.9)',
+                          paddingHorizontal: 10,
+                          paddingVertical: 4,
+                          borderRadius: 12,
+                        }}>
+                          <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '800', fontFamily: 'serif' }}>
+                            {imgItem.label}
+                          </Text>
+                        </View>
+                      ) : null}
                     </TouchableOpacity>
                   );
                 })}
@@ -1307,11 +1973,16 @@ const ArtistProfileScreen = ({ onBack }) => {
             </View>
             <View style={styles.ratingRow}>
               <Ionicons name="star" size={14} color="#FFC53D" />
-              <Text style={styles.ratingText}> {stats.rating} ({stats.bookingsCount})</Text>
+              <Text style={styles.ratingText}> {stats.rating > 0 ? stats.rating : '0.0'} ({stats.reviewCount || 0})</Text>
             </View>
             <View style={styles.locationRow}>
               <Ionicons name="location-outline" size={14} color="#8A7D77" />
-              <Text style={styles.locationText}> {profile.location}</Text>
+              <Text style={styles.locationText} numberOfLines={2} ellipsisMode="tail">
+                {' '}
+                {locations.length > 0
+                  ? locations.slice(0, 2).join(' • ') + (locations.length > 2 ? ` (+${locations.length - 2} more)` : '')
+                  : (profile.location || 'Location not set')}
+              </Text>
             </View>
           </View>
         </View>
@@ -1324,12 +1995,12 @@ const ArtistProfileScreen = ({ onBack }) => {
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statColumn}>
-            <Text style={styles.statValue}>{stats.rating}</Text>
+            <Text style={styles.statValue}>{stats.rating > 0 ? stats.rating : '0.0'}</Text>
             <Text style={styles.statLabel}>Rating</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statColumn}>
-            <Text style={styles.statValue}>{profile.experience || '0 Yrs'}</Text>
+            <Text style={styles.statValue}>{profile.experience ? profile.experience : 'N/A'}</Text>
             <Text style={styles.statLabel}>Experience</Text>
           </View>
         </View>
@@ -1353,15 +2024,21 @@ const ArtistProfileScreen = ({ onBack }) => {
 
             {/* PORTFOLIO POSTS */}
             {profile.portfolio && profile.portfolio.map((item, index) => {
-              const firstImage = item.images && item.images.length > 0 ? item.images[0] : null;
+              const hasBefore = Boolean(item.beforeImageUrl || item.beforeImage);
+              const afterCount = Array.isArray(item.images) ? item.images.length : (item.afterImageUrl || item.afterImage ? 1 : 0);
+              const totalPhotosCount = (hasBefore ? 1 : 0) + afterCount;
+
+              const firstImage = (item.images && item.images.length > 0)
+                ? item.images[0]
+                : (item.afterImageUrl || item.afterImage || item.beforeImageUrl || item.beforeImage);
               const isObject = typeof firstImage === 'object' && firstImage !== null;
               const imgUrl = isObject 
                 ? firstImage.url 
-                : (firstImage || item.afterImageUrl || item.beforeImageUrl || 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?auto=format&fit=crop&w=200&q=80');
+                : (firstImage || 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?auto=format&fit=crop&w=200&q=80');
               const scale = isObject ? (firstImage.scale || 1) : 1;
               const translateX = isObject ? (firstImage.translateX || 0) : 0;
               const translateY = isObject ? (firstImage.translateY || 0) : 0;
-              const isMultiImage = item.images && item.images.length > 1;
+              const isMultiImage = totalPhotosCount > 1;
 
               return (
                 <TouchableOpacity 
@@ -2269,6 +2946,126 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#111',
+    fontFamily: 'serif',
+  },
+
+  // Management Styles (Specializations, Locations, Certificates)
+  specManageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFF0F4',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#FFE4ED',
+  },
+  specManageTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111',
+    fontFamily: 'serif',
+  },
+  specManagePrice: {
+    fontSize: 12,
+    color: '#FF4F8F',
+    fontWeight: '600',
+    fontFamily: 'serif',
+    marginTop: 2,
+  },
+  locationChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF0F4',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#FFE4ED',
+  },
+  locationChipText: {
+    fontSize: 12,
+    color: '#111',
+    fontWeight: '600',
+    fontFamily: 'serif',
+  },
+  certManageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF0F4',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#FFE4ED',
+  },
+  certManageTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#111',
+    fontFamily: 'serif',
+  },
+  certManageSub: {
+    fontSize: 11,
+    color: '#8A7D77',
+    fontFamily: 'serif',
+  },
+
+  // Suggestions & Popular Cities Styles
+  suggestionsContainer: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FFE4ED',
+    marginBottom: 14,
+    padding: 8,
+    maxHeight: 180,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  suggestionHeader: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#8A7D77',
+    marginBottom: 6,
+    paddingHorizontal: 6,
+    fontFamily: 'serif',
+  },
+  suggestionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#FFF0F4',
+  },
+  suggestionText: {
+    fontSize: 13,
+    color: '#111',
+    fontWeight: '600',
+    fontFamily: 'serif',
+  },
+  popularCityChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF0F4',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#FFE4ED',
+  },
+  popularCityText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FF4F8F',
     fontFamily: 'serif',
   },
 });

@@ -23,6 +23,9 @@ const ArtistPayment = sequelize.define("ArtistPayment", {
   upiId: {
     type: DataTypes.STRING,
   },
+}, {
+  timestamps: true,
+  paranoid: true,
 });
 
 Artist.hasOne(ArtistPayment, { foreignKey: "artistId", as: "payment" });

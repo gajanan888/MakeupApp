@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Geolocation from '@react-native-community/geolocation';
 import { getArtistDashboard, getArtistProfile } from '../../api/auth';
 import ArtistBookingDetailModal from './ArtistBookingDetailModal';
@@ -64,6 +64,12 @@ const ArtistDashboardScreen = ({ onNavigate }) => {
   useEffect(() => {
     fetchDashboardData(true);
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchDashboardData(false);
+    }, [])
+  );
 
   useEffect(() => {
     let active = true;

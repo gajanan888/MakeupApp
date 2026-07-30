@@ -62,7 +62,7 @@ const SPECIALIZATIONS = [
   'Others',
 ];
 
-const MAX_CERTIFICATE_SIZE = 2 * 1024 * 1024;
+const MAX_CERTIFICATE_SIZE = 5 * 1024 * 1024;
 const ALLOWED_CERTIFICATE_TYPES = new Set([
   'application/pdf',
   'application/msword',
@@ -190,8 +190,8 @@ const ArtistRegisterScreen3 = ({ navigation, route }) => {
       }
 
       if (fileSize > MAX_CERTIFICATE_SIZE) {
-        setCertificateError(index, 'File must be under 2MB.');
-        Alert.alert('File too large', 'Please select a file under 2MB.');
+        setCertificateError(index, 'File must be under 5MB.');
+        Alert.alert('File too large', 'Please select a file under 5MB.');
         return;
       }
 
@@ -398,7 +398,7 @@ const ArtistRegisterScreen3 = ({ navigation, route }) => {
                       {cert.file?.name || 'Pick certificate file'}
                     </Text>
                     <Text style={styles.fileHelperText}>
-                      PDF or any file under 2MB
+                      PDF or any file under 5MB
                     </Text>
                   </View>
 

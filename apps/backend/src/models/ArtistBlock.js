@@ -19,6 +19,9 @@ const ArtistBlock = sequelize.define("ArtistBlock", {
     type: DataTypes.STRING,
     allowNull: false,
   },
+}, {
+  timestamps: true,
+  paranoid: true,
 });
 
 Artist.hasMany(ArtistBlock, { foreignKey: "artistId", as: "blocks" });

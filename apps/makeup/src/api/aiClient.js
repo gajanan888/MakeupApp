@@ -3,19 +3,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 const AI_API_BASE_URLS = [
-  'http://172.19.20.151:5000',   // Active Wi-Fi IP (Current network host) via Express proxy
-  'http://127.0.0.1:5000',       // adb reverse loopback fallback
+  'http://127.0.0.1:5000',       // adb reverse loopback (instant USB connection)
+  'http://192.168.29.53:5000',   // Active Wi-Fi IP (Current network host)
   'http://localhost:5000',       // localhost fallback
   'http://10.0.2.2:5000',        // Android Emulator loopback
-  'http://192.168.56.1:5000',    // VirtualBox host-only
-  'http://172.19.20.153:8000',
-  'http://10.103.15.179:8000',
-  'http://10.0.2.2:8000',
-  'http://localhost:8000',
+  'http://192.168.29.53:8000',   // Direct FastAPI port
 ];
 
 const aiApi = axios.create({
   baseURL: AI_API_BASE_URLS[0],
+  
   timeout: 30000,
 });
 

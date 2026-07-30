@@ -9,7 +9,7 @@ class PreviewSettings(BaseSettings):
     app_name: str = "AI Virtual Makeup Preview API"
     api_v1_prefix: str = "/api/v1"
     
-    database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/makeup_app"
+    database_url: str = "sqlite:///./ai_backend.db"
     gemini_api_key: str = ""
     hf_api_token: str = ""
     hf_image_model: str = "runwayml/stable-diffusion-v1-5"

@@ -29,6 +29,9 @@ const Customer = sequelize.define("Customer", {
     type: DataTypes.STRING,
     allowNull: true,
   },
+}, {
+  timestamps: true,
+  paranoid: true,
 });
 Customer.belongsToMany(Artist, { through: Wishlist, as: 'wishlistedArtists', foreignKey: 'customerId' });
 Artist.belongsToMany(Customer, { through: Wishlist, as: 'wishlistedBy', foreignKey: 'artistId' });

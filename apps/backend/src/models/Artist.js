@@ -43,7 +43,9 @@ const Artist = sequelize.define("Artist", {
     type: DataTypes.DATE,
     allowNull: true,
   },
-  // keep Artist model minimal; profile and related fields moved to normalized tables
+}, {
+  timestamps: true,
+  paranoid: true,
 });
 
 export default Artist;

@@ -20,6 +20,9 @@ const Admin = sequelize.define("Admin", {
     allowNull: false,
     defaultValue: "super_admin",
   },
+}, {
+  timestamps: true,
+  paranoid: true,
 });
 
 export default Admin;

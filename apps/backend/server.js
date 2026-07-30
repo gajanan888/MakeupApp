@@ -43,7 +43,8 @@ const makeProxy = (pathPrefix) => (req, res) => {
 };
 
 app.use("/api/v1", makeProxy("/api/v1"));
-app.use("/api/artist", makeProxy("/api/artist"));
+app.use("/api/artist/upload-portfolio", makeProxy("/api/artist/upload-portfolio"));
+app.use("/api/artist/recommend", makeProxy("/api/artist/recommend"));
 app.use("/generated", makeProxy("/generated"));
 
 // Body parsers for all other Express routes
@@ -70,15 +71,31 @@ async function bootstrapDatabase() {
 
     // TEMPORARY FIX: Inject missing Razorpay columns into Supabase because migrations got out of sync
     const qi = sequelize.getQueryInterface();
+    try { await qi.addColumn("Bookings", "date", { type: "VARCHAR(255)" }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "time", { type: "VARCHAR(255)" }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "category", { type: "VARCHAR(255)" }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "price", { type: "INTEGER", defaultValue: 0 }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "status", { type: "VARCHAR(255)", defaultValue: "pending" }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "location", { type: "VARCHAR(255)" }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "addOns", { type: "TEXT" }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "totalPaid", { type: "INTEGER", defaultValue: 0 }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "rejectionReason", { type: "VARCHAR(255)" }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "advanceAmount", { type: "INTEGER", defaultValue: 0 }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "advancePaid", { type: "BOOLEAN", defaultValue: false }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "paymentDeadline", { type: "TIMESTAMP WITH TIME ZONE" }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "cancelledBy", { type: "VARCHAR(255)" }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "cancellationReason", { type: "VARCHAR(255)" }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "refundAmount", { type: "INTEGER", defaultValue: 0 }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "refundStatus", { type: "VARCHAR(255)", defaultValue: "none" }); } catch (e) {}
     try { await qi.addColumn("Bookings", "razorpayOrderId", { type: "VARCHAR(255)" }); } catch (e) {}
-    try { await qi.addColumn("Bookings", "razorpayPaymentId", { type: "VARCHAR(255)", unique: true }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "razorpayPaymentId", { type: "VARCHAR(255)" }); } catch (e) {}
     try { await qi.addColumn("Bookings", "paymentStatus", { type: "VARCHAR(255)", allowNull: false, defaultValue: "unpaid" }); } catch (e) {}
     try { await qi.addColumn("Bookings", "paymentMethod", { type: "VARCHAR(255)" }); } catch (e) {}
     try { await qi.addColumn("Bookings", "paidAt", { type: "TIMESTAMP WITH TIME ZONE" }); } catch (e) {}
     try { await qi.addColumn("Bookings", "paymentFailureReason", { type: "VARCHAR(255)" }); } catch (e) {}
     try { await qi.addColumn("Bookings", "paymentGateway", { type: "VARCHAR(255)", allowNull: false, defaultValue: "razorpay" }); } catch (e) {}
     try { await qi.addColumn("Bookings", "artistPenalty", { type: "INTEGER", allowNull: true, defaultValue: 0 }); } catch (e) {}
-    console.log("Missing Razorpay columns synced successfully.");
+    console.log("Missing Razorpay & Bookings columns synced successfully.");
 
     // Inject missing ArtistProfiles columns
     try { await qi.addColumn("ArtistProfiles", "parlourName", { type: "VARCHAR(255)" }); } catch (e) {}
@@ -95,12 +112,26 @@ async function bootstrapDatabase() {
     console.log("Missing ArtistPortfolios columns synced successfully.");
 
     // Inject email verification columns into Artists
+    try { await qi.addColumn("Artists", "isVerified", { type: "BOOLEAN", defaultValue: true }); } catch (e) {}
     try { await qi.addColumn("Artists", "verificationCode", { type: "VARCHAR(255)" }); } catch (e) {}
     try { await qi.addColumn("Artists", "verificationCodeExpires", { type: "TIMESTAMP WITH TIME ZONE" }); } catch (e) {}
     try { await qi.addColumn("Artists", "isEmailVerified", { type: "BOOLEAN", defaultValue: false }); } catch (e) {}
     try { await qi.addColumn("Artists", "emailVerificationToken", { type: "VARCHAR(255)" }); } catch (e) {}
     try { await qi.addColumn("Artists", "emailVerificationExpires", { type: "TIMESTAMP WITH TIME ZONE" }); } catch (e) {}
-    console.log("Email verification columns for Artists synced successfully.");
+    // Inject Customers columns
+    try { await qi.addColumn("Customers", "profileImage", { type: "VARCHAR(255)" }); } catch (e) {}
+
+    // Inject deletedAt soft-delete columns across all tables
+    const tablesForParanoid = [
+      "Bookings", "Customers", "Artists", "ArtistProfiles",
+      "ArtistServices", "ArtistPortfolios", "ArtistPayments",
+      "ArtistCertificates", "ArtistSpecializations", "ArtistBlocks",
+      "Reviews", "Messages", "Wishlists", "CallLogs", "ActivityLogs", "Admins"
+    ];
+    for (const table of tablesForParanoid) {
+      try { await qi.addColumn(table, "deletedAt", { type: "TIMESTAMP WITH TIME ZONE", allowNull: true }); } catch (e) {}
+    }
+    console.log("Soft-delete (deletedAt) columns verified on all database tables.");
 
     // Auto-create EmailOtps table if it doesn't exist
     await EmailOtp.sync();
