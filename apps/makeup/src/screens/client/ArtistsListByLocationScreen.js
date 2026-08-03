@@ -41,7 +41,7 @@ const ArtistsListByLocationScreen = ({ navigation, route }) => {
 
   const renderArtistItem = ({ item }) => {
     const spec = item.specializations?.[0]?.name || 'Makeup Artist';
-    const rating = item.profile?.rating ? item.profile.rating.toFixed(1) : '4.5';
+    const rating = item.profile?.rating && Number(item.profile.rating) > 0 ? Number(item.profile.rating).toFixed(1) : 'New';
     const reviews = item.profile?.reviewCount || 0;
 
     return (
@@ -70,10 +70,17 @@ const ArtistsListByLocationScreen = ({ navigation, route }) => {
           <View style={styles.ratingRow}>
             <Ionicons name="star" size={14} color="#FFB800" style={{ marginRight: 2 }} />
             <Text style={styles.ratingValue}>{rating}</Text>
-            <View style={styles.glamBadgeChip}>
-              <Ionicons name="sparkles" size={11} color="#FF4F87" style={{ marginRight: 2 }} />
-              <Text style={styles.glamBadgeText}>{item.glamScore ? Number(item.glamScore).toFixed(1) : '95.0'} Glam Score</Text>
-            </View>
+            {item.glamScore ? (
+              <View style={styles.glamBadgeChip}>
+                <Ionicons name="sparkles" size={11} color="#FF4F87" style={{ marginRight: 2 }} />
+                <Text style={styles.glamBadgeText}>{Number(item.glamScore).toFixed(1)} Glam Score</Text>
+              </View>
+            ) : (
+              <View style={[styles.glamBadgeChip, { backgroundColor: '#E6FFFA', borderColor: '#B2F5EA' }]}>
+                <Ionicons name="sparkles" size={11} color="#00B894" style={{ marginRight: 2 }} />
+                <Text style={[styles.glamBadgeText, { color: '#00796B' }]}>New Artist</Text>
+              </View>
+            )}
           </View>
         </View>
 

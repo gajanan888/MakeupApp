@@ -107,6 +107,16 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
   const isCompleted = booking?.rawStatus === 'completed';
   const isCancelled = ['cancelled', 'rejected'].includes(booking?.rawStatus);
 
+  let addOnsList = [];
+  const rawAddOns = booking.rawBooking?.addOns || booking.addOns;
+  if (rawAddOns) {
+    if (Array.isArray(rawAddOns)) {
+      addOnsList = rawAddOns;
+    } else if (typeof rawAddOns === 'object') {
+      addOnsList = [rawAddOns];
+    }
+  }
+
   return (
     <Modal
       animationType="slide"
@@ -190,6 +200,24 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
                 <Text style={styles.locationText}>{displayAddress}</Text>
               </View>
             </View>
+
+            {/* EXTRA CUSTOMERS & SERVICES */}
+            {addOnsList && addOnsList.length > 0 && (
+              <View style={{ marginBottom: 15 }}>
+                <Text style={styles.sectionTitle}>EXTRA CUSTOMERS & SERVICES</Text>
+                <View style={styles.addOnsCard}>
+                  {addOnsList.map((item, index) => (
+                    <View key={item.id || index} style={styles.addOnRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.addOnName}>👥 {item.count || 1}x {item.service || item.name || 'Makeup Service'}</Text>
+                        {item.notes ? <Text style={styles.addOnNotes}>{item.notes}</Text> : null}
+                      </View>
+                      <Text style={styles.addOnPrice}>+₹{(item.totalPrice || ((item.unitPrice || item.price || 0) * (item.count || 1)) || 0).toLocaleString('en-IN')}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
 
             {/* PAYMENT INVOICE BREAKDOWN */}
             <Text style={styles.sectionTitle}>PAYMENT BREAKDOWN</Text>
@@ -779,6 +807,38 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#FFF',
+    fontFamily: 'serif',
+  },
+  addOnsCard: {
+    backgroundColor: '#FFF0F4',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#FFE4ED',
+  },
+  addOnRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  addOnName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#5E1735',
+    fontFamily: 'serif',
+  },
+  addOnNotes: {
+    fontSize: 11,
+    color: '#8A7D77',
+    fontFamily: 'serif',
+    marginTop: 2,
+  },
+  addOnPrice: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FF4F8F',
     fontFamily: 'serif',
   },
 });

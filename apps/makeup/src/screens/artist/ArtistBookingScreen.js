@@ -70,10 +70,19 @@ const ArtistBookingScreen = ({ onBack }) => {
         }
         const formattedDate = b.time ? `${dateText} • ${b.time}` : dateText;
 
+        let addOnsList = [];
+        if (b.addOns) {
+          if (Array.isArray(b.addOns)) {
+            addOnsList = b.addOns;
+          } else if (typeof b.addOns === 'object') {
+            addOnsList = [b.addOns];
+          }
+        }
+
         return {
           id: String(b.id),
           customerId: b.customerId,
-          name: b.customer?.name || 'Client',
+          name: b.customer?.name || 'Walk-In Client',
           category: b.category || 'Makeup Service',
           date: formattedDate,
           location: b.location || 'At Client Location',
@@ -85,6 +94,8 @@ const ArtistBookingScreen = ({ onBack }) => {
           avatar,
           rawDate: b.date,
           rawTime: b.time,
+          addOns: addOnsList,
+          rawBooking: b,
         };
       });
 
@@ -299,7 +310,17 @@ const ArtistBookingScreen = ({ onBack }) => {
                       <Text style={styles.bookingMetaText}>{booking.location}</Text>
                     </View>
 
-                    <Text style={styles.bookingPrice}>{booking.price}</Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                      <Text style={styles.bookingPrice}>{booking.price}</Text>
+                      {booking.addOns && booking.addOns.length > 0 && (
+                        <View style={styles.extraBadge}>
+                          <Ionicons name="people" size={12} color="#FF4F8F" />
+                          <Text style={styles.extraBadgeText}>
+                            +{booking.addOns.reduce((sum, a) => sum + (a.count || 1), 0)} Extra
+                          </Text>
+                        </View>
+                      )}
+                    </View>
 
                     {booking.status === 'Upcoming' && (
                       <View style={styles.cardActionsContainer}>
@@ -738,6 +759,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFF',
     fontFamily: 'serif',
+  },
+  extraBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF0F4',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FFE4ED',
+  },
+  extraBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FF4F8F',
+    fontFamily: 'serif',
+    marginLeft: 4,
   },
 });
 

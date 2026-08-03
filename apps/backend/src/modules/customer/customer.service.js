@@ -5,6 +5,7 @@ import ArtistSpecialization from "../../models/ArtistSpecialization.js";
 import ArtistService from "../../models/ArtistService.js";
 import Booking from "../../models/Booking.js";
 import ArtistPortfolio from "../../models/ArtistPortfolio.js";
+import Review from "../../models/Review.js";
 
 /**
  * Calculates Bayesian Rating Score for artist ranking
@@ -24,6 +25,8 @@ const calculateBayesianScore = (artistJson, globalMean, m_r = 5) => {
   const vr = Number(artistJson.profile?.reviewCount ?? 0);
   const vb = artistJson.bookings?.length ?? 0;
 
+  const isNew = vr === 0 && vb === 0;
+
   // Bayesian Weighted Rating
   const bayesianRating = (vr / (vr + m_r)) * R + (m_r / (vr + m_r)) * globalMean;
 
@@ -35,11 +38,12 @@ const calculateBayesianScore = (artistJson, globalMean, m_r = 5) => {
   const formattedBayesianRating = parseFloat(bayesianRating.toFixed(2));
 
   // Dynamic 0-100 "Glam Score" based on Bayesian rating algorithm
-  // Base score starts at 60.0 and dynamically increases with every completed booking & review up to 99.9
+  // For new artists with 0 reviews & 0 bookings, glamScore is null (displays "New" badge)
   const rawGlamScore = 60 + (bayesianScore - 4.5) * 4.0;
-  const glamScore = Math.max(50.0, Math.min(99.9, parseFloat(rawGlamScore.toFixed(1))));
+  const glamScore = isNew ? null : Math.max(50.0, Math.min(99.9, parseFloat(rawGlamScore.toFixed(1))));
 
   return {
+    isNew,
     bayesianRating: formattedBayesianRating,
     bayesianScore,
     glamScore,
@@ -51,7 +55,6 @@ export const getArtists = async ({ minPrice, maxPrice, experience, location, id,
 
   if (id) {
     where.id = id;
-    delete where.isVerified;
   }
 
   // Fetch all verified artists to perform reliable filtering & Bayesian rating calculations
@@ -82,9 +85,14 @@ export const getArtists = async ({ minPrice, maxPrice, experience, location, id,
       {
         model: Booking,
         as: "bookings",
-        where: { status: "completed" },
         required: false,
-        attributes: ["id"],
+        attributes: ["id", "status"],
+      },
+      {
+        model: Review,
+        as: "reviews",
+        required: false,
+        attributes: ["id", "rating"],
       },
     ],
   });
@@ -100,12 +108,37 @@ export const getArtists = async ({ minPrice, maxPrice, experience, location, id,
     ? validRatings.reduce((sum, r) => sum + r, 0) / validRatings.length
     : C_r;
 
-  // Score every artist using the Bayesian rating algorithm
+  // Score every artist using the Bayesian rating algorithm and compute real live metrics
   const scoredArtists = allArtists.map((artist) => {
     const artistJson = artist.toJSON ? artist.toJSON() : artist;
+
+    const reviewsList = artistJson.reviews || [];
+    const bookingsList = artistJson.bookings || [];
+
+    const completedBookingsList = bookingsList.filter(b => b.status === "completed");
+    const totalBookingsCount = completedBookingsList.length;
+    const realReviewCount = reviewsList.length;
+
+    let realRating = 0;
+    if (realReviewCount > 0) {
+      const sum = reviewsList.reduce((acc, r) => acc + (r.rating || 0), 0);
+      realRating = Number((sum / realReviewCount).toFixed(1));
+    } else if (artistJson.profile?.rating && Number(artistJson.profile.rating) > 0) {
+      realRating = Number(artistJson.profile.rating);
+    }
+
+    if (!artistJson.profile) {
+      artistJson.profile = {};
+    }
+
+    artistJson.profile.rating = realRating;
+    artistJson.profile.reviewCount = realReviewCount;
+    artistJson.profile.bookingsCount = totalBookingsCount;
+
     const { bayesianRating, bayesianScore, glamScore } = calculateBayesianScore(artistJson, globalMean, m_r);
 
     delete artistJson.bookings;
+    delete artistJson.reviews;
 
     return {
       ...artistJson,
@@ -270,8 +303,8 @@ export const getTrendingArtists = async () => {
     };
   });
 
-  // Sort descending strictly based on Glam Score (Bayesian rating score)
-  scoredArtists.sort((a, b) => b.glamScore - a.glamScore);
+  // Sort descending strictly based on Bayesian rating score
+  scoredArtists.sort((a, b) => (b.score || 0) - (a.score || 0));
 
   // Take top 10 and attach rank details
   return scoredArtists.slice(0, 10).map((item, index) => {

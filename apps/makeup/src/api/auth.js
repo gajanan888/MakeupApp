@@ -109,6 +109,8 @@ export const rejectArtistBooking  = async (id, reason) => (await api.patch(`/api
 export const startArtistBooking   = async (id)         => (await api.patch(`/api/booking/${id}/start`))?.data;
 export const completeArtistBooking = async (id)        => (await api.patch(`/api/booking/${id}/complete`))?.data;
 export const cancelArtistBooking  = async (id, reason) => (await api.patch(`/api/booking/${id}/cancel-by-artist`, { reason }))?.data;
+export const addExtraClientsToBooking = async (id, data) => (await api.patch(`/api/booking/${id}/add-clients`, data))?.data;
+export const createArtistDirectBooking = async (data) => (await api.post('/api/booking/artist-direct', data))?.data;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CUSTOMER BOOKINGS

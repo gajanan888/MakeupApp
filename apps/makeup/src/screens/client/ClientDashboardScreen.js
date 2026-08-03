@@ -16,13 +16,12 @@ import Geolocation from '@react-native-community/geolocation';
 import { getArtists, getTrendingArtists } from '../../api/auth';
 import { getUniqueProfileImage } from '../../utils/artistImageHelper';
 import { useIsFocused } from '@react-navigation/native';
-import PRECALCULATED_TRENDING_ARTISTS from '../../data/trendingArtistsData';
 
 const ClientDashboardScreen = ({ navigation, onNavigate }) => {
   const isFocused = useIsFocused();
   const [customerName, setCustomerName] = useState('');
   const [artists, setArtists] = useState([]);
-  const [trendingArtists, setTrendingArtists] = useState(PRECALCULATED_TRENDING_ARTISTS);
+  const [trendingArtists, setTrendingArtists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingTrending, setLoadingTrending] = useState(false);
   const [locationName, setLocationName] = useState('Detecting location...');
@@ -254,7 +253,7 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
   }, [isFocused]);
 
   const displayedTrending = trendingArtists;
-  const displayedPopular = artists.length > 0 ? artists : PRECALCULATED_TRENDING_ARTISTS;
+  const displayedPopular = artists;
 
   return (
     <View style={{ flex: 1, backgroundColor: '#FAFAFA' }}>
@@ -334,7 +333,7 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
                   onPress={() => navigation.navigate('FaceScan')}
                 >
                   <Ionicons name="sparkles-outline" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
-                  <Text style={[styles.combinedCardBtnText, styles.combinedCardBtnTextSecondary]}>AI Custom Look</Text>
+                  <Text style={[styles.combinedCardBtnText, styles.combinedCardBtnTextSecondary]}>Reimagine Look</Text>
                 </TouchableOpacity>
               </View>
 
@@ -344,7 +343,7 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
                 onPress={() => navigation.navigate('ReferenceImageSearch')}
               >
                 <Ionicons name="images-outline" size={14} color="#B76E79" style={{ marginRight: 6 }} />
-                <Text style={styles.combinedCardFullWidthBtnText}>Find Artist by Image</Text>
+                <Text style={styles.combinedCardFullWidthBtnText}>Get Your Artist by Image</Text>
               </TouchableOpacity>
             </View>
 
@@ -451,9 +450,9 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
                   <View style={styles.ratingBadge}>
                     <Ionicons name="star" size={12} color="#FFB800" />
                     <Text style={styles.ratingBadgeText}>
-                      {artist.profile?.rating
-                        ? `${artist.profile.rating.toFixed(1)}`
-                        : '4.5'}
+                      {artist.profile?.rating && Number(artist.profile.rating) > 0
+                        ? `${Number(artist.profile.rating).toFixed(1)}`
+                        : 'New'}
                     </Text>
                   </View>
                   {/* Heart / Wishlist button */}
@@ -544,7 +543,7 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
                 <View style={styles.popularRatingBox}>
                   <Ionicons name="star" size={14} color="#FFB800" />
                   <Text style={styles.popularRatingText}>
-                    {artist.profile?.rating ? Number(artist.profile.rating).toFixed(1) : '4.5'}
+                    {artist.profile?.rating && Number(artist.profile.rating) > 0 ? Number(artist.profile.rating).toFixed(1) : 'New'}
                   </Text>
                 </View>
                 <TouchableOpacity

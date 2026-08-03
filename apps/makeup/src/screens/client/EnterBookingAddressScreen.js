@@ -18,12 +18,13 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getSavedAddresses, addSavedAddress } from '../../utils/addressStorage';
 import ScreenHeader from '../../components/ScreenHeader';
+import { isLocationMatch, getCleanCityName } from '../../utils/locationHelper';
 
 const LOCATIONIQ_KEY = 'pk.a74ba553bc5de1a0d26527268257f8d4';
 
 const EnterBookingAddressScreen = ({ navigation, route }) => {
   const { artist } = route.params;
-  const artistCity = artist.profile?.location || 'Pune';
+  const artistCity = getCleanCityName(artist.profile?.location) || artist.profile?.location || 'Pune';
 
   const scrollRef = useRef(null);
   const [savedAddresses, setSavedAddresses] = useState([]);
@@ -158,10 +159,10 @@ const EnterBookingAddressScreen = ({ navigation, route }) => {
         }
       }
     }
-    if (!city) city = 'Pune';
+    if (!city) city = address.addressLine || 'Pune';
 
-    if (city.toLowerCase().trim() !== artistCity.toLowerCase().trim()) {
-      const msg = `Artist is far from your location. ${artist.name} is located in ${artistCity}, but this address is in ${city}.`;
+    if (artist.profile?.location && !isLocationMatch(city, artist.profile.location)) {
+      const msg = `Artist is located in ${artistCity}, but this address is in ${city}.`;
       setErrorMessage(msg);
       Alert.alert('Unavailable', 'Artist is far from your location');
       return;
@@ -199,7 +200,7 @@ const EnterBookingAddressScreen = ({ navigation, route }) => {
       setSaving(true);
       setErrorMessage('');
 
-      // Validate PIN Code matches selected City via LocationIQ
+      // Validate PIN Code via LocationIQ
       let pinValid = false;
       try {
         const response = await fetch(
@@ -207,12 +208,7 @@ const EnterBookingAddressScreen = ({ navigation, route }) => {
         );
         const data = await response.json();
         if (Array.isArray(data) && data.length > 0) {
-          const place = data[0];
-          const displayName = (place.display_name || '').toLowerCase();
-          const cityLower = addressCity.toLowerCase();
-          if (displayName.includes(cityLower)) {
-            pinValid = true;
-          }
+          pinValid = true; // Valid 6-digit PIN code in India
         }
       } catch (err) {
         console.warn('PIN Code validation API error:', err);
@@ -222,15 +218,15 @@ const EnterBookingAddressScreen = ({ navigation, route }) => {
       if (!pinValid) {
         Alert.alert(
           'Invalid PIN Code',
-          `The PIN Code ${addressPinCode} does not belong to the selected city: ${addressCity}.`
+          `The PIN Code ${addressPinCode} could not be validated.`
         );
         setSaving(false);
         return;
       }
 
       // Check if selected address city matches the artist's city
-      if (addressCity.toLowerCase().trim() !== artistCity.toLowerCase().trim()) {
-        const msg = `Artist is far from your location. ${artist.name} is located in ${artistCity}, but your booking address is in ${addressCity}.`;
+      if (artist.profile?.location && !isLocationMatch(addressCity, artist.profile.location)) {
+        const msg = `Artist is located in ${artistCity}, but your booking address is in ${addressCity}.`;
         setErrorMessage(msg);
         Alert.alert('Unavailable', 'Artist is far from your location');
         setSaving(false);

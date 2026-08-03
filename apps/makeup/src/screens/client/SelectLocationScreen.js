@@ -329,7 +329,7 @@ const SelectLocationScreen = ({ navigation, route }) => {
     try {
       setSavingAddress(true);
 
-      // Validate PIN Code matches selected City via LocationIQ
+      // Validate PIN Code via LocationIQ
       let pinValid = false;
       try {
         const response = await fetch(
@@ -337,23 +337,17 @@ const SelectLocationScreen = ({ navigation, route }) => {
         );
         const data = await response.json();
         if (Array.isArray(data) && data.length > 0) {
-          const place = data[0];
-          const displayName = (place.display_name || '').toLowerCase();
-          const cityLower = newAddressCity.toLowerCase();
-          if (displayName.includes(cityLower)) {
-            pinValid = true;
-          }
+          pinValid = true; // Valid PIN code in India
         }
       } catch (err) {
         console.warn('PIN Code validation API error:', err);
-        // Fallback for network issues: skip strict check but log warning
         pinValid = true;
       }
 
       if (!pinValid) {
         Alert.alert(
           'Invalid PIN Code',
-          `The PIN Code ${newAddressPinCode} does not belong to the selected city: ${newAddressCity}.`
+          `The PIN Code ${newAddressPinCode} could not be validated.`
         );
         setSavingAddress(false);
         return;

@@ -22,9 +22,58 @@ import { getArtistProfile, updateArtistProfile, getArtistDashboard, changeArtist
 import { launchImageLibrary } from 'react-native-image-picker';
 import { uploadFile } from '../../api/files';
 
+const DURATION_OPTIONS = [
+  '15 mins',
+  '30 mins',
+  '45 mins',
+  '1 hour',
+  '1.5 hours',
+  '2 hours',
+  '2.5 hours',
+  '3 hours',
+  '3.5 hours',
+  '4 hours',
+  '4.5 hours',
+  '5 hours',
+  '6 hours',
+  '7 hours',
+  '8 hours',
+];
+
 const ArtistProfileScreen = ({ onBack }) => {
   const navigation = useNavigation();
   const [loading, setLoading] = useState(true);
+  const [updatingAvatar, setUpdatingAvatar] = useState(false);
+
+  const handleUpdateProfileImage = async () => {
+    launchImageLibrary({ mediaType: 'photo', quality: 0.8 }, async (response) => {
+      if (response.didCancel || response.errorCode || !response.assets?.[0]) return;
+      const asset = response.assets[0];
+      try {
+        setUpdatingAvatar(true);
+        const imageUrl = await uploadFile({
+          uri: asset.uri,
+          name: asset.fileName || 'profile_image.jpg',
+          type: asset.type || 'image/jpeg',
+        });
+
+        await updateArtistProfile({
+          profileImage: imageUrl,
+          profile: {
+            profileImage: imageUrl,
+          },
+        });
+
+        setProfile((prev) => ({ ...prev, profileImage: imageUrl }));
+        Alert.alert('Success', 'Profile picture updated successfully!');
+      } catch (err) {
+        console.warn('Failed to update profile picture:', err);
+        Alert.alert('Error', err.message || 'Failed to update profile picture.');
+      } finally {
+        setUpdatingAvatar(false);
+      }
+    });
+  };
 
   // Profile States
   const [profile, setProfile] = useState({
@@ -83,7 +132,13 @@ const ArtistProfileScreen = ({ onBack }) => {
   const [specializations, setSpecializations] = useState([]);
   const [services, setServices] = useState([]);
   const [newSpecName, setNewSpecName] = useState('');
+  const [newSpecDuration, setNewSpecDuration] = useState('');
   const [newSpecPrice, setNewSpecPrice] = useState('');
+  const [editingSpecName, setEditingSpecName] = useState(null);
+  const [editSpecDuration, setEditSpecDuration] = useState('');
+  const [editSpecPrice, setEditSpecPrice] = useState('');
+  const [durationPickerVisible, setDurationPickerVisible] = useState(false);
+  const [durationPickerTarget, setDurationPickerTarget] = useState(null);
 
   const [locations, setLocations] = useState([]);
   const [newLocationInput, setNewLocationInput] = useState('');
@@ -421,19 +476,36 @@ const ArtistProfileScreen = ({ onBack }) => {
 
   // Specialization Management
   const handleAddSpecialization = async () => {
-    const trimmed = newSpecName.trim();
-    if (!trimmed) {
-      Alert.alert('Validation Error', 'Please enter a specialization name.');
+    const trimmedName = newSpecName.trim();
+    const trimmedDuration = newSpecDuration.trim();
+    const trimmedPrice = newSpecPrice.trim();
+
+    if (!trimmedName) {
+      Alert.alert('Validation Error', 'Please enter or select a specialization name.');
       return;
     }
-    if (specializations.some(s => s.toLowerCase() === trimmed.toLowerCase())) {
+    if (!trimmedDuration) {
+      Alert.alert('Validation Error', 'Please enter the required time / duration for this specialization (e.g. 2 hours).');
+      return;
+    }
+    if (!trimmedPrice) {
+      Alert.alert('Validation Error', 'Please enter the price or price range for this specialization (e.g. ₹5,000 - ₹12,000).');
+      return;
+    }
+
+    if (specializations.some(s => s.toLowerCase() === trimmedName.toLowerCase())) {
       Alert.alert('Duplicate', 'This specialization is already added to your profile.');
       return;
     }
 
-    const updatedSpecs = [...specializations, trimmed];
-    const priceRange = newSpecPrice.trim() || '₹5,000 - ₹15,000';
-    const updatedServices = [...services, { specialization: trimmed, priceRange, duration: '2-3 hrs' }];
+    const updatedSpecs = [...specializations, trimmedName];
+    const newServiceObj = {
+      specialization: trimmedName,
+      duration: trimmedDuration,
+      timeRange: 'Flexible / Any Time',
+      priceRange: trimmedPrice,
+    };
+    const updatedServices = [...services.filter(s => s.specialization !== trimmedName), newServiceObj];
 
     try {
       setLoading(true);
@@ -444,11 +516,71 @@ const ArtistProfileScreen = ({ onBack }) => {
       setSpecializations(updatedSpecs);
       setServices(updatedServices);
       setNewSpecName('');
+      setNewSpecDuration('');
       setNewSpecPrice('');
-      Alert.alert('Success', `Specialization '${trimmed}' added with price ${priceRange}.`);
+      Alert.alert('Success', `Specialization '${trimmedName}' added with Time (${trimmedDuration}) and Price (${trimmedPrice}).`);
       await loadProfile();
     } catch (err) {
       Alert.alert('Error', err.message || 'Failed to add specialization.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStartEditSpecialization = (spec) => {
+    const serviceObj = services.find(s => s.specialization === spec);
+    setEditingSpecName(spec);
+    setEditSpecDuration(serviceObj?.duration || '');
+    setEditSpecPrice(serviceObj?.priceRange || '');
+  };
+
+  const handleSaveEditSpecialization = async (spec) => {
+    const trimmedDuration = editSpecDuration.trim();
+    const trimmedPrice = editSpecPrice.trim();
+
+    if (!trimmedDuration) {
+      Alert.alert('Validation Error', 'Time / duration is required.');
+      return;
+    }
+    if (!trimmedPrice) {
+      Alert.alert('Validation Error', 'Price / price range is required.');
+      return;
+    }
+
+    let found = false;
+    const updatedServices = services.map(s => {
+      if (s.specialization === spec) {
+        found = true;
+        return {
+          ...s,
+          duration: trimmedDuration,
+          priceRange: trimmedPrice,
+        };
+      }
+      return s;
+    });
+
+    if (!found) {
+      updatedServices.push({
+        specialization: spec,
+        duration: trimmedDuration,
+        priceRange: trimmedPrice,
+        timeRange: 'Flexible / Any Time',
+      });
+    }
+
+    try {
+      setLoading(true);
+      await updateArtistProfile({
+        specializations: specializations,
+        services: updatedServices,
+      });
+      setServices(updatedServices);
+      setEditingSpecName(null);
+      Alert.alert('Success', `Specialization '${spec}' updated successfully.`);
+      await loadProfile();
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to update specialization.');
     } finally {
       setLoading(false);
     }
@@ -978,24 +1110,86 @@ const ArtistProfileScreen = ({ onBack }) => {
         );
 
       case 'specializations':
+        const QUICK_SPECS = [
+          'Bridal', 'Party Makeup', 'HD Makeup', 'Airbrush', 
+          'Engagement', 'Haldi', 'Sangeet', 'Reception', 
+          'Editorial', 'Photoshoot', 'Hair Styling', 'Saree Draping'
+        ];
+
         return (
           <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
-            <Text style={styles.modalSubTitle}>Specializations & Pricing</Text>
+            <Text style={styles.modalSubTitle}>Specializations, Time & Pricing</Text>
 
-            <Text style={styles.inputLabel}>Current Specializations & Prices</Text>
+            <Text style={styles.inputLabel}>Current Specializations & Services</Text>
             {specializations.length > 0 ? (
               specializations.map((spec, idx) => {
                 const serviceObj = services.find(s => s.specialization === spec);
-                const price = serviceObj?.priceRange || '₹5,000 - ₹15,000';
+                const price = serviceObj?.priceRange || 'Not set';
+                const duration = serviceObj?.duration || 'Not set';
+                const isEditingThis = editingSpecName === spec;
+
+                if (isEditingThis) {
+                  return (
+                    <View key={idx} style={[styles.specManageRow, { flexDirection: 'column', alignItems: 'stretch' }]}>
+                      <Text style={[styles.specManageTitle, { marginBottom: 8 }]}>Edit {spec}</Text>
+
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: '#555', marginBottom: 4 }}>Required Time / Duration *</Text>
+                      <TouchableOpacity
+                        style={[styles.textInput, { marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingRight: 14 }]}
+                        onPress={() => {
+                          setDurationPickerTarget('edit');
+                          setDurationPickerVisible(true);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={{ fontSize: 14, color: editSpecDuration ? '#111' : '#B7A9A1', fontFamily: 'serif' }}>
+                          {editSpecDuration || 'Select duration...'}
+                        </Text>
+                        <Ionicons name="chevron-down-outline" size={18} color="#FF4F8F" />
+                      </TouchableOpacity>
+
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: '#555', marginBottom: 4 }}>Price / Price Range *</Text>
+                      <TextInput
+                        style={[styles.textInput, { marginBottom: 12 }]}
+                        value={editSpecPrice}
+                        onChangeText={setEditSpecPrice}
+                        placeholder="e.g. ₹5,000 or ₹10,000 - ₹18,000"
+                        placeholderTextColor="#B7A9A1"
+                      />
+
+                      <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+                        <TouchableOpacity 
+                          style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, backgroundColor: '#E0E0E0', marginRight: 8 }}
+                          onPress={() => setEditingSpecName(null)}
+                        >
+                          <Text style={{ fontSize: 12, color: '#444', fontWeight: '700' }}>Cancel</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                          style={{ paddingHorizontal: 14, paddingVertical: 6, borderRadius: 6, backgroundColor: '#FF4F8F' }}
+                          onPress={() => handleSaveEditSpecialization(spec)}
+                        >
+                          <Text style={{ fontSize: 12, color: '#FFF', fontWeight: '700' }}>Save</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                }
+
                 return (
                   <View key={idx} style={styles.specManageRow}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.specManageTitle}>{spec}</Text>
-                      <Text style={styles.specManagePrice}>Price: {price}</Text>
+                      <Text style={styles.specManageDuration}>⏱ Time Required: {duration}</Text>
+                      <Text style={styles.specManagePrice}>💰 Price: {price}</Text>
                     </View>
-                    <TouchableOpacity onPress={() => handleRemoveSpecialization(spec)}>
-                      <Ionicons name="trash-outline" size={20} color="#FF4D4F" />
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <TouchableOpacity onPress={() => handleStartEditSpecialization(spec)} style={{ padding: 6, marginRight: 4 }}>
+                        <Ionicons name="create-outline" size={18} color="#FF4F8F" />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleRemoveSpecialization(spec)} style={{ padding: 6 }}>
+                        <Ionicons name="trash-outline" size={18} color="#FF4D4F" />
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 );
               })
@@ -1007,25 +1201,69 @@ const ArtistProfileScreen = ({ onBack }) => {
 
             <View style={{ borderTopWidth: 1, borderTopColor: '#FFE4ED', paddingTop: 16, marginTop: 12 }}>
               <Text style={styles.inputLabel}>Add New Specialization</Text>
+              
+              <Text style={{ fontSize: 11, color: '#8A7D77', marginBottom: 6 }}>Quick Select or Type below:</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10, flexDirection: 'row' }}>
+                {QUICK_SPECS.map((qSpec, qIdx) => {
+                  const isAdded = specializations.some(s => s.toLowerCase() === qSpec.toLowerCase());
+                  return (
+                    <TouchableOpacity
+                      key={qIdx}
+                      disabled={isAdded}
+                      style={{
+                        backgroundColor: isAdded ? '#F5F5F5' : (newSpecName === qSpec ? '#FF4F8F' : '#FFF0F4'),
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 16,
+                        marginRight: 6,
+                        borderWidth: 1,
+                        borderColor: isAdded ? '#E0E0E0' : '#FFE4ED',
+                      }}
+                      onPress={() => setNewSpecName(qSpec)}
+                    >
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: isAdded ? '#AAA' : (newSpecName === qSpec ? '#FFF' : '#FF4F8F') }}>
+                        {qSpec} {isAdded ? '(Added)' : ''}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              <Text style={styles.inputLabel}>Specialization Name *</Text>
               <TextInput
                 style={styles.textInput}
                 value={newSpecName}
                 onChangeText={setNewSpecName}
-                placeholder="e.g. Bridal Makeup, Airbrush..."
+                placeholder="e.g. Bridal Makeup, Airbrush, Hair Styling..."
                 placeholderTextColor="#B7A9A1"
               />
 
-              <Text style={styles.inputLabel}>Price / Price Range</Text>
+              <Text style={styles.inputLabel}>Required Time / Duration *</Text>
+              <TouchableOpacity
+                style={[styles.textInput, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingRight: 14 }]}
+                onPress={() => {
+                  setDurationPickerTarget('new');
+                  setDurationPickerVisible(true);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={{ fontSize: 14, color: newSpecDuration ? '#111' : '#B7A9A1', fontFamily: 'serif' }}>
+                  {newSpecDuration || 'Select duration...'}
+                </Text>
+                <Ionicons name="chevron-down-outline" size={18} color="#FF4F8F" />
+              </TouchableOpacity>
+
+              <Text style={styles.inputLabel}>Price / Price Range *</Text>
               <TextInput
                 style={styles.textInput}
                 value={newSpecPrice}
                 onChangeText={setNewSpecPrice}
-                placeholder="e.g. ₹10,000 or ₹15,000 - ₹25,000"
+                placeholder="e.g. ₹5,000 or ₹10,000 - ₹18,000"
                 placeholderTextColor="#B7A9A1"
               />
 
               <TouchableOpacity style={styles.modalSubmitButton} onPress={handleAddSpecialization}>
-                <Text style={styles.modalSubmitText}>Add Specialization & Price</Text>
+                <Text style={styles.modalSubmitText}>Add Specialization (Time & Price Required)</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -1752,10 +1990,19 @@ const ArtistProfileScreen = ({ onBack }) => {
         }
 
         // 2. Add all After / Work photos
-        if (Array.isArray(selectedPost.images) && selectedPost.images.length > 0) {
-          selectedPost.images.forEach(imgItem => {
-            const url = typeof imgItem === 'object' && imgItem !== null ? imgItem.url : imgItem;
-            if (url) {
+        let rawImages = selectedPost.images;
+        if (typeof rawImages === 'string') {
+          try {
+            rawImages = JSON.parse(rawImages);
+          } catch (e) {
+            rawImages = [rawImages];
+          }
+        }
+
+        if (Array.isArray(rawImages) && rawImages.length > 0) {
+          rawImages.forEach(imgItem => {
+            const url = typeof imgItem === 'object' && imgItem !== null ? (imgItem.url || imgItem.uri) : imgItem;
+            if (url && typeof url === 'string') {
               postImages.push({
                 url,
                 scale: typeof imgItem === 'object' ? (imgItem.scale || 1) : 1,
@@ -1766,9 +2013,15 @@ const ArtistProfileScreen = ({ onBack }) => {
               });
             }
           });
-        } else if (selectedPost.afterImageUrl || selectedPost.afterImage) {
+        }
+        
+        const afterUrl = typeof (selectedPost.afterImageUrl || selectedPost.afterImage) === 'object'
+          ? (selectedPost.afterImageUrl || selectedPost.afterImage)?.url
+          : (selectedPost.afterImageUrl || selectedPost.afterImage);
+
+        if (afterUrl && typeof afterUrl === 'string' && !postImages.some(p => p.url === afterUrl)) {
           postImages.push({
-            url: selectedPost.afterImageUrl || selectedPost.afterImage,
+            url: afterUrl,
             isBefore: false,
             label: 'AFTER',
           });
@@ -1962,10 +2215,24 @@ const ArtistProfileScreen = ({ onBack }) => {
         
         {/* PROFILE CARD */}
         <View style={styles.profileCard}>
-          <Image
-            source={{ uri: profile.profileImage || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80' }}
-            style={styles.avatar}
-          />
+          <TouchableOpacity
+            style={styles.avatarContainer}
+            onPress={handleUpdateProfileImage}
+            activeOpacity={0.85}
+          >
+            <Image
+              source={{ uri: profile.profileImage || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80' }}
+              style={styles.avatar}
+            />
+            <View style={styles.editAvatarBadge}>
+              {updatingAvatar ? (
+                <ActivityIndicator size="small" color="#FFF" />
+              ) : (
+                <Ionicons name="camera" size={13} color="#FFF" />
+              )}
+            </View>
+          </TouchableOpacity>
+
           <View style={styles.profileDetails}>
             <View style={styles.nameRow}>
               <Text style={styles.nameText}>{profile.name}</Text>
@@ -2210,6 +2477,84 @@ const ArtistProfileScreen = ({ onBack }) => {
           />
         </View>
       </Modal>
+
+      {/* DURATION PICKER DROPDOWN MODAL */}
+      <Modal
+        visible={durationPickerVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setDurationPickerVisible(false)}
+      >
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}
+          activeOpacity={1}
+          onPress={() => setDurationPickerVisible(false)}
+        >
+          <View
+            style={{
+              backgroundColor: '#FFF',
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              paddingHorizontal: 20,
+              paddingTop: 12,
+              paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+              maxHeight: 380,
+            }}
+          >
+            <View style={{ width: 40, height: 4, backgroundColor: '#E0D8DB', borderRadius: 2, alignSelf: 'center', marginBottom: 14 }} />
+            <Text style={{ fontSize: 16, fontWeight: '700', color: '#5E1735', textAlign: 'center', marginBottom: 12, fontFamily: 'serif' }}>
+              Select Time / Duration
+            </Text>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {DURATION_OPTIONS.map((opt) => {
+                const currentVal = durationPickerTarget === 'new' ? newSpecDuration : editSpecDuration;
+                const isSelected = currentVal === opt;
+
+                return (
+                  <TouchableOpacity
+                    key={opt}
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      paddingVertical: 12,
+                      paddingHorizontal: 14,
+                      borderRadius: 10,
+                      backgroundColor: isSelected ? '#FFF0F4' : '#FCFCFC',
+                      borderWidth: 1,
+                      borderColor: isSelected ? '#FF4F8F' : '#F0F0F0',
+                      marginBottom: 6,
+                    }}
+                    onPress={() => {
+                      if (durationPickerTarget === 'new') {
+                        setNewSpecDuration(opt);
+                      } else if (durationPickerTarget === 'edit') {
+                        setEditSpecDuration(opt);
+                      }
+                      setDurationPickerVisible(false);
+                    }}
+                  >
+                    <Text style={{ fontSize: 14, fontWeight: isSelected ? '700' : '600', color: isSelected ? '#FF4F8F' : '#111', fontFamily: 'serif' }}>
+                      {opt}
+                    </Text>
+                    {isSelected && (
+                      <Ionicons name="checkmark-circle" size={18} color="#FF4F8F" />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={{ marginTop: 10, paddingVertical: 12, borderRadius: 10, backgroundColor: '#F5F5F5', alignItems: 'center' }}
+              onPress={() => setDurationPickerVisible(false)}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#555', fontFamily: 'serif' }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 };
@@ -2258,11 +2603,36 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
 
+  avatarContainer: {
+    position: 'relative',
+    width: 80,
+    height: 80,
+  },
+
   avatar: {
     width: 80,
     height: 80,
     borderRadius: 40,
     backgroundColor: '#FFE4ED',
+  },
+
+  editAvatarBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#FF4F8F',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FCFCFC',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 4,
   },
 
   profileDetails: {
@@ -2966,6 +3336,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111',
     fontFamily: 'serif',
+  },
+  specManageDuration: {
+    fontSize: 12,
+    color: '#555',
+    fontWeight: '600',
+    fontFamily: 'serif',
+    marginTop: 2,
   },
   specManagePrice: {
     fontSize: 12,

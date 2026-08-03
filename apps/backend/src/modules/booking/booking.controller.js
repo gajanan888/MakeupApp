@@ -13,6 +13,8 @@ import {
   verifyPaymentService,
   handleRazorpayWebhookService,
   getArtistBookedSlots,
+  addExtraClientsToBooking,
+  createArtistDirectBooking,
 } from "./booking.service.js";
 import { verifyWebhookSignature } from "../../utils/razorpay.js";
 import {
@@ -543,3 +545,54 @@ export const getArtistBookedSlotsController = async (req, res) => {
     });
   }
 };
+
+export const addExtraClientsController = async (req, res) => {
+  try {
+    const bookingId = req.params.id;
+    const artistId = req.artist.id;
+    const { extraServices, additionalPrice, notes } = req.body;
+
+    const booking = await addExtraClientsToBooking({
+      bookingId,
+      artistId,
+      extraServices,
+      additionalPrice: Number(additionalPrice) || 0,
+      notes,
+    });
+
+    res.json({
+      success: true,
+      message: "Extra customers added to booking successfully",
+      data: booking,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message || "Failed to add extra customers",
+      data: null,
+    });
+  }
+};
+
+export const createArtistDirectBookingController = async (req, res) => {
+  try {
+    const artistId = req.artist.id;
+    const booking = await createArtistDirectBooking({
+      artistId,
+      ...req.body,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Direct booking created successfully",
+      data: booking,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message || "Failed to create direct booking",
+      data: null,
+    });
+  }
+};
+

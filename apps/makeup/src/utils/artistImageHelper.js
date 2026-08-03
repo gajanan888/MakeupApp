@@ -180,31 +180,5 @@ export function getUniquePortfolio(artist) {
   });
 
   // Reverse so newest uploaded work is at the beginning (top left)
-  const reversedExisting = [...parsedExisting].reverse();
-
-  // If the artist has uploaded any of their own work, return their real portfolio!
-  if (reversedExisting.length > 0) {
-    return reversedExisting;
-  }
-
-  // Fallback to pool items only if artist has NO portfolio items uploaded yet
-  const id = artist?.id || 1;
-  const name = artist?.name || 'Artist';
-  const hash = getStringHash(`${id}_${name}`);
-
-  const items = [];
-  for (let i = 0; i < 4; i++) {
-    const idx = (hash + i * 3) % portfolioGalleryPool.length;
-    const poolItem = portfolioGalleryPool[idx];
-    items.push({
-      id: `generated_${id}_${i}`,
-      beforeImageUrl: poolItem.before,
-      afterImageUrl: poolItem.after,
-      tag: poolItem.tag,
-      description: poolItem.description,
-      images: poolItem.extra,
-    });
-  }
-
-  return items;
+  return [...parsedExisting].reverse();
 }

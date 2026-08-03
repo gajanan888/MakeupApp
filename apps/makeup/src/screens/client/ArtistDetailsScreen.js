@@ -37,37 +37,81 @@ const getParsedImagesList = (rawImages) => {
 };
 
 const getPostMediaDetails = (item) => {
-  if (!item) return { imgUrl: 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?auto=format&fit=crop&w=200&q=80', scale: 1, translateX: 0, translateY: 0, isMultiImage: false, imagesList: [] };
-  
-  let imagesList = getParsedImagesList(item.images);
-  if (imagesList.length === 0) {
-    if (item.afterImageUrl || item.beforeImageUrl) {
-      imagesList = [item.afterImageUrl || item.beforeImageUrl];
-    }
+  if (!item) {
+    return {
+      imgUrl: 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?auto=format&fit=crop&w=200&q=80',
+      scale: 1,
+      translateX: 0,
+      translateY: 0,
+      isMultiImage: false,
+      imagesList: [],
+    };
   }
 
-  const firstItem = imagesList.length > 0 ? imagesList[0] : null;
-  let imgUrl = 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?auto=format&fit=crop&w=200&q=80';
-  let scale = 1;
-  let translateX = 0;
-  let translateY = 0;
+  const list = [];
+  const addedUrls = new Set();
 
-  if (firstItem && typeof firstItem === 'object') {
-    imgUrl = firstItem.url || firstItem.uri || imgUrl;
-    scale = firstItem.scale || 1;
-    translateX = firstItem.translateX || 0;
-    translateY = firstItem.translateY || 0;
-  } else if (typeof firstItem === 'string') {
-    imgUrl = firstItem;
+  // 1. Include Before photo if provided
+  const beforeUri = typeof (item.beforeImageUrl || item.beforeImage) === 'object'
+    ? (item.beforeImageUrl || item.beforeImage)?.url || (item.beforeImageUrl || item.beforeImage)?.uri
+    : (item.beforeImageUrl || item.beforeImage);
+
+  if (beforeUri && typeof beforeUri === 'string') {
+    list.push({
+      url: beforeUri,
+      isBefore: true,
+      label: 'BEFORE',
+    });
+    addedUrls.add(beforeUri);
   }
+
+  // 2. Include all After / Work photos
+  let parsedImages = getParsedImagesList(item.images);
+  if (parsedImages.length > 0) {
+    parsedImages.forEach((img) => {
+      const url = typeof img === 'object' && img !== null ? (img.url || img.uri) : img;
+      if (url && typeof url === 'string' && !addedUrls.has(url)) {
+        list.push(typeof img === 'object' ? { ...img, url, isBefore: false, label: 'AFTER' } : { url, isBefore: false, label: 'AFTER' });
+        addedUrls.add(url);
+      }
+    });
+  }
+
+  const afterUri = typeof (item.afterImageUrl || item.afterImage) === 'object'
+    ? (item.afterImageUrl || item.afterImage)?.url || (item.afterImageUrl || item.afterImage)?.uri
+    : (item.afterImageUrl || item.afterImage);
+
+  if (afterUri && typeof afterUri === 'string' && !addedUrls.has(afterUri)) {
+    list.push({
+      url: afterUri,
+      isBefore: false,
+      label: 'AFTER',
+    });
+    addedUrls.add(afterUri);
+  }
+
+  // Fallback if no images found
+  if (list.length === 0) {
+    list.push({
+      url: 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?auto=format&fit=crop&w=200&q=80',
+      isBefore: false,
+      label: '',
+    });
+  }
+
+  const firstItem = list[0];
+  let imgUrl = typeof firstItem === 'object' ? firstItem.url : firstItem;
+  let scale = typeof firstItem === 'object' ? (firstItem.scale || 1) : 1;
+  let translateX = typeof firstItem === 'object' ? (firstItem.translateX || 0) : 0;
+  let translateY = typeof firstItem === 'object' ? (firstItem.translateY || 0) : 0;
 
   return {
     imgUrl,
     scale,
     translateX,
     translateY,
-    isMultiImage: imagesList.length > 1,
-    imagesList,
+    isMultiImage: list.length > 1,
+    imagesList: list,
   };
 };
 
@@ -200,15 +244,15 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
               <Ionicons name="checkmark-circle" size={18} color="#1890FF" style={{ marginLeft: 6 }} />
             </View>
             <View style={styles.ratingRow}>
-              <Ionicons name="sparkles" size={14} color="#FF4F87" style={{ marginRight: 4 }} />
+              <Ionicons name="star" size={14} color="#FFB800" style={{ marginRight: 4 }} />
               <Text style={styles.ratingText}>
-                {currentArtist.glamScore ? Number(currentArtist.glamScore).toFixed(1) : '95.0'} Glam Score
-                {' '}({currentArtist.profile?.reviewCount || currentArtist.profile?.bookingsCount || 8})
+                {currentArtist.profile?.rating > 0 ? Number(currentArtist.profile.rating).toFixed(1) : 'New Artist'}
+                {' '}({currentArtist.profile?.reviewCount || 0} reviews)
               </Text>
             </View>
             <View style={styles.locationRow}>
               <Ionicons name="location-outline" size={14} color="#8A7D77" style={{ marginRight: 4 }} />
-              <Text style={styles.locationText}>{currentArtist.profile?.location || 'Pune'}</Text>
+              <Text style={styles.locationText}>{currentArtist.profile?.location || 'Location not set'}</Text>
             </View>
           </View>
         </View>
@@ -217,39 +261,55 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
         <View style={styles.statsCard}>
           <View style={styles.statColumn}>
             <Text style={styles.statValue}>
-              {currentArtist.profile?.bookingsCount || currentArtist.profile?.reviewCount || 8}
+              {currentArtist.profile?.bookingsCount ?? 0}
             </Text>
             <Text style={styles.statLabel}>Bookings</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statColumn}>
             <Text style={styles.statValue}>
-              {currentArtist.glamScore ? Number(currentArtist.glamScore).toFixed(1) : '95.0'}
+              {currentArtist.profile?.rating > 0 ? Number(currentArtist.profile.rating).toFixed(1) : 'New'}
             </Text>
-            <Text style={styles.statLabel}>Glam Score</Text>
+            <Text style={styles.statLabel}>
+              {currentArtist.profile?.rating > 0 ? 'Rating' : 'Rating'}
+            </Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statColumn}>
             <Text style={styles.statValue}>
-              {currentArtist.profile?.experience ? `${currentArtist.profile.experience}+ Yrs` : '8+ Yrs'}
+              {currentArtist.profile?.experience
+                ? (currentArtist.profile.experience.toLowerCase().includes('yr')
+                    ? currentArtist.profile.experience
+                    : `${currentArtist.profile.experience} Yrs`)
+                : 'N/A'}
             </Text>
             <Text style={styles.statLabel}>Experience</Text>
           </View>
         </View>
 
-        {/* GLAM SCORE HERO BANNER */}
-        <View style={styles.glamScoreBanner}>
-          <View style={styles.glamScoreHeaderRow}>
-            <View style={styles.glamScoreBadge}>
-              <Ionicons name="sparkles" size={16} color="#FFF" style={{ marginRight: 4 }} />
-              <Text style={styles.glamScoreValue}>{currentArtist.glamScore ? Number(currentArtist.glamScore).toFixed(1) : '95.0'}</Text>
-              <Text style={styles.glamScoreMax}>/100</Text>
-            </View>
-            <View style={styles.glamScoreTitleCol}>
-              <Text style={styles.glamScoreTitle}>Glam Score™</Text>
+        {/* GLAM SCORE HERO BANNER / NEW ARTIST BANNER */}
+        {currentArtist.glamScore ? (
+          <View style={styles.glamScoreBanner}>
+            <View style={styles.glamScoreHeaderRow}>
+              <View style={styles.glamScoreBadge}>
+                <Ionicons name="sparkles" size={16} color="#FFF" style={{ marginRight: 4 }} />
+                <Text style={styles.glamScoreValue}>{Number(currentArtist.glamScore).toFixed(1)}</Text>
+                <Text style={styles.glamScoreMax}>/100</Text>
+              </View>
+              <View style={styles.glamScoreTitleCol}>
+                <Text style={styles.glamScoreTitle}>Glam Score™</Text>
+              </View>
             </View>
           </View>
-        </View>
+        ) : (
+          <View style={styles.newArtistBanner}>
+            <View style={styles.newArtistBadge}>
+              <Ionicons name="sparkles" size={16} color="#00B894" style={{ marginRight: 6 }} />
+              <Text style={styles.newArtistTitle}>New Artist on Platform</Text>
+            </View>
+            <Text style={styles.newArtistSubtitle}>Book this artist to leave their very first review & rating!</Text>
+          </View>
+        )}
 
         {/* Tabs */}
         <View style={styles.tabsContainer}>
@@ -519,6 +579,21 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
                               ]}
                               resizeMode="contain"
                             />
+                            {imgItem.label ? (
+                              <View style={{
+                                position: 'absolute',
+                                top: 14,
+                                left: 14,
+                                backgroundColor: imgItem.isBefore ? 'rgba(0,0,0,0.75)' : 'rgba(255, 79, 143, 0.9)',
+                                paddingHorizontal: 10,
+                                paddingVertical: 4,
+                                borderRadius: 12,
+                              }}>
+                                <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '800', fontFamily: 'serif' }}>
+                                  {imgItem.label}
+                                </Text>
+                              </View>
+                            ) : null}
                           </TouchableOpacity>
                         );
                       })}
@@ -1029,6 +1104,30 @@ const styles = StyleSheet.create({
   },
 
   // Glam Score Banner Styles
+  newArtistBanner: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    backgroundColor: '#E6FFFA',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#B2F5EA',
+  },
+  newArtistBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  newArtistTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#00796B',
+  },
+  newArtistSubtitle: {
+    fontSize: 12,
+    color: '#004D40',
+    marginTop: 2,
+  },
   glamScoreBanner: {
     marginHorizontal: 16,
     marginBottom: 16,

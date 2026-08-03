@@ -319,9 +319,10 @@ export const getArtistDashboardStats = async (artistId) => {
     ],
   });
 
-  const totalBookings = bookings.length;
   const completedBookings = bookings.filter((b) => b.status === "completed").length;
   const cancelledBookings = bookings.filter((b) => b.status === "cancelled").length;
+  // Booking count increases strictly ONLY after successful completion of service
+  const totalBookings = completedBookings;
   const totalEarningsVal = bookings
     .filter((b) => b.status === "completed")
     .reduce((sum, b) => sum + (b.price || 0), 0);
@@ -333,7 +334,7 @@ export const getArtistDashboardStats = async (artistId) => {
   const upcomingBookings = await Booking.findAll({
     where: {
       artistId,
-      status: ["pending", "accepted"],
+      status: ["pending", "accepted", "confirmed", "in_progress"],
     },
     include: [
       {

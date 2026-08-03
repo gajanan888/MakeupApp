@@ -95,7 +95,7 @@ export const registerArtist = async (data) => {
     pricing,
     experience,
     isEmailVerified: true, // Activated immediately since code was checked
-    isVerified: true, // Sync for database compatibility
+    isVerified: false, // Pending admin approval
   });
 
   // Delete the verified OTP record
@@ -149,7 +149,6 @@ export const verifyArtistEmail = async ({ email, code }) => {
 
   if (artist) {
     artist.isEmailVerified = true;
-    artist.isVerified = true;
     await artist.save();
   }
 

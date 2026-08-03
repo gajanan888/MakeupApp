@@ -14,6 +14,8 @@ import {
   verifyPaymentController,
   razorpayWebhookController,
   getArtistBookedSlotsController,
+  addExtraClientsController,
+  createArtistDirectBookingController,
 } from "./booking.controller.js";
 import { protectCustomer } from "../../middleware/authMiddleware.js";
 import { protectArtist } from "../../middleware/artistAuth.js";
@@ -40,5 +42,7 @@ router.patch("/:id/reject", protectArtist, rejectBookingController);
 router.patch("/:id/cancel-by-artist", protectArtist, cancelBookingController);
 router.patch("/:id/start", protectArtist, startBookingController);
 router.patch("/:id/complete", protectArtist, completeBookingController);
+router.patch("/:id/add-clients", protectArtist, addExtraClientsController);
+router.post("/artist-direct", protectArtist, createArtistDirectBookingController);
 
 export default router;

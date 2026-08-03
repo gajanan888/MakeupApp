@@ -508,3 +508,93 @@ export const getArtistBookedSlots = async (artistId) => {
     attributes: ['date', 'time']
   });
 };
+
+export const addExtraClientsToBooking = async ({ bookingId, artistId, extraServices, additionalPrice, notes }) => {
+  const booking = await Booking.findOne({
+    where: { id: bookingId, artistId },
+    include: [
+      {
+        model: Customer,
+        as: "customer",
+        attributes: ["id", "name", "email", "phone"],
+      },
+    ],
+  });
+
+  if (!booking) {
+    throw new Error("Booking not found");
+  }
+
+  if (["rejected", "cancelled"].includes(booking.status)) {
+    throw new Error("Cannot add extra customers to a cancelled or rejected booking");
+  }
+
+  let currentAddOns = [];
+  if (booking.addOns) {
+    if (Array.isArray(booking.addOns)) {
+      currentAddOns = [...booking.addOns];
+    } else if (typeof booking.addOns === 'object') {
+      currentAddOns = [booking.addOns];
+    }
+  }
+
+  const newAddOns = (extraServices || []).map(item => ({
+    id: Date.now() + Math.floor(Math.random() * 1000),
+    service: item.service || item.name || item.specialization || "Makeup Service",
+    count: item.count || 1,
+    unitPrice: item.unitPrice || item.price || 0,
+    totalPrice: (item.unitPrice || item.price || 0) * (item.count || 1),
+    notes: item.notes || notes || "",
+    addedAt: new Date().toISOString(),
+    addedBy: "artist",
+  }));
+
+  const updatedAddOns = [...currentAddOns, ...newAddOns];
+  const newTotalPrice = (booking.price || 0) + (additionalPrice || 0);
+
+  booking.addOns = updatedAddOns;
+  booking.price = newTotalPrice;
+
+  await booking.save();
+  return booking;
+};
+
+export const createArtistDirectBooking = async ({ artistId, clientName, clientPhone, date, time, category, price, location, addOns }) => {
+  let customer = null;
+  const name = (clientName && clientName.trim()) ? clientName.trim() : "Walk-In Client";
+  const phone = (clientPhone && clientPhone.trim()) ? clientPhone.trim() : null;
+
+  if (phone) {
+    customer = await Customer.findOne({ where: { phone } });
+  }
+
+  if (!customer) {
+    const randomSuffix = Date.now() + "_" + Math.floor(Math.random() * 10000);
+    customer = await Customer.create({
+      name: name,
+      phone: phone || `0000${Math.floor(100000 + Math.random() * 900000)}`,
+      email: `walkin_${randomSuffix}@makeupapp.local`,
+      password: `walkin_pass_${randomSuffix}`,
+    });
+  } else {
+    customer.name = name;
+    await customer.save();
+  }
+
+  const booking = await Booking.create({
+    customerId: customer.id,
+    artistId,
+    date: date || new Date().toISOString().split('T')[0],
+    time: time || '10:00 AM',
+    category: category || 'Walk-In Booking',
+    price: price || 0,
+    location: location || 'Studio / On-Site',
+    addOns: addOns || [],
+    status: 'accepted',
+    totalPaid: 0,
+    advancePaid: false,
+  });
+
+  return booking;
+};
+

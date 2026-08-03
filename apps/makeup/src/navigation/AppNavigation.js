@@ -56,6 +56,7 @@ import VirtualPreviewResultScreen from '../screens/client/VirtualPreviewResultSc
 import VirtualTryOnScreen from '../screens/client/VirtualTryOnScreen';
 import ReferenceImageSearchScreen from '../screens/client/ReferenceImageSearchScreen';
 import ReferenceSearchResultsScreen from '../screens/client/ReferenceSearchResultsScreen';
+import ArtistAddExtraClientsScreen from '../screens/artist/ArtistAddExtraClientsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -256,6 +257,7 @@ const AppNavigator = () => {
         <Stack.Screen name="VirtualTryOn" component={VirtualTryOnScreen} />
         <Stack.Screen name="ReferenceImageSearch" component={ReferenceImageSearchScreen} />
         <Stack.Screen name="ReferenceSearchResults" component={ReferenceSearchResultsScreen} />
+        <Stack.Screen name="ArtistAddExtraClients" component={ArtistAddExtraClientsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -457,11 +457,20 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
                   </Text>
                   <View style={styles.ratingRow}>
                     <Ionicons name="star" size={14} color="#FFB800" style={{ marginRight: 4 }} />
-                    <Text style={styles.ratingText}>{Number(artist.profile?.rating || artist.rating || 4.7).toFixed(1)}</Text>
-                    <View style={styles.glamBadgeChip}>
-                      <Ionicons name="sparkles" size={11} color="#FF4F87" style={{ marginRight: 2 }} />
-                      <Text style={styles.glamBadgeText}>{artist.glamScore ? Number(artist.glamScore).toFixed(1) : '95.0'} Glam Score</Text>
-                    </View>
+                    <Text style={styles.ratingText}>
+                      {artist.profile?.rating && Number(artist.profile.rating) > 0 ? Number(artist.profile.rating).toFixed(1) : 'New'}
+                    </Text>
+                    {artist.glamScore ? (
+                      <View style={styles.glamBadgeChip}>
+                        <Ionicons name="sparkles" size={11} color="#FF4F87" style={{ marginRight: 2 }} />
+                        <Text style={styles.glamBadgeText}>{Number(artist.glamScore).toFixed(1)} Glam Score</Text>
+                      </View>
+                    ) : (
+                      <View style={[styles.glamBadgeChip, { backgroundColor: '#E6FFFA', borderColor: '#B2F5EA' }]}>
+                        <Ionicons name="sparkles" size={11} color="#00B894" style={{ marginRight: 2 }} />
+                        <Text style={[styles.glamBadgeText, { color: '#00796B' }]}>New Artist</Text>
+                      </View>
+                    )}
                   </View>
                   <Text style={styles.artistPrice}>
                     Starting: {artist.services?.[0]?.priceRange || '₹1,500'}

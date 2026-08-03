@@ -15,28 +15,24 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getSavedAddresses } from '../../utils/addressStorage';
+import { isLocationMatch, getCleanCityName } from '../../utils/locationHelper';
 import ScreenHeader from '../../components/ScreenHeader';
 
 const BookAppointmentScreen = ({ navigation, route }) => {
   const { artist } = route.params;
 
-  // Fallback services if artist has no custom services
-  const defaultServices = [
-    { name: 'Bridal Makeup', price: '₹2,500' },
-    { name: 'Engagement Makeup', price: '₹1,800' },
-    { name: 'Party Makeup', price: '₹1,500' },
-    { name: 'Photoshoot Makeup', price: '₹2,000' },
-    { name: 'Airbrush Makeup', price: '₹2,200' },
-  ];
-
-  // Map backend services to screen items
-  const services =
-    artist.services && artist.services.length > 0
-      ? artist.services.map(s => ({
-          name: s.name || s.specialization || 'Makeup Service',
-          price: s.price ? `₹${s.price}` : s.priceRange || '₹2,000',
+  // Map backend services or specializations to screen items
+  const services = (artist.services && artist.services.length > 0)
+    ? artist.services.map(s => ({
+        name: s.name || s.specialization || 'Makeup Service',
+        price: s.price ? `₹${s.price}` : s.priceRange || '₹2,000',
+      }))
+    : (artist.specializations && artist.specializations.length > 0)
+      ? artist.specializations.map(spec => ({
+          name: typeof spec === 'object' ? (spec.name || 'Makeup Service') : String(spec),
+          price: '₹2,000',
         }))
-      : defaultServices;
+      : [{ name: 'Makeup Service', price: '₹1,500' }];
 
   // Pre-select service based on search category parameter
   const initialCategory = route.params?.selectedCategory || '';
@@ -67,7 +63,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
   const [clientAddress, setClientAddress] = useState(route.params?.prefilledAddress || '');
   const [savedAddresses, setSavedAddresses] = useState([]);
 
-  const artistCity = artist.profile?.location || 'Pune';
+  const artistCity = getCleanCityName(artist.profile?.location) || artist.profile?.location || 'Pune';
 
   const parseAmount = (val) => {
     if (typeof val === 'number') return val;
@@ -110,19 +106,17 @@ const BookAppointmentScreen = ({ navigation, route }) => {
       }
     }
     if (!city) {
-      if (addressText && addressText.toLowerCase().includes(artistCity.toLowerCase())) {
-        city = artistCity;
-      }
+      city = addressText || artistCity;
     }
     return city;
   };
 
   const handleSelectQuickAddress = (addr) => {
     const city = validateAddressCity(addr.addressLine, addr);
-    if (!city || city.toLowerCase().trim() !== artistCity.toLowerCase().trim()) {
+    if (artist.profile?.location && !isLocationMatch(city, artist.profile.location)) {
       Alert.alert(
         'Unavailable',
-        `Artist is far from your location. ${artist.name} is located in ${artistCity}, but this address is in ${city || 'another city'}.`
+        `Artist is located in ${artistCity}, but this address is in ${city || 'another city'}.`
       );
       return;
     }
@@ -149,10 +143,10 @@ const BookAppointmentScreen = ({ navigation, route }) => {
       const matchedSaved = savedAddresses.find(a => a.addressLine.trim() === clientAddress.trim());
       const detectedCity = validateAddressCity(clientAddress, matchedSaved);
 
-      if (!detectedCity || detectedCity.toLowerCase().trim() !== artistCity.toLowerCase().trim()) {
+      if (artist.profile?.location && !isLocationMatch(detectedCity, artist.profile.location)) {
         Alert.alert(
           'Unavailable',
-          `Artist is far from your location. ${artist.name} is located in ${artistCity}.`
+          `Artist is located in ${artistCity}, but your address is outside their service location.`
         );
         return;
       }

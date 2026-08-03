@@ -7,8 +7,8 @@ export const removeArtistFromWishlist = async (artistId) => api.post('/wishlist/
 export const fetchWishlist = async () => api.get('/wishlist');
 
 export const API_BASE_URLS = [
+  'http://10.167.216.212:5000',        // Active Wi-Fi IP (Primary for Wireless)
   'http://127.0.0.1:5000',            // USB ADB reverse loopback
-  'http://192.168.29.53:5000',        // Active Wi-Fi IP
   'http://10.0.2.2:5000',             // Android Emulator loopback
   'http://localhost:5000',            // localhost fallback
 ];

@@ -16,6 +16,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Geolocation from '@react-native-community/geolocation';
 import { getArtistDashboard, getArtistProfile } from '../../api/auth';
 import ArtistBookingDetailModal from './ArtistBookingDetailModal';
+import ArtistAddExtraClientsModal from './ArtistAddExtraClientsModal';
 
 const ArtistDashboardScreen = ({ onNavigate }) => {
   const navigation = useNavigation();
@@ -28,14 +29,19 @@ const ArtistDashboardScreen = ({ onNavigate }) => {
   const [loadingDashboard, setLoadingDashboard] = useState(true);
   const [profileImage, setProfileImage] = useState('https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80');
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const [artistProfile, setArtistProfile] = useState(null);
+  const [addClientsModalVisible, setAddClientsModalVisible] = useState(false);
 
   useEffect(() => {
     let active = true;
     const fetchProfileData = async () => {
       try {
         const data = await getArtistProfile();
-        if (active && data && data.profile && data.profile.profileImage) {
-          setProfileImage(data.profile.profileImage);
+        if (active && data) {
+          setArtistProfile(data);
+          if (data.profile && data.profile.profileImage) {
+            setProfileImage(data.profile.profileImage);
+          }
         }
       } catch (error) {
         console.warn('Failed to fetch profile in dashboard:', error);
@@ -357,7 +363,7 @@ const ArtistDashboardScreen = ({ onNavigate }) => {
 
       <View style={styles.actionsRow}>
         {/* Action 1 */}
-        <TouchableOpacity style={styles.actionItem} onPress={() => onNavigate && onNavigate('Bookings')}>
+        <TouchableOpacity style={styles.actionItem} onPress={() => navigation.navigate('ArtistAddExtraClients')}>
           <View style={styles.actionCircle}>
             <Ionicons name="calendar-outline" size={22} color="#FF4F8F" />
           </View>
@@ -395,6 +401,14 @@ const ArtistDashboardScreen = ({ onNavigate }) => {
         booking={selectedBooking} 
         onStatusUpdate={() => fetchDashboardData(false)} 
         onChatPress={(b) => navigation.navigate('ArtistMessage', { customerId: b.customerId })} 
+      />
+
+      <ArtistAddExtraClientsModal
+        visible={addClientsModalVisible}
+        onClose={() => setAddClientsModalVisible(false)}
+        onSuccess={() => fetchDashboardData(false)}
+        artistServices={artistProfile?.services || artistProfile?.specializations || []}
+        upcomingBookings={dashboardData.upcomingBookings || []}
       />
     </ScrollView>
   );
