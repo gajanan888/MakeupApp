@@ -130,8 +130,26 @@ def main():
                 else:
                     logger.warning(f"No face detected in {image_url}. Using full image.")
                     
+                # Extract Complete Look Characteristics
+                from app.services.vision.look_analyzer_service import LookAnalyzerService
+                from app.services.vision.feature_extractor_service import FeatureExtractorService
+                look_analyzer = LookAnalyzerService()
+                feature_extractor = FeatureExtractorService()
+                
+                # Import asyncio if not already imported
+                import asyncio
+                # We need an event loop to run async look_analyzer
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    
+                look_data = loop.run_until_complete(look_analyzer.analyze_image(img))
+                features = feature_extractor.extract_features(img)
+                
                 # Generate embedding
-                embedding_vector = embedding_service.get_embedding(face_img)
+                embedding_vector = embedding_service.get_embedding(img)
                 
                 # Save to database
                 new_embedding = PortfolioEmbeddingModel(
@@ -140,7 +158,16 @@ def main():
                     image_url=image_url,
                     image_type=image_type,
                     embedding=embedding_vector,
-                    face_bbox=face_bbox
+                    face_bbox=face_bbox,
+                    occasion=look_data.get("occasion"),
+                    makeup_style=look_data.get("makeup_style"),
+                    hairstyle=look_data.get("hairstyle"),
+                    outfit=look_data.get("outfit"),
+                    jewelry=look_data.get("jewelry"),
+                    skin_tone=features.get("skin_tone"),
+                    undertone=features.get("undertone"),
+                    face_shape=features.get("face_shape"),
+                    feature_vector=features
                 )
                 db.add(new_embedding)
                 db.commit()

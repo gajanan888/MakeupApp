@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,14 +8,17 @@ import {
   TouchableOpacity,
   Image,
   FlatList,
+  ScrollView,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import ScreenHeader from '../../components/ScreenHeader';
 import LinearGradient from 'react-native-linear-gradient';
 import { getAiBaseUrl } from '../../api/aiClient';
 
+const FILTERS = ['All', 'Bridal', 'Party', 'Engagement', 'HD Makeup'];
+
 const ReferenceSearchResultsScreen = ({ route, navigation }) => {
   const { recommendedArtists, selectedImage } = route.params || { recommendedArtists: [], selectedImage: null };
+  const [activeFilter, setActiveFilter] = useState('All');
 
   const getFullImageUrl = (url) => {
     if (!url) return null;
@@ -29,29 +32,8 @@ const ReferenceSearchResultsScreen = ({ route, navigation }) => {
     const profileUri = getFullImageUrl(item.profile_photo);
     const matchedUri = getFullImageUrl(item.matched_image);
     const matchPercentage = Math.round(item.similarity * 100);
-
-    const handleBook = () => {
-      const look = {
-        id: 'similarity_match',
-        name: 'Custom Makeup Inspiration',
-        category: 'Inspiration Match',
-        description: `Visual match based on SigLIP image similarity (${matchPercentage}% matched).`,
-      };
-      const beauty_profile = {
-        face_shape: 'Oval',
-        skin_tone: 'Medium',
-        undertone: 'Neutral',
-      };
-      navigation.navigate('SelectDateTime', {
-        artistId: item.artist_id,
-        serviceId: 2, // Default makeup service ID
-        price: 2500, // Default price
-        serviceName: 'Custom Visual Match Try-On & Booking',
-        serviceDuration: 120,
-        selectedLook: look,
-        beautyProfile: beauty_profile,
-      });
-    };
+    const distance = (Math.random() * (15.0 - 2.0) + 2.0).toFixed(1); // Mock distance
+    const basePrice = (Math.floor(Math.random() * (15 - 5) + 5) * 1000).toLocaleString('en-IN'); // Mock price
 
     const handleProfile = () => {
       navigation.navigate('ArtistDetails', { 
@@ -64,108 +46,49 @@ const ReferenceSearchResultsScreen = ({ route, navigation }) => {
 
     return (
       <View style={styles.artistCard}>
-        {/* Card Header: Artist Profile Summary */}
-        <View style={styles.cardHeader}>
-          <View style={styles.avatarContainer}>
-            {profileUri ? (
-              <Image source={{ uri: profileUri }} style={styles.artistAvatar} />
-            ) : (
-              <View style={styles.placeholderAvatar}>
-                <Text style={styles.placeholderAvatarText}>
-                  {item.artist_name.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-            )}
+        {/* Left Side: Matched Image */}
+        <View style={styles.cardImageContainer}>
+          <Image source={{ uri: matchedUri }} style={styles.matchedImage} />
+          <LinearGradient
+            colors={['#FF4F87', '#FF85A7']}
+            style={styles.similarityBadge}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Text style={styles.similarityText}>{matchPercentage}% Match</Text>
+          </LinearGradient>
+        </View>
+
+        {/* Right Side: Details */}
+        <View style={styles.cardDetails}>
+          <View style={styles.cardHeaderRow}>
+            <View style={styles.nameRow}>
+              <Text style={styles.artistName} numberOfLines={1}>{item.artist_name}</Text>
+              <Ionicons name="checkmark-circle" size={14} color="#FF4F87" style={{ marginLeft: 4 }} />
+            </View>
+            <TouchableOpacity hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
+              <Ionicons name="heart-outline" size={20} color="#666" />
+            </TouchableOpacity>
           </View>
-          <View style={styles.artistDetails}>
-            <Text style={styles.artistName} numberOfLines={1}>
-              {item.artist_name}
+
+          <Text style={styles.categoryText}>{item.occasion || 'Bridal'} Makeup Artist</Text>
+
+          <View style={styles.ratingRow}>
+            <Ionicons name="star" size={14} color="#FFB020" />
+            <Text style={styles.ratingText}>
+              {item.rating.toFixed(1)} <Text style={styles.reviewCount}>({item.completed_bookings * 3 + 12} reviews)</Text>
             </Text>
-            <View style={styles.ratingRow}>
-              <Ionicons name="star" size={13} color="#FFB020" />
-              <Text style={styles.ratingText}>
-                {item.rating.toFixed(1)} <Text style={styles.subText}>/ 5.0</Text>
-              </Text>
-            </View>
           </View>
-          <View style={styles.badgeWrap}>
-            <LinearGradient
-              colors={['#FF4F87', '#FF85A7']}
-              style={styles.similarityBadge}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Text style={styles.similarityText}>{matchPercentage}% Match</Text>
-            </LinearGradient>
-          </View>
-        </View>
 
-        {/* Side-by-Side Comparison Collage */}
-        <View style={styles.collageContainer}>
-          <View style={styles.collageHalf}>
-            {selectedImage ? (
-              <Image source={{ uri: selectedImage.uri }} style={styles.collageImage} resizeMode="contain" />
-            ) : (
-              <View style={styles.placeholderImage} />
-            )}
-            <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.65)']}
-              style={styles.collageLabelOverlay}
-            >
-              <Text style={styles.collageLabelText}>Your Upload</Text>
-            </LinearGradient>
-          </View>
-          
-          <View style={styles.collageMiddle}>
-            <View style={styles.collageArrowCircle}>
-              <Ionicons name="sparkles" size={12} color="#FF4F87" />
-            </View>
-          </View>
-          
-          <View style={styles.collageHalf}>
-            <Image source={{ uri: matchedUri }} style={styles.collageImage} resizeMode="contain" />
-            <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.65)']}
-              style={styles.collageLabelOverlay}
-            >
-              <Text style={styles.collageLabelText}>Matched Look</Text>
-            </LinearGradient>
-          </View>
-        </View>
+          <Text style={styles.priceText}>₹{basePrice} <Text style={styles.priceSub}>onwards</Text></Text>
 
-        {/* Artist Profile Metrics */}
-        <View style={styles.metricsRow}>
-          <View style={styles.metricBlock}>
-            <Ionicons name="checkmark-circle-outline" size={16} color="#FF4F87" />
-            <Text style={styles.metricVal}>{item.completed_bookings}</Text>
-            <Text style={styles.metricLabel}>Completed Bookings</Text>
+          <View style={styles.locationRow}>
+            <Ionicons name="location-outline" size={14} color="#888" />
+            <Text style={styles.locationText}>{distance} km away</Text>
           </View>
-          <View style={styles.metricDivider} />
-          <View style={styles.metricBlock}>
-            <Ionicons name="briefcase-outline" size={16} color="#FF4F87" />
-            <Text style={styles.metricVal}>{item.experience} yrs</Text>
-            <Text style={styles.metricLabel}>Experience</Text>
-          </View>
-        </View>
 
-        {/* Explainable AI (XAI) Reason box removed as requested */}
-
-
-        {/* Card Actions */}
-        <View style={styles.cardActions}>
-          <TouchableOpacity 
-            style={styles.actionBtnOutline} 
-            activeOpacity={0.8}
-            onPress={handleProfile}
-          >
-            <Text style={styles.actionBtnOutlineText}>View Profile</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.actionBtnSolid} 
-            activeOpacity={0.88}
-            onPress={handleBook}
-          >
-            <Text style={styles.actionBtnSolidText}>Book Now</Text>
+          <TouchableOpacity style={styles.viewProfileBtn} activeOpacity={0.8} onPress={handleProfile}>
+            <Text style={styles.viewProfileText}>View Profile</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -175,9 +98,37 @@ const ReferenceSearchResultsScreen = ({ route, navigation }) => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#FCFCFC" />
-      <ScreenHeader title="Matches Found" onBack={() => navigation.goBack()} />
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerIcon}>
+          <Ionicons name="arrow-back" size={24} color="#333" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Matching Artists</Text>
+        <TouchableOpacity style={styles.headerIcon}>
+          <Ionicons name="options-outline" size={24} color="#333" />
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.mainContainer}>
+        <Text style={styles.sectionTitle}>Top matches for this look</Text>
+
+        <View style={styles.filtersWrapper}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersScroll}>
+            {FILTERS.map((filter) => (
+              <TouchableOpacity
+                key={filter}
+                style={[styles.filterPill, activeFilter === filter && styles.filterPillActive]}
+                onPress={() => setActiveFilter(filter)}
+              >
+                <Text style={[styles.filterText, activeFilter === filter && styles.filterTextActive]}>
+                  {filter}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
         {recommendedArtists.length > 0 ? (
           <FlatList
             data={recommendedArtists}
@@ -205,244 +156,176 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FCFCFC',
   },
-  mainContainer: {
-    flex: 1,
-    backgroundColor: '#F7F5F6',
-  },
-  listContainer: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  artistCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 18,
-    marginBottom: 20,
-    overflow: 'hidden',
-    shadowColor: '#8A5D6D',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: '#FFF0F5',
-  },
-  cardHeader: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    height: 56,
   },
-  avatarContainer: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    overflow: 'hidden',
-    backgroundColor: '#FFF0F5',
+  headerIcon: {
+    padding: 4,
   },
-  artistAvatar: {
-    width: '100%',
-    height: '100%',
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#333',
   },
-  placeholderAvatar: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  placeholderAvatarText: {
-    color: '#FF4F87',
-    fontWeight: '800',
-    fontSize: 14,
-  },
-  artistDetails: {
+  mainContainer: {
     flex: 1,
-    marginLeft: 10,
-    justifyContent: 'center',
+    backgroundColor: '#FCFCFC',
   },
-  artistName: {
-    fontSize: 13,
+  sectionTitle: {
+    fontSize: 15,
     fontWeight: '800',
     color: '#333',
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 12,
+  },
+  filtersWrapper: {
+    marginBottom: 16,
+  },
+  filtersScroll: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  filterPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: '#EAEAEA',
+  },
+  filterPillActive: {
+    backgroundColor: '#FF4F87',
+    borderColor: '#FF4F87',
+  },
+  filterText: {
+    fontSize: 13,
+    color: '#666',
+    fontWeight: '600',
+  },
+  filterTextActive: {
+    color: '#FFF',
+  },
+  listContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 32,
+    gap: 16,
+  },
+  artistCard: {
+    flexDirection: 'row',
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1.5,
+    borderColor: '#F5F5F7',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  cardImageContainer: {
+    width: 110,
+    height: 150,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  matchedImage: {
+    width: '100%',
+    height: '100%',
+  },
+  similarityBadge: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderBottomRightRadius: 10,
+  },
+  similarityText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  cardDetails: {
+    flex: 1,
+    marginLeft: 14,
+    justifyContent: 'space-between',
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    paddingRight: 8,
+  },
+  artistName: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#333',
+  },
+  categoryText: {
+    fontSize: 12,
+    color: '#888',
+    fontWeight: '500',
+    marginTop: 2,
   },
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 2,
+    marginTop: 6,
   },
   ratingText: {
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: 12,
+    fontWeight: '700',
     color: '#333',
     marginLeft: 4,
   },
-  subText: {
-    fontSize: 9,
-    color: '#888',
+  reviewCount: {
     fontWeight: '500',
+    color: '#888',
   },
-  badgeWrap: {
-    marginLeft: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  similarityBadge: {
-    paddingVertical: 5,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-  },
-  similarityText: {
-    color: '#FFF',
-    fontSize: 9,
-    fontWeight: '800',
-  },
-  collageContainer: {
-    flexDirection: 'row',
-    width: '100%',
-    height: 260,
-    backgroundColor: '#FAF8F9',
-  },
-  collageHalf: {
-    flex: 1,
-    height: '100%',
-    overflow: 'hidden',
-  },
-  collageImage: {
-    width: '100%',
-    height: '100%',
-  },
-  placeholderImage: {
-    flex: 1,
-    backgroundColor: '#FAF8F9',
-  },
-  collageLabelOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 40,
-    justifyContent: 'flex-end',
-    paddingBottom: 8,
-    paddingHorizontal: 10,
-  },
-  collageLabelText: {
-    color: '#FFF',
-    fontSize: 10,
-    fontWeight: '800',
-    textShadowColor: 'rgba(0, 0, 0, 0.4)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  collageMiddle: {
-    position: 'absolute',
-    left: '50%',
-    top: '50%',
-    marginLeft: -16,
-    marginTop: -16,
-    zIndex: 10,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#FF4F87',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  collageArrowCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#FFF0F5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  metricsRow: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: '#F7F5F6',
-    paddingVertical: 10,
-    backgroundColor: '#FCFCFC',
-  },
-  metricBlock: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  metricVal: {
-    fontSize: 13,
+  priceText: {
+    fontSize: 14,
     fontWeight: '800',
     color: '#333',
-    marginTop: 3,
+    marginTop: 6,
   },
-  metricLabel: {
-    fontSize: 9,
-    color: '#8A5D6D',
-    fontWeight: '600',
-    marginTop: 1,
-  },
-  metricDivider: {
-    width: 1,
-    backgroundColor: '#F5F5F7',
-  },
-  reasonBox: {
-    backgroundColor: '#FFF8FA',
-    borderWidth: 1.2,
-    borderColor: '#FFE0EC',
-    borderRadius: 12,
-    marginHorizontal: 12,
-    marginVertical: 10,
-    padding: 10,
-  },
-  reasonHeader: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#FF4F87',
-    marginBottom: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  reasonText: {
+  priceSub: {
     fontSize: 11,
-    color: '#8A5D6D',
-    lineHeight: 16,
-    fontWeight: '600',
+    fontWeight: '500',
+    color: '#888',
   },
-  cardActions: {
+  locationRow: {
     flexDirection: 'row',
-    padding: 12,
-    borderTopWidth: 1,
-    borderColor: '#F7F5F6',
-  },
-  actionBtnOutline: {
-    flex: 1,
-    height: 38,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: '#FF4F87',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
+    marginTop: 4,
   },
-  actionBtnOutlineText: {
+  locationText: {
     fontSize: 11,
-    fontWeight: '800',
+    color: '#888',
+    marginLeft: 4,
+  },
+  viewProfileBtn: {
+    width: '100%',
+    backgroundColor: '#FFF0F5',
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  viewProfileText: {
     color: '#FF4F87',
-  },
-  actionBtnSolid: {
-    flex: 1.2,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: '#FF4F87',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionBtnSolidText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
   emptyState: {
     flex: 1,

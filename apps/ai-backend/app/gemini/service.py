@@ -362,7 +362,13 @@ class GeminiService:
         if accessories.lower() != "none" and accessories.strip() != "":
             prompt_parts.append(f"Matching accessories are present: {accessories}.")
             
-        # 8. Photography, Lighting & Quality tags
+        # 8. Outfit
+        if outfit.lower() != "none" and outfit.strip() != "":
+            prompt_parts.append(
+                f"The person is elegantly dressed in a gorgeous {outfit_color} {outfit} that beautifully complements the overall style."
+            )
+            
+        # 9. Photography, Lighting & Quality tags
         prompt_parts.append(
             f"Shot on 85mm lens, f/1.4, sharp focus on the facial features, catching light in the pupils. "
             f"Warm, balanced studio lighting, soft fill lights, elegant subtle shadows, depth of field with a clean "

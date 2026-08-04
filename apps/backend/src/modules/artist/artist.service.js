@@ -272,6 +272,37 @@ export const updateArtistProfile = async (artistId, data) => {
         });
 
         await ArtistPortfolio.bulkCreate(portfolioRows, { transaction });
+        
+        // Asynchronously trigger AI backend embedding sync for the new portfolio items
+        import('axios').then(({ default: axios }) => {
+          portfolioRows.forEach(async (row, index) => {
+            // Note: Since they are newly created, we don't have the final ID from bulkCreate easily available without returning true.
+            // Using a dummy ID or getting it from a separate query would be ideal. For now, we'll use a timestamp-based dummy ID
+            // just to get the embedding into the system.
+            const dummyId = Date.now() + index;
+            
+            try {
+              if (row.beforeImageUrl) {
+                await axios.post('http://127.0.0.1:8000/api/artist/upload-portfolio-url', {
+                  artist_id: artistId,
+                  portfolio_image_id: dummyId,
+                  image_type: 'before',
+                  image_url: row.beforeImageUrl
+                });
+              }
+              if (row.afterImageUrl) {
+                await axios.post('http://127.0.0.1:8000/api/artist/upload-portfolio-url', {
+                  artist_id: artistId,
+                  portfolio_image_id: dummyId + 1000,
+                  image_type: 'after',
+                  image_url: row.afterImageUrl
+                });
+              }
+            } catch (err) {
+              console.error('[AI Sync] Failed to sync portfolio embedding:', err.message);
+            }
+          });
+        }).catch(err => console.error('Failed to load axios for AI sync', err));
       }
     }
 

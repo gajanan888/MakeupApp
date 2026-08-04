@@ -23,7 +23,7 @@ const makeProxy = (pathPrefix) => (req, res) => {
   const options = {
     hostname: "127.0.0.1",
     port: 8000,
-    path: `${pathPrefix}${req.url}`,
+    path: req.originalUrl,
     method: req.method,
     headers: { ...req.headers },
   };
@@ -46,6 +46,7 @@ app.use("/api/v1", makeProxy("/api/v1"));
 app.use("/api/artist/upload-portfolio", makeProxy("/api/artist/upload-portfolio"));
 app.use("/api/artist/recommend", makeProxy("/api/artist/recommend"));
 app.use("/generated", makeProxy("/generated"));
+app.use("/uploads", makeProxy("/uploads"));
 
 // Body parsers for all other Express routes
 app.use(express.json());

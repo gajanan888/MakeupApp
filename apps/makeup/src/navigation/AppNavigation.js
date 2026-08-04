@@ -55,6 +55,7 @@ import VirtualPreviewChatScreen from '../screens/client/VirtualPreviewChatScreen
 import VirtualPreviewResultScreen from '../screens/client/VirtualPreviewResultScreen';
 import VirtualTryOnScreen from '../screens/client/VirtualTryOnScreen';
 import ReferenceImageSearchScreen from '../screens/client/ReferenceImageSearchScreen';
+import ReferenceAnalyzingScreen from '../screens/client/ReferenceAnalyzingScreen';
 import ReferenceSearchResultsScreen from '../screens/client/ReferenceSearchResultsScreen';
 import ArtistAddExtraClientsScreen from '../screens/artist/ArtistAddExtraClientsScreen';
 
@@ -256,6 +257,7 @@ const AppNavigator = () => {
         <Stack.Screen name="VirtualPreviewResult" component={VirtualPreviewResultScreen} />
         <Stack.Screen name="VirtualTryOn" component={VirtualTryOnScreen} />
         <Stack.Screen name="ReferenceImageSearch" component={ReferenceImageSearchScreen} />
+        <Stack.Screen name="ReferenceAnalyzing" component={ReferenceAnalyzingScreen} />
         <Stack.Screen name="ReferenceSearchResults" component={ReferenceSearchResultsScreen} />
         <Stack.Screen name="ArtistAddExtraClients" component={ArtistAddExtraClientsScreen} />
       </Stack.Navigator>

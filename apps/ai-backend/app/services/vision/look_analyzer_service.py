@@ -46,7 +46,7 @@ class LookAnalyzerService:
         self.settings = get_preview_settings()
         self.api_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
 
-    async def analyze_image(self, image_np: np.ndarray, use_gemini: bool = False) -> dict:
+    async def analyze_image(self, image_np: np.ndarray, use_gemini: bool = True) -> dict:
         """
         Processes a BGR numpy image, encodes to base64, queries Gemini flash multimodal API
         if use_gemini is True, otherwise executes the instant local classification.

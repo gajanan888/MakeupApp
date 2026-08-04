@@ -26,17 +26,17 @@ class RecommendationService:
     - Generates explainable AI (XAI) textual validation reasons.
     """
     # Configurable ranking weights
-    WEIGHT_SIGLIP = 0.60
-    WEIGHT_COLOR = 0.20      # 20% weight for perceptually linear HSV clothing color similarity
-    WEIGHT_OCCASION = 0.05   # 5% occasion match
-    WEIGHT_MAKEUP = 0.05     # 5% makeup styling match
-    WEIGHT_OUTFIT = 0.04     # 4% outfit style match
-    WEIGHT_JEWELRY = 0.02    # 2% jewelry match
-    WEIGHT_HAIRSTYLE = 0.02  # 2% hairstyle match
-    WEIGHT_SKIN_TONE = 0.01  # 1% skin tone match
-    WEIGHT_UNDERTONE = 0.01  # 1% skin undertone match
-    WEIGHT_RATING = 0.01     # 1% rating score
-    WEIGHT_BOOKINGS = 0.01   # 1% booking count
+    WEIGHT_SIGLIP = 0.85     # 85% Raw visual semantic similarity (robust to LLM failures)
+    WEIGHT_COLOR = 0.15      # 15% Deterministic color match
+    WEIGHT_OCCASION = 0.00   # Disabled
+    WEIGHT_OUTFIT = 0.00     # Disabled
+    WEIGHT_MAKEUP = 0.00     # Disabled
+    WEIGHT_JEWELRY = 0.00    
+    WEIGHT_HAIRSTYLE = 0.00  
+    WEIGHT_SKIN_TONE = 0.00  
+    WEIGHT_UNDERTONE = 0.00  
+    WEIGHT_RATING = 0.00     
+    WEIGHT_BOOKINGS = 0.00
 
 
 
@@ -71,7 +71,7 @@ class RecommendationService:
             detection = face_response.detections[0]
             face_img = self.embedding_service.crop_face(image_np, detection.bounding_box)
 
-        query_emb = self.embedding_service.get_embedding(face_img)
+        query_emb = self.embedding_service.get_embedding(image_np)
 
         # 5. Search similar images globally across all occasions
         similar_images = self.repo.search_similar(query_emb, limit=100)
@@ -88,7 +88,8 @@ class RecommendationService:
             ArtistModel.name,
             ArtistProfileModel.profileImage,
             ArtistProfileModel.rating,
-            ArtistProfileModel.experience
+            ArtistProfileModel.experience,
+            ArtistProfileModel.location
         ).outerjoin(
             ArtistProfileModel, ArtistModel.id == ArtistProfileModel.artistId
         ).filter(
@@ -252,7 +253,8 @@ class RecommendationService:
                     "occasion": img_model.occasion or "Party",
                     "makeup_style": cand_style,
                     "reason_for_recommendation": reason_for_recommendation,
-                    "final_score": final_score
+                    "final_score": final_score,
+                    "location": info.location or "Pune"
                 })
 
         # 9. Sort candidates descending by final score

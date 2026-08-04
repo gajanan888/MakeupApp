@@ -8,27 +8,39 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
-  ActivityIndicator,
-  Alert,
   Platform,
   PermissionsAndroid,
-  FlatList,
+  Alert,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
-import ScreenHeader from '../../components/ScreenHeader';
-import { recommendArtistsByImage, getAiBaseUrl } from '../../api/aiClient';
+
+const RECENT_SEARCHES = [
+  { id: '1', uri: 'https://res.cloudinary.com/djonmzyiu/image/upload/v1785500838/ymv8sdwvuaqsiz4j8tsz.png' },
+  { id: '2', uri: 'https://res.cloudinary.com/djonmzyiu/image/upload/v1785500838/ymv8sdwvuaqsiz4j8tsz.png' },
+  { id: '3', uri: 'https://res.cloudinary.com/djonmzyiu/image/upload/v1785500838/ymv8sdwvuaqsiz4j8tsz.png' },
+  { id: '4', uri: 'https://res.cloudinary.com/djonmzyiu/image/upload/v1785500838/ymv8sdwvuaqsiz4j8tsz.png' },
+];
 
 const ReferenceImageSearchScreen = ({ navigation }) => {
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const handlePickImage = () => {
+    const options = {
+      mediaType: 'photo',
+      quality: 0.8,
+    };
 
-  const getFullImageUrl = (url) => {
-    if (!url) return null;
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      return url;
-    }
-    return `${getAiBaseUrl()}/${url.replace(/^\//, '')}`;
+    launchImageLibrary(options, (response) => {
+      if (response.didCancel) {
+        console.log('User cancelled image picker');
+      } else if (response.errorMessage) {
+        console.log('Image Library Error: ', response.errorMessage);
+        Alert.alert('Error', 'Failed to pick image from library.');
+      } else if (response.assets && response.assets.length > 0) {
+        navigation.navigate('ReferenceAnalyzing', {
+          selectedImage: response.assets[0],
+        });
+      }
+    });
   };
 
   const handleCameraCapture = async () => {
@@ -66,121 +78,96 @@ const ReferenceImageSearchScreen = ({ navigation }) => {
         console.log('Camera Error: ', response.errorMessage);
         Alert.alert('Error', 'Failed to capture photo from camera.');
       } else if (response.assets && response.assets.length > 0) {
-        setSelectedImage(response.assets[0]);
-      }
-    });
-  };
-
-  const handlePickImage = () => {
-    const options = {
-      mediaType: 'photo',
-      quality: 0.8,
-    };
-
-    launchImageLibrary(options, (response) => {
-      if (response.didCancel) {
-        console.log('User cancelled image picker');
-      } else if (response.errorMessage) {
-        console.log('Image Library Error: ', response.errorMessage);
-        Alert.alert('Error', 'Failed to pick image from library.');
-      } else if (response.assets && response.assets.length > 0) {
-        setSelectedImage(response.assets[0]);
-      }
-    });
-  };
-
-  const handleSearch = async () => {
-    if (!selectedImage) {
-      Alert.alert('Selection Required', 'Please capture or upload an inspiration photo first.');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const response = await recommendArtistsByImage(selectedImage);
-      if (response && response.success) {
-        navigation.navigate('ReferenceSearchResults', {
-          recommendedArtists: response.recommended_artists || [],
-          selectedImage: selectedImage
+        navigation.navigate('ReferenceAnalyzing', {
+          selectedImage: response.assets[0],
         });
-      } else {
-        Alert.alert('Search Failed', 'Could not retrieve artist recommendations.');
       }
-    } catch (error) {
-      console.error('[SearchScreen] Error recommending artists:', error);
-      Alert.alert('Server Error', error.message || 'An error occurred during search.');
-    } finally {
-      setLoading(false);
-    }
+    });
   };
+
+  const renderTip = (text, icon) => (
+    <View style={styles.tipCard}>
+      <View style={styles.tipIconBox}>
+        <Ionicons name={icon} size={20} color="#FF4F87" />
+      </View>
+      <Text style={styles.tipText}>{text}</Text>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#FCFCFC" />
-      <ScreenHeader title="AI Artist Recommendation" onBack={() => navigation.goBack()} />
+      
+      {/* Custom Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerIcon}>
+          <Ionicons name="arrow-back" size={24} color="#333" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Search Artist</Text>
+        <TouchableOpacity style={styles.headerIcon}>
+          <Ionicons name="help-circle-outline" size={24} color="#333" />
+        </TouchableOpacity>
+      </View>
 
-      <View style={styles.mainContainer}>
-        {/* Inspiration Upload Area */}
-        <View style={styles.uploadCard}>
-          <Text style={styles.uploadTitle}>📸 Upload Inspiration Look</Text>
-          <Text style={styles.uploadSubtitle}>
-            Find artists whose portfolio makeup matches this inspiration
-          </Text>
+      <ScrollView style={styles.mainContainer} showsVerticalScrollIndicator={false}>
+        <Text style={styles.titleText}>
+          Find the perfect{'\n'}
+          <Text style={{color: '#333'}}>makeup artist</Text>{'\n'}
+          <Text style={styles.titleHighlight}>by reference image</Text>
+        </Text>
+        
+        <Text style={styles.subtitleText}>
+          Upload a makeup look you love and we'll recommend the best matching artists.
+        </Text>
 
-          {selectedImage ? (
-            <View style={styles.previewContainer}>
-              <Image source={{ uri: selectedImage.uri }} style={styles.previewImage} resizeMode="contain" />
-              <TouchableOpacity
-                style={styles.removeImageBtn}
-                activeOpacity={0.7}
-                onPress={() => setSelectedImage(null)}
-              >
-                <Ionicons name="close-circle" size={24} color="#FF4F87" />
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.uploadOptions}>
-              <TouchableOpacity
-                style={styles.uploadBtn}
-                activeOpacity={0.85}
-                onPress={handleCameraCapture}
-              >
-                <Ionicons name="camera-outline" size={32} color="#FF4F87" />
-                <Text style={styles.uploadBtnText}>Camera</Text>
-              </TouchableOpacity>
-              <View style={styles.optionDivider} />
-              <TouchableOpacity
-                style={styles.uploadBtn}
-                activeOpacity={0.85}
-                onPress={handlePickImage}
-              >
-                <Ionicons name="images-outline" size={32} color="#FF4F87" />
-                <Text style={styles.uploadBtnText}>Gallery</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+        <TouchableOpacity 
+          style={styles.uploadCard} 
+          activeOpacity={0.8}
+          onPress={() => {
+            Alert.alert(
+              'Upload Image',
+              'Choose an option',
+              [
+                { text: 'Camera', onPress: handleCameraCapture },
+                { text: 'Gallery', onPress: handlePickImage },
+                { text: 'Cancel', style: 'cancel' }
+              ]
+            );
+          }}
+        >
+          <View style={styles.uploadIconWrap}>
+            <Ionicons name="cloud-upload-outline" size={36} color="#FF4F87" />
+          </View>
+          <Text style={styles.uploadTitle}>Upload Reference Image</Text>
+          <Text style={styles.uploadSub}>JPG, PNG up to 10MB</Text>
+          
+          <View style={styles.chooseBtn}>
+            <Ionicons name="image-outline" size={16} color="#FF4F87" style={{marginRight: 6}} />
+            <Text style={styles.chooseBtnText}>Choose from Gallery</Text>
+          </View>
+        </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.searchBtn, !selectedImage && styles.searchBtnDisabled]}
-            activeOpacity={0.88}
-            onPress={handleSearch}
-            disabled={!selectedImage || loading}
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color="#FFF" />
-            ) : (
-              <Text style={styles.searchBtnText}>Search Similar Looks</Text>
-            )}
+        <Text style={styles.sectionTitle}>Tips for better results</Text>
+        {renderTip("Use a clear front face photo", "person-outline")}
+        {renderTip("Good lighting and no heavy filter", "sunny-outline")}
+        {renderTip("Close-up of the makeup look", "scan-circle-outline")}
+
+        <View style={styles.searchesHeaderRow}>
+          <Text style={styles.sectionTitle}>Your searches</Text>
+          <TouchableOpacity>
+            <Text style={styles.seeAllText}>See all</Text>
           </TouchableOpacity>
         </View>
 
-        {loading && (
-          <View style={styles.loaderContainer}>
-            <ActivityIndicator size="large" color="#FF4F87" />
-            <Text style={styles.loaderText}>AI is calculating visual similarities...</Text>
-          </View>
-        )}
-      </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.searchesScroll}>
+          {RECENT_SEARCHES.map((item, index) => (
+            <TouchableOpacity key={item.id} style={styles.recentSearchCard}>
+              <Image source={{ uri: item.uri }} style={styles.recentSearchImage} />
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+        <View style={{height: 40}} />
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -192,369 +179,136 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FCFCFC',
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    height: 56,
+  },
+  headerIcon: {
+    padding: 4,
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#333',
+  },
   mainContainer: {
     flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingHorizontal: 24,
+  },
+  titleText: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#333',
+    lineHeight: 40,
+    marginTop: 20,
+  },
+  titleHighlight: {
+    color: '#FF4F87',
+  },
+  subtitleText: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 16,
+    marginBottom: 24,
+    lineHeight: 20,
+    fontWeight: '500',
   },
   uploadCard: {
     backgroundColor: '#FFF8FA',
-    borderWidth: 1.5,
-    borderColor: '#FFE4EF',
+    borderWidth: 2,
+    borderColor: '#FFE0EC',
+    borderStyle: 'dashed',
     borderRadius: 20,
-    padding: 16,
+    paddingVertical: 30,
     alignItems: 'center',
+    marginBottom: 30,
+  },
+  uploadIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#FFE5F0',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 16,
-    shadowColor: '#FF4F87',
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
   },
   uploadTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#FF4F87',
-  },
-  uploadSubtitle: {
-    fontSize: 11,
-    color: '#8A5D6D',
-    textAlign: 'center',
-    marginTop: 4,
-    marginBottom: 16,
-    fontWeight: '600',
-  },
-  uploadOptions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    height: 120,
-    borderWidth: 2,
-    borderColor: '#FFE8F2',
-    borderStyle: 'dashed',
-    borderRadius: 14,
-    backgroundColor: '#FFF',
-    marginBottom: 16,
-  },
-  uploadBtn: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100%',
-  },
-  uploadBtnText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#8A5D6D',
-    marginTop: 6,
-  },
-  optionDivider: {
-    width: 2,
-    height: 60,
-    backgroundColor: '#FFE8F2',
-  },
-  previewContainer: {
-    width: '100%',
-    height: 240,
-    borderRadius: 14,
-    overflow: 'hidden',
-    marginBottom: 16,
-    borderWidth: 1.5,
-    borderColor: '#FFE4EF',
-    backgroundColor: '#FAF8F9',
-  },
-  previewImage: {
-    width: '100%',
-    height: '100%',
-  },
-  removeImageBtn: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-  },
-  searchBtn: {
-    width: '100%',
-    height: 46,
-    borderRadius: 12,
-    backgroundColor: '#FF4F87',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  searchBtnDisabled: {
-    backgroundColor: '#FFB8CF',
-  },
-  searchBtnText: {
-    color: '#FFF',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  resultsHeader: {
-    marginBottom: 10,
-    paddingLeft: 4,
-  },
-  resultsTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#8A5D6D',
-  },
-  loaderContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
-  },
-  loaderText: {
-    marginTop: 12,
-    fontSize: 12,
-    color: '#8A5D6D',
-    fontWeight: '700',
-  },
-  listContent: {
-    paddingBottom: 24,
-    gap: 16,
-  },
-  artistCard: {
-    width: '100%',
-    backgroundColor: '#FFF',
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: '#FFE0EC',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#FFF8FA',
-    borderBottomWidth: 1,
-    borderBottomColor: '#FFE5F0',
-  },
-  avatarContainer: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    overflow: 'hidden',
-    backgroundColor: '#FFF0F5',
-    borderWidth: 1,
-    borderColor: '#FFE0EC',
-  },
-  artistAvatar: {
-    width: '100%',
-    height: '100%',
-  },
-  placeholderAvatar: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  placeholderAvatarText: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#FF4F87',
-  },
-  artistDetails: {
-    flex: 1,
-    marginLeft: 10,
-    justifyContent: 'center',
-  },
-  artistName: {
-    fontSize: 13,
-    fontWeight: '800',
     color: '#333',
-  },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  ratingText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#333',
-    marginLeft: 4,
-  },
-  subText: {
-    fontSize: 9,
-    color: '#888',
-    fontWeight: '500',
-  },
-  badgeWrap: {
-    marginLeft: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  similarityBadge: {
-    paddingVertical: 5,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-  },
-  similarityText: {
-    color: '#FFF',
-    fontSize: 9,
-    fontWeight: '800',
-  },
-  reasonBox: {
-    backgroundColor: '#FFF8FA',
-    borderWidth: 1.2,
-    borderColor: '#FFE0EC',
-    borderRadius: 12,
-    marginHorizontal: 12,
-    marginVertical: 10,
-    padding: 10,
-  },
-  reasonHeader: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#FF4F87',
     marginBottom: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
-  reasonText: {
-    fontSize: 11,
-    color: '#8A5D6D',
-    lineHeight: 16,
-    fontWeight: '600',
+  uploadSub: {
+    fontSize: 12,
+    color: '#A0A0A0',
+    fontWeight: '500',
+    marginBottom: 24,
   },
-  collageContainer: {
+  chooseBtn: {
     flexDirection: 'row',
-    width: '100%',
-    height: 260,
-    backgroundColor: '#FAF8F9',
-  },
-  collageHalf: {
-    flex: 1,
-    height: '100%',
-    overflow: 'hidden',
-  },
-  collageImage: {
-    width: '100%',
-    height: '100%',
-  },
-  collageLabelOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 40,
-    justifyContent: 'flex-end',
-    paddingBottom: 8,
-    paddingHorizontal: 10,
-  },
-  collageLabelText: {
-    color: '#FFF',
-    fontSize: 10,
-    fontWeight: '800',
-    textShadowColor: 'rgba(0, 0, 0, 0.4)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  collageMiddle: {
-    position: 'absolute',
-    left: '50%',
-    top: '50%',
-    marginLeft: -16,
-    marginTop: -16,
-    zIndex: 10,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    alignItems: 'center',
     backgroundColor: '#FFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#FF4F87',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  collageArrowCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#FFF0F5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  metricsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#FFE5F0',
-  },
-  metricBlock: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  metricVal: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#333',
-    marginTop: 2,
-  },
-  metricLabel: {
-    fontSize: 9,
-    color: '#8A5D6D',
-    fontWeight: '700',
-    marginTop: 1,
-  },
-  metricDivider: {
-    width: 1.5,
-    height: 30,
-    backgroundColor: '#FFE5F0',
-  },
-  cardActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    gap: 10,
-  },
-  actionBtnOutline: {
-    flex: 1,
-    height: 38,
-    borderRadius: 10,
     borderWidth: 1.5,
     borderColor: '#FF4F87',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFF',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
   },
-  actionBtnOutlineText: {
+  chooseBtnText: {
     color: '#FF4F87',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  actionBtnSolid: {
-    flex: 1,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: '#FF4F87',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionBtnSolidText: {
-    color: '#FFF',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-  },
-  emptyText: {
-    fontSize: 12,
-    color: '#8A5D6D',
+    fontSize: 14,
     fontWeight: '700',
-    marginTop: 10,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#333',
+    marginBottom: 16,
+  },
+  tipCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF0F5',
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  tipIconBox: {
+    marginRight: 12,
+  },
+  tipText: {
+    fontSize: 13,
+    color: '#8A5D6D',
+    fontWeight: '600',
+  },
+  searchesHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 16,
+  },
+  seeAllText: {
+    fontSize: 13,
+    color: '#FF4F87',
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  searchesScroll: {
+    gap: 12,
+    paddingRight: 24,
+  },
+  recentSearchCard: {
+    width: 76,
+    height: 96,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  recentSearchImage: {
+    width: '100%',
+    height: '100%',
   },
 });

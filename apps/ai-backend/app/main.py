@@ -40,6 +40,7 @@ def create_app() -> FastAPI:
 
     from fastapi.staticfiles import StaticFiles
     application.mount("/generated", StaticFiles(directory=str(settings.generated_dir)), name="generated")
+    application.mount("/uploads", StaticFiles(directory=str(settings.upload_dir)), name="uploads")
     return application
 
 
