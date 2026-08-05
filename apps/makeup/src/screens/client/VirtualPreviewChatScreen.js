@@ -11,7 +11,13 @@ import {
   ActivityIndicator,
   Modal,
   FlatList,
+  LayoutAnimation,
+  UIManager,
 } from 'react-native';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import Ionicons from '@react-native-vector-icons/ionicons';
 import ScreenHeader from '../../components/ScreenHeader';
 import { submitPreviewPreferences, generatePreviewPrompt, generatePreview } from '../../api/aiClient';
@@ -46,18 +52,152 @@ const COLORS = [
   { name: 'Other', hex: '#E5E5EA', isSpecial: true }
 ];
 
-const MAKEUP_STYLES = [
-  { name: 'Natural', desc: 'Minimal look enhancing natural features' },
-  { name: 'Soft Glam', desc: 'Elegant, blended look with soft tones' },
-  { name: 'Glam', desc: 'Defined features, shimmering colors' },
-  { name: 'Bridal', desc: 'Luxury traditional wedding finish' },
-  { name: 'Smokey Eyes', desc: 'Deep, dramatic eye makeup focus' },
-  { name: 'Dewy Glow', desc: 'Luminous, glass-like hydration skin' },
-  { name: 'Matte Finish', desc: 'Zero shine, long lasting velvet look' },
-  { name: 'Korean Makeup', desc: 'Gradient lips and youthful blush' },
-  { name: 'Editorial', desc: 'High fashion runway & creative beauty' },
-  { name: 'Party Glam', desc: 'Shine bright for evening celebrations' }
-];
+const OCCASION_MAKEUP_MAPPING = {
+  'Wedding': [
+    { name: 'Traditional Bridal', desc: 'Classic cultural bridal look' },
+    { name: 'Modern Bridal', desc: 'Contemporary elegant finish' },
+    { name: 'Royal Bridal', desc: 'Heavy regal bridal glam' },
+    { name: 'HD Bridal', desc: 'High definition flawless base' },
+    { name: 'Airbrush Bridal', desc: 'Lightweight waterproof finish' },
+    { name: 'Minimal Bridal', desc: 'Subtle and natural bridal look' },
+    { name: 'Luxury Bridal', desc: 'High-end premium cosmetic finish' },
+    { name: 'Celebrity Bridal', desc: 'Inspired by iconic celebrity brides' }
+  ],
+  'Reception': [
+    { name: 'Soft Glam', desc: 'Elegant, blended look with soft tones' },
+    { name: 'Full Glam', desc: 'Bold eyes and defined features' },
+    { name: 'Luxury Glam', desc: 'Premium flawless party makeup' },
+    { name: 'Bollywood Glam', desc: 'Dramatic cinematic beauty' },
+    { name: 'Hollywood Glam', desc: 'Classic retro elegant style' },
+    { name: 'Classic Elegant', desc: 'Timeless and sophisticated' },
+    { name: 'Dewy Glam', desc: 'Luminous glowing skin' },
+    { name: 'Red Carpet Glam', desc: 'Statement making flawless look' }
+  ],
+  'Engagement': [
+    { name: 'Soft Glam', desc: 'Elegant, blended look with soft tones' },
+    { name: 'Romantic Glam', desc: 'Soft pinks and dreamy finish' },
+    { name: 'Luxury Glam', desc: 'Premium flawless party makeup' },
+    { name: 'Classic Elegant', desc: 'Timeless and sophisticated' },
+    { name: 'Dewy Glam', desc: 'Luminous glowing skin' },
+    { name: 'Natural Glam', desc: 'Subtle enhancement of features' },
+    { name: 'Minimal Glam', desc: 'Understated elegance' },
+    { name: 'Contemporary Glam', desc: 'Modern trendy makeup look' }
+  ],
+  'Haldi': [
+    { name: 'Fresh Glow', desc: 'Bright and luminous morning look' },
+    { name: 'Natural Makeup', desc: 'Minimal look enhancing natural features' },
+    { name: 'Minimal Makeup', desc: 'Very light base and soft colors' },
+    { name: 'Dewy Makeup', desc: 'Hydrated glass-like skin' },
+    { name: 'Floral Glam', desc: 'Soft colors complementing floral jewelry' },
+    { name: 'Golden Glow', desc: 'Sun-kissed bronzed finish' },
+    { name: 'Soft Glam', desc: 'Elegant, blended look with soft tones' }
+  ],
+  'Mehendi': [
+    { name: 'Bohemian Glam', desc: 'Free-spirited artistic look' },
+    { name: 'Fresh Glow', desc: 'Bright and luminous daytime look' },
+    { name: 'Soft Glam', desc: 'Elegant, blended look with soft tones' },
+    { name: 'Colorful Glam', desc: 'Vibrant eye makeup to match outfits' },
+    { name: 'Natural Makeup', desc: 'Minimal look enhancing natural features' },
+    { name: 'Dewy Makeup', desc: 'Hydrated glass-like skin' },
+    { name: 'Ethnic Glam', desc: 'Traditional festive makeup' }
+  ],
+  'Sangeet': [
+    { name: 'Bollywood Glam', desc: 'Dramatic cinematic beauty' },
+    { name: 'Full Glam', desc: 'Bold eyes and defined features' },
+    { name: 'Glitter Glam', desc: 'Sparkling eyes for the dance floor' },
+    { name: 'Smokey Glam', desc: 'Deep, dramatic eye makeup focus' },
+    { name: 'Bold Glam', desc: 'Striking colors and sharp contour' },
+    { name: 'Party Glam', desc: 'Shine bright for evening celebrations' },
+    { name: 'Celebrity Glam', desc: 'Trendsetting iconic party look' },
+    { name: 'Metallic Glam', desc: 'Metallic shimmers and glowing skin' }
+  ],
+  'Cocktail Party': [
+    { name: 'Soft Glam', desc: 'Elegant, blended look with soft tones' },
+    { name: 'Full Glam', desc: 'Bold eyes and defined features' },
+    { name: 'Smokey Glam', desc: 'Deep, dramatic eye makeup focus' },
+    { name: 'Bold Glam', desc: 'Striking colors and sharp contour' },
+    { name: 'Dewy Glam', desc: 'Luminous glowing skin' },
+    { name: 'Hollywood Glam', desc: 'Classic retro elegant style' },
+    { name: 'Metallic Glam', desc: 'Metallic shimmers and glowing skin' },
+    { name: 'Chic Glam', desc: 'Modern sophisticated party look' }
+  ],
+  'Birthday Party': [
+    { name: 'Natural Makeup', desc: 'Minimal look enhancing natural features' },
+    { name: 'Soft Glam', desc: 'Elegant, blended look with soft tones' },
+    { name: 'Party Glam', desc: 'Shine bright for evening celebrations' },
+    { name: 'Korean Makeup', desc: 'Gradient lips and youthful blush' },
+    { name: 'Dewy Glow', desc: 'Luminous, glass-like hydration skin' },
+    { name: 'Minimal Chic', desc: 'Simple but stylish finish' },
+    { name: 'Full Glam', desc: 'Bold eyes and defined features' }
+  ],
+  'Anniversary': [
+    { name: 'Romantic Glam', desc: 'Soft pinks and dreamy finish' },
+    { name: 'Soft Glam', desc: 'Elegant, blended look with soft tones' },
+    { name: 'Luxury Glam', desc: 'Premium flawless party makeup' },
+    { name: 'Classic Elegant', desc: 'Timeless and sophisticated' },
+    { name: 'Dewy Glam', desc: 'Luminous glowing skin' },
+    { name: 'Natural Glam', desc: 'Subtle enhancement of features' }
+  ],
+  'Festival': [
+    { name: 'Traditional Makeup', desc: 'Classic cultural festive look' },
+    { name: 'Ethnic Glam', desc: 'Rich colors matching traditional wear' },
+    { name: 'Bollywood Glam', desc: 'Dramatic cinematic beauty' },
+    { name: 'Soft Glam', desc: 'Elegant, blended look with soft tones' },
+    { name: 'Natural Makeup', desc: 'Minimal look enhancing natural features' },
+    { name: 'Festive Glam', desc: 'Bright and joyful makeup look' },
+    { name: 'Radiant Glow', desc: 'Healthy glowing skin finish' }
+  ],
+  'Office Event': [
+    { name: 'Natural Makeup', desc: 'Minimal look enhancing natural features' },
+    { name: 'Minimal Chic', desc: 'Simple but stylish finish' },
+    { name: 'Matte Professional', desc: 'Zero shine, long lasting velvet look' },
+    { name: 'Soft Glam', desc: 'Elegant, blended look with soft tones' },
+    { name: 'Nude Makeup', desc: 'Monochromatic subtle nude tones' },
+    { name: 'Elegant Professional', desc: 'Sophisticated workplace look' }
+  ],
+  'Photoshoot': [
+    { name: 'Editorial', desc: 'High fashion runway & creative beauty' },
+    { name: 'High Fashion', desc: 'Avant-garde bold aesthetics' },
+    { name: 'Creative Makeup', desc: 'Artistic and unique expressions' },
+    { name: 'Full Glam', desc: 'Bold eyes and defined features' },
+    { name: 'Glass Skin', desc: 'Ultra-dewy reflective skin' },
+    { name: 'Camera-Ready HD', desc: 'Flawless under studio lighting' },
+    { name: 'Artistic Makeup', desc: 'Expressive and colorful' },
+    { name: 'Avant-Garde', desc: 'Experimental runway style' }
+  ],
+  'Date Night': [
+    { name: 'Romantic Glam', desc: 'Soft pinks and dreamy finish' },
+    { name: 'Soft Glam', desc: 'Elegant, blended look with soft tones' },
+    { name: 'Smokey Glam', desc: 'Deep, dramatic eye makeup focus' },
+    { name: 'Luxury Glam', desc: 'Premium flawless party makeup' },
+    { name: 'Dewy Glam', desc: 'Luminous glowing skin' },
+    { name: 'Chic Glam', desc: 'Modern sophisticated party look' }
+  ],
+  'Graduation': [
+    { name: 'Natural Makeup', desc: 'Minimal look enhancing natural features' },
+    { name: 'Soft Glam', desc: 'Elegant, blended look with soft tones' },
+    { name: 'Korean Makeup', desc: 'Gradient lips and youthful blush' },
+    { name: 'Minimal Chic', desc: 'Simple but stylish finish' },
+    { name: 'Fresh Glow', desc: 'Bright and luminous daytime look' },
+    { name: 'Elegant Glam', desc: 'Sophisticated and photogenic' }
+  ],
+  'Casual Outing': [
+    { name: 'No-Makeup Makeup', desc: 'Flawless bare-faced illusion' },
+    { name: 'Natural Makeup', desc: 'Minimal look enhancing natural features' },
+    { name: 'Fresh Glow', desc: 'Bright and luminous daytime look' },
+    { name: 'Korean Makeup', desc: 'Gradient lips and youthful blush' },
+    { name: 'Minimal Chic', desc: 'Simple but stylish finish' },
+    { name: 'Everyday Glam', desc: 'Elevated daily makeup routine' },
+    { name: 'Dewy Makeup', desc: 'Hydrated glass-like skin' }
+  ],
+  'Other': [
+    { name: 'Natural', desc: 'Minimal look enhancing natural features' },
+    { name: 'Soft Glam', desc: 'Elegant, blended look with soft tones' },
+    { name: 'Glam', desc: 'Defined features, shimmering colors' },
+    { name: 'Smokey Eyes', desc: 'Deep, dramatic eye makeup focus' },
+    { name: 'Dewy Glow', desc: 'Luminous, glass-like hydration skin' }
+  ]
+};
 
 const HAIR_TYPES = [
   'Straight', 'Wavy', 'Curly', 'Coily', 'Other'
@@ -99,7 +239,7 @@ const VirtualPreviewChatScreen = ({ navigation, route }) => {
   const [time, setTime] = useState('Evening');
   const [outfit, setOutfit] = useState(OUTFITS[0]);
   const [outfitColor, setOutfitColor] = useState('Pink');
-  const [makeupStyle, setMakeupStyle] = useState('Soft Glam');
+  const [makeupStyle, setMakeupStyle] = useState(null);
   const [boldness, setBoldness] = useState('3 = Medium');
   const [hairType, setHairType] = useState(HAIR_TYPES[0]);
   const [hairLength, setHairLength] = useState(HAIR_LENGTHS[2]); // Default to Long
@@ -112,6 +252,11 @@ const VirtualPreviewChatScreen = ({ navigation, route }) => {
   const [pickerData, setPickerData] = useState([]);
   const [pickerTitle, setPickerTitle] = useState('');
   const [onSelectHandler, setOnSelectHandler] = useState(null);
+
+  const currentStyles = OCCASION_MAKEUP_MAPPING[occasion] || OCCASION_MAKEUP_MAPPING['Other'];
+  const displayStyles = occasion 
+    ? [ { name: '✨ AI Recommended (Best Match)', desc: 'Custom style curated by AI for this occasion' }, ...currentStyles ] 
+    : [];
 
   const openPicker = (title, data, currentVal, onSelect) => {
     setPickerTitle(title);
@@ -138,6 +283,10 @@ const VirtualPreviewChatScreen = ({ navigation, route }) => {
   };
 
   const handleSubmit = async () => {
+    if (!makeupStyle) {
+      alert('Please select a makeup style.');
+      return;
+    }
     setGenerating(true);
     try {
       // Compile accessories list
@@ -206,16 +355,50 @@ const VirtualPreviewChatScreen = ({ navigation, route }) => {
             <TouchableOpacity
               style={styles.dropdownBtn}
               activeOpacity={0.8}
-              onPress={() => openPicker('Select Occasion', OCCASIONS, occasion, setOccasion)}
+              onPress={() => openPicker('Select Occasion', OCCASIONS, occasion, (val) => {
+                if (val !== occasion) {
+                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                  setOccasion(val);
+                  setMakeupStyle(null);
+                }
+              })}
             >
               <Text style={styles.dropdownText}>{occasion}</Text>
               <Ionicons name="chevron-down" size={18} color="#FF4F87" />
             </TouchableOpacity>
           </View>
 
-          {/* 2. Location */}
+          {/* 2. Makeup Style */}
           <View style={styles.sectionCard}>
-            <Text style={styles.questionLabel}>2. Where is the event? <Text style={styles.required}>*</Text></Text>
+            <Text style={styles.questionLabel}>2. What makeup style do you prefer? <Text style={styles.required}>*</Text></Text>
+            {!occasion ? (
+              <Text style={{ color: '#8A5D6D', fontStyle: 'italic', marginVertical: 10 }}>Select an occasion to view suitable makeup styles.</Text>
+            ) : (
+              <View style={styles.makeupCardGrid}>
+                {displayStyles.map((style) => {
+                  const isSelected = makeupStyle === style.name;
+                  return (
+                    <TouchableOpacity
+                      key={style.name}
+                      style={[styles.styleCard, isSelected && styles.styleCardActive]}
+                      activeOpacity={0.9}
+                      onPress={() => setMakeupStyle(style.name)}
+                    >
+                      <View style={styles.styleCardHeader}>
+                        <Text style={[styles.styleCardTitle, isSelected && styles.styleCardTitleActive]}>{style.name}</Text>
+                        {isSelected && <Ionicons name="checkmark-circle" size={18} color="#FF4F87" />}
+                      </View>
+                      <Text style={styles.styleCardDesc}>{style.desc}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+
+          {/* 3. Location */}
+          <View style={styles.sectionCard}>
+            <Text style={styles.questionLabel}>3. Where is the event? <Text style={styles.required}>*</Text></Text>
             <View style={styles.radioRow}>
               {['Indoor', 'Outdoor'].map((loc) => (
                 <TouchableOpacity
@@ -233,9 +416,9 @@ const VirtualPreviewChatScreen = ({ navigation, route }) => {
             </View>
           </View>
 
-          {/* 3. Time */}
+          {/* 4. Time */}
           <View style={styles.sectionCard}>
-            <Text style={styles.questionLabel}>3. What time is the event? <Text style={styles.required}>*</Text></Text>
+            <Text style={styles.questionLabel}>4. What time is the event? <Text style={styles.required}>*</Text></Text>
             <View style={styles.radioGrid}>
               {['Morning', 'Afternoon', 'Evening', 'Night'].map((t) => (
                 <TouchableOpacity
@@ -253,9 +436,9 @@ const VirtualPreviewChatScreen = ({ navigation, route }) => {
             </View>
           </View>
 
-          {/* 4. Outfit */}
+          {/* 5. Outfit */}
           <View style={styles.sectionCard}>
-            <Text style={styles.questionLabel}>4. What outfit are you wearing? <Text style={styles.required}>*</Text></Text>
+            <Text style={styles.questionLabel}>5. What outfit are you wearing? <Text style={styles.required}>*</Text></Text>
             <TouchableOpacity
               style={styles.dropdownBtn}
               activeOpacity={0.8}
@@ -266,9 +449,9 @@ const VirtualPreviewChatScreen = ({ navigation, route }) => {
             </TouchableOpacity>
           </View>
 
-          {/* 5. Outfit Color */}
+          {/* 6. Outfit Color */}
           <View style={styles.sectionCard}>
-            <Text style={styles.questionLabel}>5. Primary color of your outfit? <Text style={styles.required}>*</Text></Text>
+            <Text style={styles.questionLabel}>6. Primary color of your outfit? <Text style={styles.required}>*</Text></Text>
             
             {/* Color Palette Grid */}
             <View style={styles.colorPaletteGrid}>
@@ -295,29 +478,6 @@ const VirtualPreviewChatScreen = ({ navigation, route }) => {
             </View>
           </View>
 
-          {/* 6. Makeup Style */}
-          <View style={styles.sectionCard}>
-            <Text style={styles.questionLabel}>6. What makeup style do you prefer? <Text style={styles.required}>*</Text></Text>
-            <View style={styles.makeupCardGrid}>
-              {MAKEUP_STYLES.map((style) => {
-                const isSelected = makeupStyle === style.name;
-                return (
-                  <TouchableOpacity
-                    key={style.name}
-                    style={[styles.styleCard, isSelected && styles.styleCardActive]}
-                    activeOpacity={0.9}
-                    onPress={() => setMakeupStyle(style.name)}
-                  >
-                    <View style={styles.styleCardHeader}>
-                      <Text style={[styles.styleCardTitle, isSelected && styles.styleCardTitleActive]}>{style.name}</Text>
-                      {isSelected && <Ionicons name="checkmark-circle" size={18} color="#FF4F87" />}
-                    </View>
-                    <Text style={styles.styleCardDesc}>{style.desc}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
 
           {/* 7. Boldness */}
           <View style={styles.sectionCard}>
