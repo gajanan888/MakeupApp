@@ -127,7 +127,11 @@ const ArtistLoginScreen = ({ navigation }) => {
                 </TouchableOpacity>
             </View>
 
-            <TouchableOpacity>
+            <TouchableOpacity
+                onPress={() =>
+                    navigation.navigate('ForgotPassword', { userRole: 'artist' })
+                }
+            >
                 <Text style={styles.forgotPassword}>
                     Forgot Password?
                 </Text>

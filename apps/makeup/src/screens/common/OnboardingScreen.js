@@ -46,11 +46,11 @@ const OnboardingScreen = ({ navigation }) => {
                     </Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity onPress={handleSkip}>
+                {/* <TouchableOpacity onPress={handleSkip}>
                     <Text style={styles.skipText}>
                         Skip
                     </Text>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
             </View>
         </ImageBackground>
     );

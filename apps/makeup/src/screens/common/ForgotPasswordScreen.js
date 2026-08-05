@@ -1,41 +1,61 @@
 import React, { useState } from 'react';
 import Ionicons from '@react-native-vector-icons/ionicons';
-
 import {
     View,
     Text,
     TextInput,
     TouchableOpacity,
     StyleSheet,
+    ActivityIndicator,
+    Alert,
 } from 'react-native';
+import { requestForgotPassword } from '../../api/auth';
 
-const ForgotPasswordScreen = ({ navigation }) => {
+const ForgotPasswordScreen = ({ navigation, route }) => {
+    const userRole = route?.params?.userRole || 'client';
     const [email, setEmail] = useState('');
     const [emailError, setEmailError] = useState('');
+    const [loading, setLoading] = useState(false);
 
-    const handleSendOtp = () => {
-
+    const handleSendOtp = async () => {
         if (!email.trim()) {
-            setEmailError(
-                'Email or phone number is required'
-            );
+            setEmailError('Email or phone number is required');
             return;
         }
 
-        const isEmail =
-            /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-
-        const isPhone =
-            /^\d{10}$/.test(email);
+        const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+        const isPhone = /^\+?[\d\s\-]{7,15}$/.test(email.trim());
 
         if (!isEmail && !isPhone) {
-            setEmailError(
-                'Enter a valid email or phone number'
-            );
+            setEmailError('Enter a valid email or phone number');
             return;
         }
 
-        navigation.navigate('OtpVerification');
+        try {
+            setLoading(true);
+            const res = await requestForgotPassword(email.trim(), userRole);
+            const targetRole = res?.data?.userRole || userRole;
+            Alert.alert(
+                'OTP Sent',
+                'A 6-digit verification code has been sent to your email address.',
+                [
+                    {
+                        text: 'OK',
+                        onPress: () =>
+                            navigation.navigate('OtpVerification', {
+                                email: email.trim(),
+                                userRole: targetRole,
+                            }),
+                    },
+                ]
+            );
+        } catch (err) {
+            const msg = err?.response?.data?.message || err?.message || 'Failed to send OTP. Please try again.';
+            setEmailError(msg);
+            Alert.alert('Error', msg);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -90,13 +110,10 @@ const ForgotPasswordScreen = ({ navigation }) => {
                     }}
                     style={styles.input}
                     keyboardType="email-address"
+                    autoCapitalize="none"
                 />
 
             </View>
-
-            {/* <Text style={styles.helperText}>
-                We'll send a 6-digit verification code.
-            </Text> */}
 
             {emailError ? (
                 <Text style={styles.errorText}>
@@ -107,12 +124,17 @@ const ForgotPasswordScreen = ({ navigation }) => {
             {/* Button */}
 
             <TouchableOpacity
-                style={styles.resetButton}
+                style={[styles.resetButton, loading && { opacity: 0.7 }]}
                 onPress={handleSendOtp}
+                disabled={loading}
             >
-                <Text style={styles.resetButtonText}>
-                    Send OTP
-                </Text>
+                {loading ? (
+                    <ActivityIndicator color="#FFF" />
+                ) : (
+                    <Text style={styles.resetButtonText}>
+                        Send OTP
+                    </Text>
+                )}
             </TouchableOpacity>
 
             <View style={styles.footer}>

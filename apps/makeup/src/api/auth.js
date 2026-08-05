@@ -66,6 +66,25 @@ export const sendEmailOtp = async (email, name) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// FORGOT & RESET PASSWORD
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const requestForgotPassword = async (email, userRole) => {
+  const response = await api.post('/api/auth/forgot-password', { email, userRole });
+  return response?.data;
+};
+
+export const verifyForgotPasswordOtp = async (email, otp) => {
+  const response = await api.post('/api/auth/verify-otp', { email, otp });
+  return response?.data;
+};
+
+export const resetUserPassword = async (email, otp, newPassword, userRole) => {
+  const response = await api.post('/api/auth/reset-password', { email, otp, newPassword, userRole });
+  return response?.data;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ARTIST PROFILE & DASHBOARD
 // ─────────────────────────────────────────────────────────────────────────────
 

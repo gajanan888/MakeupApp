@@ -143,7 +143,7 @@ const ClientLoginScreen = ({ navigation }) => {
 
             <TouchableOpacity
                 onPress={() =>
-                    navigation.navigate('ForgotPassword')
+                    navigation.navigate('ForgotPassword', { userRole: 'client' })
                 }
             >
                 <Text style={styles.forgotPassword}>

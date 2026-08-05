@@ -7,14 +7,9 @@ export const removeArtistFromWishlist = async (artistId) => api.post('/wishlist/
 export const fetchWishlist = async () => api.get('/wishlist');
 
 export const API_BASE_URLS = [
-  'http://10.146.237.172:5000',       // Active Wi-Fi IP (Added from ipconfig)
-  'http://10.167.216.212:5000',      // Active Wi-Fi IP (Primary for Wireless)
-  'http://10.146.237.172:5000',       // Active Wi-Fi IP (Current network host)
-  'http://192.168.29.53:5000',       // Active Wi-Fi IP
-  'http://127.0.0.1:5000',           // adb reverse loopback fallback
+  'http://127.0.0.1:5000',           // adb reverse loopback (USB direct)
+  'http://192.168.29.130:5000',       // Active Wi-Fi IP
   'http://localhost:5000',           // localhost fallback
-  'http://10.213.74.212:5000',       // Current Wi-Fi IP / host
-  'http://10.103.15.179:5000',       // Previous Wi-Fi IP
   'http://10.0.2.2:5000',            // Android Emulator loopback
   'http://192.168.56.1:5000',        // VirtualBox host-only adapter
 ];

@@ -12,11 +12,15 @@ import uploadRoutes from "../modules/upload/upload.routes.js";
 import messageRoutes from "../modules/message/message.routes.js";
 import wishlistRoutes from "../modules/customer/wishlist.routes.js";
 import reviewRoutes from "../modules/review/review.routes.js";
+import passwordResetRoutes from "../modules/auth/passwordReset.routes.js";
 
 const router = express.Router();
 
+router.use("/auth", passwordResetRoutes);
+router.use("/customer/auth", passwordResetRoutes);
 router.use("/customer/auth", customerAuthRoutes);
 router.use("/customer", customerRoutes);
+router.use("/artist/auth", passwordResetRoutes);
 router.use("/artist/auth", artistAuthRoutes);
 router.use("/artist", artistRoutes);
 router.use("/booking", bookingRoutes);

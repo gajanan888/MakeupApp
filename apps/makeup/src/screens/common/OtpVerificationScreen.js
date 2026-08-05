@@ -6,22 +6,52 @@ import {
     TextInput,
     TouchableOpacity,
     StyleSheet,
+    ActivityIndicator,
+    Alert,
 } from 'react-native';
+import { verifyForgotPasswordOtp, requestForgotPassword } from '../../api/auth';
 
-const OtpVerificationScreen = ({ navigation }) => {
+const OtpVerificationScreen = ({ navigation, route }) => {
+    const email = route?.params?.email || '';
+    const userRole = route?.params?.userRole || 'client';
 
     const [otp, setOtp] = useState('');
     const inputRef = useRef(null);
     const [otpError, setOtpError] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [resending, setResending] = useState(false);
 
-    const handleVerifyOtp = () => {
-
+    const handleVerifyOtp = async () => {
         if (!/^\d{6}$/.test(otp)) {
             setOtpError('Please enter a valid 6-digit OTP');
             return;
         }
 
-        navigation.navigate('CreateNewPassword');
+        try {
+            setLoading(true);
+            await verifyForgotPasswordOtp(email, otp);
+            navigation.navigate('CreateNewPassword', { email, otp, userRole });
+        } catch (err) {
+            const msg = err?.response?.data?.message || err?.message || 'Invalid or expired OTP code.';
+            setOtpError(msg);
+            Alert.alert('Verification Failed', msg);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleResendOtp = async () => {
+        if (!email) return;
+        try {
+            setResending(true);
+            await requestForgotPassword(email, userRole);
+            Alert.alert('OTP Resent', 'A new 6-digit verification code has been sent to your email.');
+        } catch (err) {
+            const msg = err?.response?.data?.message || err?.message || 'Failed to resend OTP.';
+            Alert.alert('Error', msg);
+        } finally {
+            setResending(false);
+        }
     };
 
     return (
@@ -57,10 +87,8 @@ const OtpVerificationScreen = ({ navigation }) => {
             {/* Subtitle */}
 
             <Text style={styles.subtitle}>
-                Enter the 6-digit verification code sent to your email or mobile number.
+                Enter the 6-digit verification code sent to {email || 'your email'}.
             </Text>
-
-
 
             {/* OTP Boxes */}
 
@@ -116,9 +144,9 @@ const OtpVerificationScreen = ({ navigation }) => {
                     Didn't receive the code?
                 </Text>
 
-                <TouchableOpacity>
+                <TouchableOpacity onPress={handleResendOtp} disabled={resending}>
                     <Text style={styles.resendLink}>
-                        Resend OTP
+                        {resending ? 'Sending...' : 'Resend OTP'}
                     </Text>
                 </TouchableOpacity>
 
@@ -127,12 +155,17 @@ const OtpVerificationScreen = ({ navigation }) => {
             {/* Verify Button */}
 
             <TouchableOpacity
-                style={styles.verifyButton}
+                style={[styles.verifyButton, loading && { opacity: 0.7 }]}
                 onPress={handleVerifyOtp}
+                disabled={loading}
             >
-                <Text style={styles.verifyButtonText}>
-                    Verify OTP
-                </Text>
+                {loading ? (
+                    <ActivityIndicator color="#FFF" />
+                ) : (
+                    <Text style={styles.verifyButtonText}>
+                        Verify OTP
+                    </Text>
+                )}
             </TouchableOpacity>
 
         </View>

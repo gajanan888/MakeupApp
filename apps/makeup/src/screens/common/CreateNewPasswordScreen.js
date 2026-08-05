@@ -6,9 +6,16 @@ import {
     TextInput,
     TouchableOpacity,
     StyleSheet,
+    ActivityIndicator,
+    Alert,
 } from 'react-native';
+import { resetUserPassword } from '../../api/auth';
 
-const CreateNewPasswordScreen = ({ navigation }) => {
+const CreateNewPasswordScreen = ({ navigation, route }) => {
+    const email = route?.params?.email || '';
+    const otp = route?.params?.otp || '';
+    const userRole = route?.params?.userRole || 'client';
+
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
 
@@ -17,33 +24,50 @@ const CreateNewPasswordScreen = ({ navigation }) => {
 
     const [passwordError, setPasswordError] = useState('');
     const [confirmPasswordError, setConfirmPasswordError] = useState('');
+    const [loading, setLoading] = useState(false);
 
-    const handleUpdatePassword = () => {
-
+    const handleUpdatePassword = async () => {
         let valid = true;
 
         setPasswordError('');
         setConfirmPasswordError('');
 
-        if (
-            !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/.test(password)
-        ) {
-            setPasswordError(
-                'Password must contain uppercase, lowercase, number and special character'
-            );
+        if (password.length < 6) {
+            setPasswordError('Password must be at least 6 characters long');
             valid = false;
         }
 
         if (password !== confirmPassword) {
-            setConfirmPasswordError(
-                'Passwords do not match'
-            );
+            setConfirmPasswordError('Passwords do not match');
             valid = false;
         }
 
         if (!valid) return;
 
-        navigation.replace('ClientLogin');
+        try {
+            setLoading(true);
+            await resetUserPassword(email, otp, password, userRole);
+            Alert.alert(
+                'Password Updated',
+                'Your password has been reset successfully! Please sign in with your new password.',
+                [
+                    {
+                        text: 'Sign In',
+                        onPress: () =>
+                            navigation.reset({
+                                index: 0,
+                                routes: [{ name: userRole === 'artist' ? 'ArtistLogin' : 'ClientLogin' }],
+                            }),
+                    },
+                ]
+            );
+        } catch (err) {
+            const msg = err?.response?.data?.message || err?.message || 'Failed to update password. Please try again.';
+            setPasswordError(msg);
+            Alert.alert('Error', msg);
+        } finally {
+            setLoading(false);
+        }
     };
     return (
         <View style={styles.container}>
@@ -156,12 +180,17 @@ const CreateNewPasswordScreen = ({ navigation }) => {
             ) : null}
 
             <TouchableOpacity
-                style={styles.updateButton}
+                style={[styles.updateButton, loading && { opacity: 0.7 }]}
                 onPress={handleUpdatePassword}
+                disabled={loading}
             >
-                <Text style={styles.updateButtonText}>
-                    Update Password
-                </Text>
+                {loading ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                    <Text style={styles.updateButtonText}>
+                        Update Password
+                    </Text>
+                )}
             </TouchableOpacity>
 
         </View>
