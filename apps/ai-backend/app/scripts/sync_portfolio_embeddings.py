@@ -39,6 +39,11 @@ def main():
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     db = SessionLocal()
     
+    # Delete existing embeddings to force full regeneration
+    db.query(PortfolioEmbeddingModel).delete()
+    db.commit()
+    logger.info("Deleted all existing embeddings to force regeneration.")
+    
     try:
         # 3. Initialize AI services
         face_detector = FaceDetectionService()
@@ -126,7 +131,7 @@ def main():
                         detection.bounding_box.width,
                         detection.bounding_box.height
                     ]
-                    face_img = embedding_service.crop_face(img, detection.bounding_box)
+                    # Removed face cropping to use full image
                 else:
                     logger.warning(f"No face detected in {image_url}. Using full image.")
                     

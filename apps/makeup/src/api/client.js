@@ -7,8 +7,11 @@ export const removeArtistFromWishlist = async (artistId) => api.post('/wishlist/
 export const fetchWishlist = async () => api.get('/wishlist');
 
 export const API_BASE_URLS = [
-  'http://127.0.0.1:5000',           // adb reverse loopback (USB direct)
-  'http://192.168.29.130:5000',       // Active Wi-Fi IP
+  'http://172.19.11.224:5000',       // Active Wi-Fi IP (Added from ipconfig)
+  'http://192.168.29.130:5000',       // Active Wi-Fi IP (from HEAD)
+  'http://10.167.216.212:5000',      // Active Wi-Fi IP (Primary for Wireless)
+  'http://10.146.237.172:5000',       // Active Wi-Fi IP (Current network host)
+  'http://127.0.0.1:5000',           // adb reverse loopback fallback
   'http://localhost:5000',           // localhost fallback
   'http://10.0.2.2:5000',            // Android Emulator loopback
   'http://192.168.56.1:5000',        // VirtualBox host-only adapter
@@ -16,7 +19,7 @@ export const API_BASE_URLS = [
 
 const api = axios.create({
   baseURL: API_BASE_URLS[0],
-  timeout: 10000,
+  timeout: 30000,
 });
 
 // Dynamic base URL resolver callback to synchronize active host

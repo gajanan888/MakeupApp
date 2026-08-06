@@ -14,11 +14,9 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import { getAiBaseUrl } from '../../api/aiClient';
 
-const FILTERS = ['All', 'Bridal', 'Party', 'Engagement', 'HD Makeup'];
-
 const ReferenceSearchResultsScreen = ({ route, navigation }) => {
   const { recommendedArtists, selectedImage } = route.params || { recommendedArtists: [], selectedImage: null };
-  const [activeFilter, setActiveFilter] = useState('All');
+  const topRecommendations = recommendedArtists.slice(0, 5);
 
   const getFullImageUrl = (url) => {
     if (!url) return null;
@@ -31,7 +29,7 @@ const ReferenceSearchResultsScreen = ({ route, navigation }) => {
   const renderArtistCard = ({ item }) => {
     const profileUri = getFullImageUrl(item.profile_photo);
     const matchedUri = getFullImageUrl(item.matched_image);
-    const matchPercentage = Math.round(item.similarity * 100);
+    const matchPercentage = Math.round(Math.min(item.similarity * 100, 100));
     const distance = (Math.random() * (15.0 - 2.0) + 2.0).toFixed(1); // Mock distance
     const basePrice = (Math.floor(Math.random() * (15 - 5) + 5) * 1000).toLocaleString('en-IN'); // Mock price
 
@@ -113,25 +111,9 @@ const ReferenceSearchResultsScreen = ({ route, navigation }) => {
       <View style={styles.mainContainer}>
         <Text style={styles.sectionTitle}>Top matches for this look</Text>
 
-        <View style={styles.filtersWrapper}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersScroll}>
-            {FILTERS.map((filter) => (
-              <TouchableOpacity
-                key={filter}
-                style={[styles.filterPill, activeFilter === filter && styles.filterPillActive]}
-                onPress={() => setActiveFilter(filter)}
-              >
-                <Text style={[styles.filterText, activeFilter === filter && styles.filterTextActive]}>
-                  {filter}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        {recommendedArtists.length > 0 ? (
+        {topRecommendations.length > 0 ? (
           <FlatList
-            data={recommendedArtists}
+            data={topRecommendations}
             keyExtractor={(item) => item.artist_id.toString()}
             renderItem={renderArtistCard}
             contentContainerStyle={styles.listContainer}
@@ -182,33 +164,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 12,
     marginBottom: 12,
-  },
-  filtersWrapper: {
-    marginBottom: 16,
-  },
-  filtersScroll: {
-    paddingHorizontal: 16,
-    gap: 8,
-  },
-  filterPill: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#EAEAEA',
-  },
-  filterPillActive: {
-    backgroundColor: '#FF4F87',
-    borderColor: '#FF4F87',
-  },
-  filterText: {
-    fontSize: 13,
-    color: '#666',
-    fontWeight: '600',
-  },
-  filterTextActive: {
-    color: '#FFF',
   },
   listContainer: {
     paddingHorizontal: 16,

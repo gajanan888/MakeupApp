@@ -12,6 +12,13 @@ from app.models import virtual_preview, beauty, portfolio_embedding
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Pre-warm the heavy AI models so the first request is instant
+    import asyncio
+    from app.services.vision.embedding_service import EmbeddingService
+    
+    print("Pre-warming PyTorch AI models (this may take 10-15 seconds)...")
+    await asyncio.to_thread(EmbeddingService()._load_model)
+    print("AI Models pre-warmed successfully!")
     yield
 
 def create_app() -> FastAPI:

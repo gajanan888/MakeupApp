@@ -8,20 +8,28 @@ logger = logging.getLogger(__name__)
 
 class EmbeddingService:
     """Service to crop faces and extract deep visual embeddings using vision models (SigLIP, CLIP, DINOv2) with OpenCV fallback."""
+    
+    # Global singleton variables to prevent reloading model on every request
+    _global_processor = None
+    _global_model = None
+    _global_device = None
 
     def __init__(self, model_name: str | None = None) -> None:
         settings = get_settings()
         self.model_name = model_name or settings.embedding_model_name
-        self._processor = None
-        self._model = None
-        self._device = None
         self._failed_load = False
 
     def _load_model(self) -> None:
         """Lazy-loads the model and processor to save startup time and memory."""
-        if self._model is not None or self._failed_load:
+        if EmbeddingService._global_model is not None or self._failed_load:
             return
 
+        # Local imports to delay loading heavy libraries
+        import torch
+        from transformers import AutoProcessor, AutoModel, AutoImageProcessor
+
+        EmbeddingService._global_device = "cuda" if torch.cuda.is_available() else "cpu"
+        logger.info(f"Loading embedding model '{self.model_name}' on device '{EmbeddingService._global_device}'...")
         try:
             import torch
             from transformers import AutoProcessor, AutoModel, AutoImageProcessor
@@ -30,20 +38,21 @@ class EmbeddingService:
             logger.info(f"Loading embedding model '{self.model_name}' on device '{self._device}'...")
 
             if "siglip" in self.model_name.lower():
-                self._processor = AutoProcessor.from_pretrained(self.model_name)
-                self._model = AutoModel.from_pretrained(self.model_name).to(self._device)
+                EmbeddingService._global_processor = AutoProcessor.from_pretrained(self.model_name)
+                EmbeddingService._global_model = AutoModel.from_pretrained(self.model_name).to(EmbeddingService._global_device)
             elif "clip" in self.model_name.lower():
                 from transformers import CLIPProcessor, CLIPModel
-                self._processor = CLIPProcessor.from_pretrained(self.model_name)
-                self._model = CLIPModel.from_pretrained(self.model_name).to(self._device)
+                EmbeddingService._global_processor = CLIPProcessor.from_pretrained(self.model_name)
+                EmbeddingService._global_model = CLIPModel.from_pretrained(self.model_name).to(EmbeddingService._global_device)
             elif "dinov2" in self.model_name.lower():
-                self._processor = AutoImageProcessor.from_pretrained(self.model_name)
-                self._model = AutoModel.from_pretrained(self.model_name).to(self._device)
+                EmbeddingService._global_processor = AutoImageProcessor.from_pretrained(self.model_name)
+                EmbeddingService._global_model = AutoModel.from_pretrained(self.model_name).to(EmbeddingService._global_device)
             else:
-                self._processor = AutoProcessor.from_pretrained(self.model_name)
-                self._model = AutoModel.from_pretrained(self.model_name).to(self._device)
+                # General fallback
+                EmbeddingService._global_processor = AutoProcessor.from_pretrained(self.model_name)
+                EmbeddingService._global_model = AutoModel.from_pretrained(self.model_name).to(EmbeddingService._global_device)
 
-            self._model.eval()
+            EmbeddingService._global_model.eval()
             logger.info(f"Model '{self.model_name}' loaded successfully.")
         except Exception as e:
             logger.warning(f"Embedding model '{self.model_name}' unavailable ({str(e)}). Using OpenCV fallback feature extractor.")
@@ -106,26 +115,26 @@ class EmbeddingService:
         Extracts a normalized embedding vector from the provided image.
         """
         self._load_model()
-        if self._failed_load or self._model is None:
-            return self._get_opencv_fallback_embedding(image)
+        if self._failed_load or EmbeddingService._global_model is None:
+            return self._get_opencv_fallback_embedding(image, dim=768)
 
         try:
             import torch
             from PIL import Image
 
-            rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            pil_image = Image.fromarray(rgb_image)
-
-            inputs = self._processor(images=pil_image, return_tensors="pt").to(self._device)
+            inputs = EmbeddingService._global_processor(images=pil_image, return_tensors="pt").to(EmbeddingService._global_device)
             
             with torch.no_grad():
                 if "siglip" in self.model_name.lower() or "clip" in self.model_name.lower():
-                    features = self._model.get_image_features(**inputs)
+                    # Vision-Language models have get_image_features method
+                    features = EmbeddingService._global_model.get_image_features(**inputs)
                 elif "dinov2" in self.model_name.lower():
-                    outputs = self._model(**inputs)
+                    # DINOv2 returns last_hidden_state, where index 0 is the CLS token
+                    outputs = EmbeddingService._global_model(**inputs)
                     features = outputs.last_hidden_state[:, 0, :]
                 else:
-                    outputs = self._model(**inputs)
+                    # Generic fallback: mean pooling of token embeddings
+                    outputs = EmbeddingService._global_model(**inputs)
                     if hasattr(outputs, "last_hidden_state"):
                         features = outputs.last_hidden_state.mean(dim=1)
                     else:

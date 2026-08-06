@@ -58,10 +58,10 @@ class PortfolioService:
                 detection.bounding_box.width,
                 detection.bounding_box.height
             ]
-            face_img = self.embedding_service.crop_face(image_np, detection.bounding_box)
+            # No longer cropping face_img; we use the full image for aesthetic similarity
 
         # 4. Generate normalized SigLIP embedding
-        embedding = self.embedding_service.get_embedding(face_img)
+        embedding = self.embedding_service.get_embedding(image_np)
 
         # 5. Extract Complete Look Characteristics (multimodal Gemini)
         logger.info(f"Analyzing complete look occasion/style for artist {artist_id}...")

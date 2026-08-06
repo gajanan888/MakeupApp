@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 const AI_API_BASE_URLS = [
+  'http://172.19.11.224:5000',   // Active Wi-Fi IP (Current network host)
   'http://127.0.0.1:5000',       // adb reverse loopback (USB direct)
   'http://127.0.0.1:8000',       // adb reverse FastAPI loopback (USB direct)
   'http://192.168.29.130:5000',  // Active Wi-Fi IP (Current network host)
@@ -14,6 +15,7 @@ const AI_API_BASE_URLS = [
   'http://192.168.29.53:5000',   // Old IP
   'http://localhost:5000',       // localhost fallback
   'http://10.0.2.2:5000',        // Android Emulator loopback
+  'http://172.19.11.224:8000',   // Direct FastAPI port (Current)
   'http://10.146.237.172:8000',  // Direct FastAPI port
   'http://10.206.40.172:8000',   // Direct FastAPI port
   'http://10.167.216.212:8000',  // Direct FastAPI port

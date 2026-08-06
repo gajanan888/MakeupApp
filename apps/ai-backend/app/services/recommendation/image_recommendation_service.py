@@ -119,25 +119,14 @@ class ImageRecommendationService:
         logger.info("Detecting face in reference image...")
         face_response = self.face_detection_service.detect(image)
         
-        face_img = image
-        face_bbox = None
         if face_response.face_detected and face_response.detections:
-            logger.info("Face detected! Cropping facial area...")
-            detection = face_response.detections[0]
-            face_bbox = [
-                detection.bounding_box.x,
-                detection.bounding_box.x, # Wait, y!
-                detection.bounding_box.width,
-                detection.bounding_box.height
-            ]
-            face_bbox[1] = detection.bounding_box.y # fix index 1 to y
-            face_img = self.embedding_service.crop_face(image, detection.bounding_box)
+            logger.info("Face detected! Proceeding with full image analysis...")
         else:
             logger.warning("No face detected in reference image. Falling back to entire image.")
 
         # ── STEP 2: Generate Embedding ──
-        logger.info("Generating embedding vector...")
-        query_vector = self.embedding_service.get_embedding(face_img)
+        logger.info("Generating embedding vector from full image...")
+        query_vector = self.embedding_service.get_embedding(image)
 
         # ── STEP 3: Vector Similarity Search ──
         logger.info("Performing vector similarity search in database...")
