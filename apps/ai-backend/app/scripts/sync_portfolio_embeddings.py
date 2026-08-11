@@ -28,10 +28,12 @@ def main():
     # 1. Initialize database connection
     engine = create_engine(settings.database_url)
     
-    # 2. Enable pgvector extension and create tables
     with engine.begin() as conn:
         logger.info("Enabling pgvector extension if not exists...")
-        conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+        try:
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+        except Exception:
+            logger.info("Skipping CREATE EXTENSION (not supported on this database engine).")
         
     logger.info("Creating database tables if not exist...")
     Base.metadata.create_all(bind=engine)

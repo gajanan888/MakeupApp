@@ -1,8 +1,5 @@
 from sqlalchemy import Column, Integer, String, Float, JSON, Date, Boolean
-from sqlalchemy.orm import declarative_base
-
-# Declarative Base for project models
-Base = declarative_base()
+from app.database.base import Base
 
 
 class LookModel(Base):

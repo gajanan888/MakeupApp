@@ -23,6 +23,7 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     try:
+        # Ensure all models share base metadata and auto-create tables
         Base.metadata.create_all(bind=engine)
     except Exception as err:
         print(f"[AI Backend] Notice: Database auto-migration skipped ({err})")

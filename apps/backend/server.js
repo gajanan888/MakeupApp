@@ -66,9 +66,11 @@ async function bootstrapDatabase() {
     }
 
     // Keep development startup resilient when the database is unavailable.
-    // Removed alter: true to avoid dialect-specific ALTER TABLE syntax errors.
-    // Schema changes should rely on migrations.
-    await sequelize.sync();
+    try {
+      await sequelize.sync();
+    } catch (syncErr) {
+      console.warn("sequelize.sync() warning (schema already synchronized or network reset):", syncErr.message);
+    }
 
     // TEMPORARY FIX: Inject missing Razorpay columns into Supabase because migrations got out of sync
     const qi = sequelize.getQueryInterface();

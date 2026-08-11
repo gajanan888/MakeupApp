@@ -1,20 +1,11 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Wishlist API helpers
-export const addArtistToWishlist = async (artistId) => api.post('/wishlist/add', { artistId });
-export const removeArtistFromWishlist = async (artistId) => api.post('/wishlist/remove', { artistId });
-export const fetchWishlist = async () => api.get('/wishlist');
-
+// Base URLs in order of priority (Active Wi-Fi, ADB reverse USB, Android Emulator)
 export const API_BASE_URLS = [
-  'http://172.19.11.224:5000',       // Active Wi-Fi IP (Added from ipconfig)
-  'http://192.168.29.130:5000',       // Active Wi-Fi IP (from HEAD)
-  'http://10.167.216.212:5000',      // Active Wi-Fi IP (Primary for Wireless)
-  'http://10.146.237.172:5000',       // Active Wi-Fi IP (Current network host)
-  'http://127.0.0.1:5000',           // adb reverse loopback fallback
-  'http://localhost:5000',           // localhost fallback
-  'http://10.0.2.2:5000',            // Android Emulator loopback
-  'http://192.168.56.1:5000',        // VirtualBox host-only adapter
+  'http://192.168.29.53:5000',  // Active Wi-Fi IP (Laptop on local network)
+  'http://127.0.0.1:5000',     // adb reverse loopback (USB direct)
+  'http://10.0.2.2:5000',      // Android Emulator loopback
 ];
 
 const api = axios.create({
@@ -22,47 +13,44 @@ const api = axios.create({
   timeout: 30000,
 });
 
-// Dynamic base URL resolver callback to synchronize active host
 let onBaseURLResolved = null;
 export const setBaseURLResolver = (cb) => {
   onBaseURLResolved = cb;
-  if (api.defaults.baseURL) {
+  if (api.defaults.baseURL && cb) {
     cb(api.defaults.baseURL);
   }
 };
 
-// ── Attach JWT token to every request ────────────────────────────────────────
+// Wishlist API helpers
+export const addArtistToWishlist = async (artistId) => api.post('/wishlist/add', { artistId });
+export const removeArtistFromWishlist = async (artistId) => api.post('/wishlist/remove', { artistId });
+export const fetchWishlist = async () => api.get('/wishlist');
+
+// Attach JWT token to every request
 api.interceptors.request.use(async (config) => {
   try {
     const token = await AsyncStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-  } catch (_) {
-    // ignore storage errors
-  }
+  } catch (_) {}
   return config;
 });
 
-// ── Retry with next IP on network errors and synchronize active host ──────────
+// Retry network errors with fallback URLs
 api.interceptors.response.use(
   (response) => {
     const baseURL = response?.config?.baseURL;
     if (baseURL && api.defaults.baseURL !== baseURL) {
       api.defaults.baseURL = baseURL;
-      console.log(`[API] Updated default baseURL to: ${baseURL}`);
-      if (onBaseURLResolved) {
-        onBaseURLResolved(baseURL);
-      }
+      if (onBaseURLResolved) onBaseURLResolved(baseURL);
     }
     return response;
   },
   async (error) => {
     const originalRequest = error?.config;
-
     if (!originalRequest) throw error;
 
-    // Only retry on network / timeout errors (not 4xx / 5xx)
     const isNetworkError =
       error?.message === 'Network Error' ||
       error?.code === 'ECONNABORTED' ||
@@ -85,11 +73,8 @@ api.interceptors.response.use(
     originalRequest.__retryCount = retryCount;
     originalRequest.baseURL = API_BASE_URLS[nextIndex];
 
-    console.log(`[API] Retrying request (attempt ${retryCount}) with: ${API_BASE_URLS[nextIndex]}`);
     return api.request(originalRequest);
   }
 );
 
 export default api;
-
-

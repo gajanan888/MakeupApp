@@ -129,8 +129,8 @@ const SelectDateTimeScreen = ({ navigation, route }) => {
     return cell.date.getTime() === selectedDate.getTime();
   };
 
-  const availableTimeSlots = useMemo(() => {
-    if (!selectedDate) return TIME_SLOTS;
+  const timeSlotStatuses = useMemo(() => {
+    if (!selectedDate) return TIME_SLOTS.map(slot => ({ slot, isAvailable: true, statusText: null }));
 
     const now = new Date();
     const isTodaySelected =
@@ -143,12 +143,14 @@ const SelectDateTimeScreen = ({ navigation, route }) => {
     const day = String(selectedDate.getDate()).padStart(2, '0');
     const dateStr = `${year}-${month}-${day}`;
 
-    return TIME_SLOTS.filter(slot => {
-      // 1. Check if slot is already booked for this artist
+    return TIME_SLOTS.map(slot => {
+      // 1. Check if slot is already booked or blocked for this artist
       const isBooked = bookedSlots.some(b => {
         return b.date === dateStr && b.time.trim() === slot.trim();
       });
-      if (isBooked) return false;
+      if (isBooked) {
+        return { slot, isAvailable: false, statusText: 'Booked / Unavailable' };
+      }
 
       // 2. Check if slot has already passed today
       if (isTodaySelected) {
@@ -157,11 +159,11 @@ const SelectDateTimeScreen = ({ navigation, route }) => {
         slotEndTime.setHours(endHour, 0, 0, 0);
 
         if (now >= slotEndTime) {
-          return false;
+          return { slot, isAvailable: false, statusText: 'Slot Passed' };
         }
       }
 
-      return true;
+      return { slot, isAvailable: true, statusText: null };
     });
   }, [selectedDate, bookedSlots]);
 
@@ -301,22 +303,40 @@ const SelectDateTimeScreen = ({ navigation, route }) => {
           </View>
         ) : !selectedDate ? (
           <Text style={styles.selectDatePromptText}>Please select a date to view available time slots.</Text>
-        ) : availableTimeSlots.length === 0 ? (
-          <Text style={styles.noSlotsText}>No time slots available for this day. Please select another date.</Text>
         ) : (
           <View style={styles.timeSlotsGrid}>
-            {availableTimeSlots.map((slot) => {
+            {timeSlotStatuses.map(({ slot, isAvailable, statusText }) => {
               const isActive = selectedTime === slot;
               return (
                 <TouchableOpacity
                   key={slot}
-                  style={[styles.timeChip, isActive && styles.timeChipActive]}
-                  onPress={() => setSelectedTime(slot)}
-                  activeOpacity={0.75}
+                  style={[
+                    styles.timeChip,
+                    isActive && styles.timeChipActive,
+                    !isAvailable && styles.timeChipDisabled,
+                  ]}
+                  onPress={() => {
+                    if (isAvailable) setSelectedTime(slot);
+                  }}
+                  disabled={!isAvailable}
+                  activeOpacity={isAvailable ? 0.75 : 1}
                 >
-                  <Text style={[styles.timeChipText, isActive && styles.timeChipTextActive]}>
-                    {slot}
-                  </Text>
+                  <View style={styles.timeChipContent}>
+                    <Text
+                      style={[
+                        styles.timeChipText,
+                        isActive && styles.timeChipTextActive,
+                        !isAvailable && styles.timeChipTextDisabled,
+                      ]}
+                    >
+                      {slot}
+                    </Text>
+                    {!isAvailable && (
+                      <View style={styles.unavailableBadge}>
+                        <Text style={styles.unavailableBadgeText}>{statusText || 'Unavailable'}</Text>
+                      </View>
+                    )}
+                  </View>
                 </TouchableOpacity>
               );
             })}
@@ -563,6 +583,18 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
+  timeChipContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  timeChipDisabled: {
+    backgroundColor: '#F3F4F6',
+    borderColor: '#E5E7EB',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
   timeChipText: {
     fontSize: 14,
     fontWeight: '700',
@@ -570,6 +602,20 @@ const styles = StyleSheet.create({
   },
   timeChipTextActive: {
     color: '#FFF',
+  },
+  timeChipTextDisabled: {
+    color: '#9CA3AF',
+  },
+  unavailableBadge: {
+    backgroundColor: '#E5E7EB',
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+  },
+  unavailableBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#6B7280',
   },
 
   // ── Next Button ────────────────────────────────────────────────────────────

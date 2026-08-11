@@ -3,6 +3,7 @@ import Booking from "../../models/Booking.js";
 import Artist from "../../models/Artist.js";
 import Customer from "../../models/Customer.js";
 import Review from "../../models/Review.js";
+import ArtistBlock from "../../models/ArtistBlock.js";
 import sequelize from "../../config/db.js";
 import { getRazorpayInstance } from "../../utils/razorpay.js";
 
@@ -498,7 +499,7 @@ export const completeBooking = async ({ bookingId, artistId }) => {
 };
 
 export const getArtistBookedSlots = async (artistId) => {
-  return await Booking.findAll({
+  const bookings = await Booking.findAll({
     where: {
       artistId,
       status: {
@@ -507,6 +508,16 @@ export const getArtistBookedSlots = async (artistId) => {
     },
     attributes: ['date', 'time']
   });
+
+  const blocks = await ArtistBlock.findAll({
+    where: { artistId },
+    attributes: ['date', 'time']
+  });
+
+  const bookedSlots = bookings.map(b => ({ date: b.date, time: b.time }));
+  const blockedSlots = blocks.map(b => ({ date: b.date, time: b.time }));
+
+  return [...bookedSlots, ...blockedSlots];
 };
 
 export const addExtraClientsToBooking = async ({ bookingId, artistId, extraServices, additionalPrice, notes }) => {

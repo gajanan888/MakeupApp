@@ -122,6 +122,9 @@ class EmbeddingService:
             import torch
             from PIL import Image
 
+            rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            pil_image = Image.fromarray(rgb_image)
+
             inputs = EmbeddingService._global_processor(images=pil_image, return_tensors="pt").to(EmbeddingService._global_device)
             
             with torch.no_grad():

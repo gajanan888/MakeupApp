@@ -1,40 +1,45 @@
-# Yarn
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/sdks
-!.yarn/versions
+# Environment files
+.env
+.env.*
+!.env.example
 
-# Environment
-# .env
-# apps/ai-backend/.env
-# apps/ai-backend/generated/
-# apps/ai-backend/uploads/
-# apps/ai-backend/scratch/
+# Databases & SQLite
+*.sqlite
+*.sqlite3
+*.db
+dev.sqlite
+ai_backend.db
 
 # Dependencies
 node_modules/
 
-# React Native / Metro
-.metro/
-
-# Android
-android/.gradle/
-android/build/
-android/app/build/
-android/app/.cxx/
-
-# Logs
+# Logs & Caches
 *.log
-
-# Python
+.cache/
+.pytest_cache/
+.ipynb_checkpoints/
 __pycache__/
 *.py[cod]
 *$py.class
-.pytest_cache/
-.cache/
+
+# Python environments
 venv/
 .venv/
 apps/ai-backend/venv/
 apps/ai-backend/.venv/
+
+# AI Backend generated assets & uploads
+apps/ai-backend/generated/*
+!apps/ai-backend/generated/.gitkeep
+apps/ai-backend/uploads/*
+!apps/ai-backend/uploads/.gitkeep
+apps/ai-backend/scratch/
+
+# Build & Metro / Android
+dist/
+.metro/
+android/.gradle/
+android/build/
+android/app/build/
+android/app/.cxx/
+android/.settings/

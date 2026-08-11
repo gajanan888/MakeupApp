@@ -433,7 +433,7 @@ class MakeupSimulationService:
             row1 = np.hstack([grid_orig, grid_skin, grid_hair])
             row2 = np.hstack([grid_found, grid_final, grid_out])
             grid = np.vstack([row1, row2])
-            cv2.imwrite("generated/debug_foundation.jpg", grid)
+            # Debug grid output disabled for production
         except Exception as e:
             # Silence debug grid generation errors to prevent try-on crashes
             pass
