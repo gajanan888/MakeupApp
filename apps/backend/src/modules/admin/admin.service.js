@@ -235,36 +235,29 @@ export const getTechHealth = async () => {
     pending: pool.pending || 0,
   } : { size: 0, available: 0, pending: 0 };
 
-  // 2. Cloudinary check
-  const cloudinaryConfigured = !!(
-    process.env.CLOUDINARY_CLOUD_NAME &&
-    process.env.CLOUDINARY_API_KEY &&
-    process.env.CLOUDINARY_API_SECRET
-  );
+  // 2. Storage check (Supabase Storage)
+  const supabaseStorageConfigured = !!(process.env.SUPABASE_URL && (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY));
+  let supabaseStorageStatus = "unconfigured";
+  let supabaseStoragePing = "not configured";
+  let supabaseStorageError = null;
 
-  let cloudinaryStatus = "not_configured";
-  let cloudinaryPing = "skipped";
-  let cloudinaryError = null;
-
-  if (cloudinaryConfigured) {
+  if (supabaseStorageConfigured) {
     try {
-      cloudinary.config({
-        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-        api_key: process.env.CLOUDINARY_API_KEY,
-        api_secret: process.env.CLOUDINARY_API_SECRET,
-        secure: true,
-      });
-      const result = await cloudinary.api.ping();
-      if (result && result.status === "ok") {
-        cloudinaryStatus = "healthy";
-        cloudinaryPing = "ok";
+      const { createClient } = await import("@supabase/supabase-js");
+      const supabaseUrl = process.env.SUPABASE_URL;
+      const supabaseKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+      const { data, error } = await supabase.storage.listBuckets();
+      if (!error) {
+        supabaseStorageStatus = "healthy";
+        supabaseStoragePing = "ok";
       } else {
-        cloudinaryStatus = "unhealthy";
-        cloudinaryPing = "failed";
+        supabaseStorageStatus = "unhealthy";
+        supabaseStorageError = error.message;
       }
     } catch (err) {
-      cloudinaryStatus = "unhealthy";
-      cloudinaryError = err.message;
+      supabaseStorageStatus = "unhealthy";
+      supabaseStorageError = err.message;
     }
   }
 
@@ -326,12 +319,11 @@ export const getTechHealth = async () => {
         bookings: bookingCount,
       }
     },
-    cloudinary: {
-      status: cloudinaryStatus,
-      configured: cloudinaryConfigured,
-      ping: cloudinaryPing,
-      cloudName: process.env.CLOUDINARY_CLOUD_NAME || "Not set",
-      error: cloudinaryError,
+    supabaseStorage: {
+      status: supabaseStorageStatus,
+      configured: supabaseStorageConfigured,
+      ping: supabaseStoragePing,
+      error: supabaseStorageError,
     },
     otp: {
       status: otpStatus,

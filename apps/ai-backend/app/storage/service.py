@@ -1,6 +1,7 @@
 import logging
 import os
 from pathlib import Path
+import httpx
 from app.config.config import get_preview_settings
 
 logger = logging.getLogger(__name__)
@@ -8,42 +9,28 @@ logger = logging.getLogger(__name__)
 
 class StorageService:
     """
-    Service for managing file storage (Cloudinary and local file storage).
+    Service for managing file storage (Supabase Storage and local file storage).
     """
 
     def __init__(self):
         self.settings = get_preview_settings()
-        self.cloudinary_configured = False
-        
-        # Check if Cloudinary credentials are set in settings
-        if (self.settings.cloudinary_url or 
-            (self.settings.cloudinary_cloud_name and self.settings.cloudinary_api_key and self.settings.cloudinary_api_secret)):
-            try:
-                import cloudinary
-                import cloudinary.uploader
-                
-                if self.settings.cloudinary_url:
-                    cloudinary.config(cloudinary_url=self.settings.cloudinary_url)
-                else:
-                    cloudinary.config(
-                        cloud_name=self.settings.cloudinary_cloud_name,
-                        api_key=self.settings.cloudinary_api_key,
-                        api_secret=self.settings.cloudinary_api_secret
-                    )
-                self.cloudinary_configured = True
-                logger.info("Cloudinary storage service initialized successfully.")
-            except ImportError:
-                logger.warning("Cloudinary package not installed. Falling back to local storage.")
-            except Exception as e:
-                logger.error(f"Failed to configure Cloudinary: {str(e)}. Falling back to local storage.")
+        self.supabase_url = os.getenv("SUPABASE_URL", "https://otrhmajpdsfzcxbmxgle.supabase.co")
+        self.supabase_key = (
+            os.getenv("SUPABASE_SECRET_KEY")
+            or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+            or os.getenv("SUPABASE_PUBLISHABLE_KEY")
+            or os.getenv("SUPABASE_ANON_KEY")
+        )
+        self.supabase_configured = bool(self.supabase_url and self.supabase_key)
+        self.bucket_name = os.getenv("SUPABASE_STORAGE_BUCKET", "Makeupapp")
 
     async def save_upload(self, file_bytes: bytes, filename: str) -> tuple[str, str]:
         """
-        Saves an uploaded file. If Cloudinary is configured, uploads there.
+        Saves an uploaded file. If Supabase Storage is configured, uploads there.
         Otherwise, saves to the local uploads directory.
         Returns:
         - file_path: Local filesystem path.
-        - image_url: Access URL (Cloudinary URL or local static URL).
+        - image_url: Access URL (Supabase Storage URL or local static URL).
         """
         # Always save locally first as a backup/reference
         local_path = self.settings.upload_dir / filename
@@ -53,17 +40,24 @@ class StorageService:
         local_path_str = str(local_path.resolve())
         image_url = f"/uploads/{filename}"  # Default local URL
         
-        if self.cloudinary_configured:
+        if self.supabase_configured:
             try:
-                import cloudinary.uploader
-                response = cloudinary.uploader.upload(
-                    local_path_str,
-                    folder="makeup_previews/selfies",
-                    overwrite=True
-                )
-                image_url = response.get("secure_url", image_url)
-                logger.info(f"Successfully uploaded {filename} to Cloudinary: {image_url}")
+                # Upload to Supabase Storage via REST API
+                upload_endpoint = f"{self.supabase_url.rstrip('/')}/storage/v1/object/{self.bucket_name}/{filename}"
+                headers = {
+                    "Authorization": f"Bearer {self.supabase_key}",
+                    "apikey": self.supabase_key,
+                    "x-upsert": "true",
+                }
+                async with httpx.AsyncClient() as client:
+                    res = await client.post(upload_endpoint, content=file_bytes, headers=headers, timeout=10.0)
+                    if res.status_code in (200, 201):
+                        image_url = f"{self.supabase_url.rstrip('/')}/storage/v1/object/public/{self.bucket_name}/{filename}"
+                        logger.info(f"Successfully uploaded {filename} to Supabase Storage: {image_url}")
+                    else:
+                        logger.warning(f"Supabase Storage upload returned status {res.status_code}: {res.text}")
             except Exception as e:
-                logger.error(f"Cloudinary upload failed: {str(e)}. Using local path URL.")
+                logger.error(f"Supabase Storage upload failed: {str(e)}. Using local path URL.")
                 
         return local_path_str, image_url
+
