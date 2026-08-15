@@ -1,7 +1,6 @@
 import { Op } from "sequelize";
 import bcrypt from "bcrypt";
 import axios from "axios";
-import { v2 as cloudinary } from "cloudinary";
 import sequelize from "../../config/db.js";
 import Admin from "../../models/Admin.js";
 import Customer from "../../models/Customer.js";

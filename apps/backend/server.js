@@ -6,6 +6,7 @@ import sequelize from "./src/config/db.js";
 import routes from "./src/routes/index.js";
 import initSocketServer from "./src/socket/index.js";
 import EmailOtp from "./src/models/EmailOtp.js";
+import { checkAndExpireBookings } from "./src/modules/booking/booking.service.js";
 
 dotenv.config();
 
@@ -84,6 +85,8 @@ async function bootstrapDatabase() {
     try { await qi.addColumn("Bookings", "totalPaid", { type: "INTEGER", defaultValue: 0 }); } catch (e) {}
     try { await qi.addColumn("Bookings", "rejectionReason", { type: "VARCHAR(255)" }); } catch (e) {}
     try { await qi.addColumn("Bookings", "advanceAmount", { type: "INTEGER", defaultValue: 0 }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "hasInsurance", { type: "BOOLEAN", defaultValue: false }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "insuranceFee", { type: "INTEGER", defaultValue: 0 }); } catch (e) {}
     try { await qi.addColumn("Bookings", "advancePaid", { type: "BOOLEAN", defaultValue: false }); } catch (e) {}
     try { await qi.addColumn("Bookings", "paymentDeadline", { type: "TIMESTAMP WITH TIME ZONE" }); } catch (e) {}
     try { await qi.addColumn("Bookings", "cancelledBy", { type: "VARCHAR(255)" }); } catch (e) {}
@@ -146,6 +149,13 @@ async function bootstrapDatabase() {
 }
 
 bootstrapDatabase();
+
+// Periodically check and auto-expire pending (15 min limit) and payment-expired bookings
+setInterval(() => {
+  checkAndExpireBookings().catch((err) => {
+    console.error("[AutoExpireWorker] Error checking expired bookings:", err.message);
+  });
+}, 30 * 1000);
 
 app.get("/", (req, res) => {
   res.send("Hello Wordl!");

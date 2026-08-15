@@ -4,6 +4,7 @@ import {
   createRazorpayOrderService,
   verifyPaymentService,
   handleRazorpayWebhookService,
+  checkAndExpireBookings,
 } from "../src/modules/booking/booking.service.js";
 import Booking from "../src/models/Booking.js";
 import sequelize from "../src/config/db.js";
@@ -99,5 +100,22 @@ describe("Booking Service - Razorpay", () => {
       }),
       /Order ID mismatch/
     );
+  });
+
+  it("should auto-reject pending bookings older than 15 minutes", async () => {
+    let updateCalls = [];
+    mock.method(Booking, "update", async (values, options) => {
+      updateCalls.push({ values, options });
+      return [1];
+    });
+
+    await checkAndExpireBookings();
+
+    assert.strictEqual(updateCalls.length, 2);
+    // First call should be for pending bookings older than 15 minutes
+    assert.strictEqual(updateCalls[0].values.status, "rejected");
+    assert.strictEqual(updateCalls[0].values.cancelledBy, "system");
+    assert.strictEqual(updateCalls[0].values.rejectionReason, "Auto-rejected: Artist did not respond within 15 minutes");
+    assert.strictEqual(updateCalls[0].options.where.status, "pending");
   });
 });

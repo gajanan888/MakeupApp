@@ -36,6 +36,8 @@ const PaymentScreen = ({ navigation, route }) => {
     isAdvancePayment = false,
     bookingId = null,
     advanceAmount = 0,
+    hasInsurance = false,
+    insuranceFee = 0,
   } = route?.params || {};
 
   const servicePrice = selectedService?.price || 0;
@@ -48,8 +50,9 @@ const PaymentScreen = ({ navigation, route }) => {
   };
   const numericServicePrice = parseAmount(servicePrice) * peopleCount;
   const numericAddonsTotal = parseAmount(addonsTotal);
+  const numericInsuranceFee = hasInsurance ? (insuranceFee || 1000) : (insuranceFee || 0);
   
-  const total = isAdvancePayment ? advanceAmount : (numericServicePrice + numericAddonsTotal);
+  const total = isAdvancePayment ? advanceAmount : (numericServicePrice + numericAddonsTotal + numericInsuranceFee);
 
   const [selectedMethod, setSelectedMethod] = useState('razorpay');
   const [loading, setLoading] = useState(false);
@@ -194,8 +197,28 @@ const PaymentScreen = ({ navigation, route }) => {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.cardContainer}>
           {/* Total Amount Section */}
-          <Text style={styles.totalLabel}>Total Amount</Text>
+          <Text style={styles.totalLabel}>
+            {isAdvancePayment ? 'Advance Payment Due' : 'Total Amount'}
+          </Text>
           <Text style={styles.totalAmount}>₹{total}</Text>
+
+          {/* Breakdown for Advance Payment */}
+          {isAdvancePayment && (
+            <View style={styles.breakdownBox}>
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>10% Service Advance</Text>
+                <Text style={styles.breakdownValue}>
+                  ₹{Math.max(0, total - (numericInsuranceFee > 0 ? numericInsuranceFee : 0))}
+                </Text>
+              </View>
+              {(numericInsuranceFee > 0 || hasInsurance) && (
+                <View style={styles.breakdownRow}>
+                  <Text style={styles.breakdownLabel}>Ensurance Guarantee Fee</Text>
+                  <Text style={styles.breakdownValue}>+₹{numericInsuranceFee || 1000}</Text>
+                </View>
+              )}
+            </View>
+          )}
 
           <Text style={styles.methodLabel}>Select Payment Method</Text>
 
@@ -385,5 +408,27 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#888',
     fontWeight: '500',
+  },
+  breakdownBox: {
+    backgroundColor: '#FFF5F8',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#FFD6E3',
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: 3,
+  },
+  breakdownLabel: {
+    fontSize: 13,
+    color: '#666',
+  },
+  breakdownValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FF4F87',
   },
 });

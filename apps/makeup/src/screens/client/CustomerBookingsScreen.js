@@ -18,7 +18,7 @@ import { getCustomerBookings, cancelCustomerBooking, declineCustomerBookingAdvan
 import BottomNavigation from '../../components/BottomNavigation';
 import { useCall } from '../../context/CallContext';
 
-const CountdownTimer = ({ deadline, onExpire }) => {
+const CountdownTimer = ({ deadline, onExpire, label = "Pay within:" }) => {
   const [timeLeft, setTimeLeft] = useState('');
 
   useEffect(() => {
@@ -29,7 +29,7 @@ const CountdownTimer = ({ deadline, onExpire }) => {
 
       if (diff <= 0) {
         setTimeLeft('Expired');
-        onExpire();
+        if (onExpire) onExpire();
         return;
       }
 
@@ -46,7 +46,7 @@ const CountdownTimer = ({ deadline, onExpire }) => {
   return (
     <View style={styles.timerRow}>
       <Ionicons name="time-outline" size={14} color="#D46B08" />
-      <Text style={styles.timerText}>Pay within: {timeLeft}</Text>
+      <Text style={styles.timerText}>{label} {timeLeft}</Text>
     </View>
   );
 };
@@ -177,6 +177,9 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
           avatar,
           rejectionReason: b.rejectionReason,
           advanceAmount: b.advanceAmount || 0,
+          hasInsurance: b.hasInsurance,
+          insuranceFee: b.insuranceFee || 0,
+          backupArtist: b.backupArtist,
           advancePaid: b.advancePaid,
           paymentDeadline: b.paymentDeadline,
           artistRaw: b.artist,
@@ -187,6 +190,7 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
           cancellationReason: b.cancellationReason,
           refundAmount: b.refundAmount,
           refundStatus: b.refundStatus,
+          createdAt: b.createdAt,
         };
       });
 
@@ -384,12 +388,24 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
                         <Text style={styles.metaText}>{booking.location}</Text>
                       </View>
                     
-                    {booking.rawStatus === 'rejected' && booking.rejectionReason && (
-                      <View style={styles.rejectionBox}>
-                        <Text style={styles.rejectionLabel}>Decline Reason:</Text>
-                        <Text style={styles.rejectionText}>{booking.rejectionReason}</Text>
-                      </View>
-                    )}
+                      {booking.rawStatus === 'pending' && booking.createdAt && (
+                        <CountdownTimer
+                          deadline={new Date(new Date(booking.createdAt).getTime() + 15 * 60 * 1000)}
+                          onExpire={() => fetchBookings(true)}
+                          label="Auto-cancels if unconfirmed in:"
+                        />
+                      )}
+
+                      {(booking.rawStatus === 'rejected' || booking.rawStatus === 'cancelled') && (booking.rejectionReason || booking.cancellationReason) && (
+                        <View style={styles.rejectionBox}>
+                          <Text style={styles.rejectionLabel}>
+                            {booking.cancelledBy === 'system' ? 'Cancellation Reason:' : 'Decline Reason:'}
+                          </Text>
+                          <Text style={styles.rejectionText}>
+                            {booking.rejectionReason || booking.cancellationReason}
+                          </Text>
+                        </View>
+                      )}
 
                     {booking.rawStatus === 'accepted' && booking.paymentDeadline && (
                       <CountdownTimer deadline={booking.paymentDeadline} onExpire={fetchBookings} />
@@ -402,7 +418,9 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
 
                     {booking.rawStatus === 'accepted' && (
                       <View style={styles.advanceRow}>
-                        <Text style={styles.advanceLabel}>Advance Due (10%):</Text>
+                        <Text style={styles.advanceLabel}>
+                          Advance Due ({booking.hasInsurance ? '10% + Ensurance' : '10%'}):
+                        </Text>
                         <Text style={styles.advanceValue}>₹{booking.advanceAmount}</Text>
                       </View>
                     )}
@@ -427,6 +445,8 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
                               isAdvancePayment: true,
                               bookingId: booking.id,
                               advanceAmount: booking.advanceAmount,
+                              hasInsurance: booking.hasInsurance,
+                              insuranceFee: booking.insuranceFee,
                             })}
                           >
                             <Text style={styles.payBtnText}>Pay Advance</Text>
@@ -440,6 +460,8 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
                             isAdvancePayment: true,
                             bookingId: booking.id,
                             advanceAmount: booking.advanceAmount,
+                            hasInsurance: booking.hasInsurance,
+                            insuranceFee: booking.insuranceFee,
                           })}
                         >
                           <Text style={styles.payBtnText}>Pay Advance (₹{booking.advanceAmount})</Text>
@@ -677,6 +699,20 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
                     <Text style={styles.detailsLabel}>Total Service Price</Text>
                     <Text style={styles.detailsValue}>{selectedBookingForDetails.price}</Text>
                   </View>
+                  {selectedBookingForDetails.hasInsurance && (
+                    <>
+                      <View style={styles.detailsRow}>
+                        <Text style={styles.detailsLabel}>Ensurance Guarantee</Text>
+                        <Text style={styles.detailsValue}>+₹{selectedBookingForDetails.insuranceFee || 1000}</Text>
+                      </View>
+                      {selectedBookingForDetails.backupArtist && (
+                        <View style={styles.detailsRow}>
+                          <Text style={[styles.detailsLabel, { color: '#FF4F87', fontWeight: '600' }]}>🛡️ Backup Artist</Text>
+                          <Text style={[styles.detailsValue, { color: '#FF4F87', fontWeight: '600' }]}>{selectedBookingForDetails.backupArtist.name}</Text>
+                        </View>
+                      )}
+                    </>
+                  )}
                   <View style={styles.detailsRow}>
                     <Text style={styles.detailsLabel}>Advance Paid</Text>
                     <Text style={styles.detailsValue}>

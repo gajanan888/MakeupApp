@@ -24,6 +24,44 @@ import {
 } from '../../api/auth';
 import ArtistBookingDetailModal from './ArtistBookingDetailModal';
 
+const ArtistPendingCountdownTimer = ({ createdAt, onExpire }) => {
+  const [timeLeft, setTimeLeft] = useState('');
+
+  useEffect(() => {
+    if (!createdAt) return;
+
+    const updateTimer = () => {
+      const now = new Date().getTime();
+      const created = new Date(createdAt).getTime();
+      const deadline = created + 15 * 60 * 1000;
+      const diff = deadline - now;
+
+      if (diff <= 0) {
+        setTimeLeft('Expired');
+        if (onExpire) onExpire();
+        return;
+      }
+
+      const minutes = Math.floor(diff / 60000);
+      const seconds = Math.floor((diff % 60000) / 1000);
+      setTimeLeft(`${minutes}:${seconds.toString().padStart(2, '0')} mins`);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [createdAt, onExpire]);
+
+  if (!createdAt) return null;
+
+  return (
+    <View style={styles.timerRow}>
+      <Ionicons name="time-outline" size={13} color="#D46B08" />
+      <Text style={styles.timerText}>Confirm within: {timeLeft}</Text>
+    </View>
+  );
+};
+
 const ArtistBookingScreen = ({ onBack }) => {
   const navigation = useNavigation();
   const [activeSubTab, setActiveSubTab] = useState('Upcoming');
@@ -95,6 +133,12 @@ const ArtistBookingScreen = ({ onBack }) => {
           rawDate: b.date,
           rawTime: b.time,
           addOns: addOnsList,
+          createdAt: b.createdAt,
+          rejectionReason: b.rejectionReason,
+          cancellationReason: b.cancellationReason,
+          cancelledBy: b.cancelledBy,
+          isBackupBooking: b.isBackupBooking || false,
+          primaryArtistName: b.artist?.name || '',
           rawBooking: b,
         };
       });
@@ -312,7 +356,15 @@ const ArtistBookingScreen = ({ onBack }) => {
 
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
                       <Text style={styles.bookingPrice}>{booking.price}</Text>
-                      {booking.addOns && booking.addOns.length > 0 && (
+                      {booking.isBackupBooking && (
+                        <View style={[styles.extraBadge, { backgroundColor: '#FFF0F5', borderColor: '#FF4F8F' }]}>
+                          <Ionicons name="shield-checkmark" size={12} color="#FF4F8F" />
+                          <Text style={[styles.extraBadgeText, { color: '#FF4F8F', fontWeight: '700' }]}>
+                            Backup Request
+                          </Text>
+                        </View>
+                      )}
+                      {booking.addOns && booking.addOns.length > 0 && !booking.isBackupBooking && (
                         <View style={styles.extraBadge}>
                           <Ionicons name="people" size={12} color="#FF4F8F" />
                           <Text style={styles.extraBadgeText}>
@@ -323,50 +375,66 @@ const ArtistBookingScreen = ({ onBack }) => {
                     </View>
 
                     {booking.status === 'Upcoming' && (
-                      <View style={styles.cardActionsContainer}>
+                      <View style={{ flexDirection: 'column' }}>
                         {booking.rawStatus === 'pending' && (
-                          <>
-                            <TouchableOpacity
-                              style={[styles.actionBtn, styles.acceptBtn]}
-                              onPress={() => handleAccept(booking.id)}
-                            >
-                              <Text style={styles.actionBtnText}>Accept</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={[styles.actionBtn, styles.rejectBtn]}
-                              onPress={() => handleReject(booking.id)}
-                            >
-                              <Text style={[styles.actionBtnText, styles.rejectBtnText]}>Reject</Text>
-                            </TouchableOpacity>
-                          </>
+                          <ArtistPendingCountdownTimer createdAt={booking.createdAt} onExpire={fetchBookings} />
                         )}
-                        {(booking.rawStatus === 'accepted' || booking.rawStatus === 'advance_pending') && (
-                          <View style={styles.waitingPillContainer}>
-                            <Text style={styles.waitingPillText}>Waiting for Client Confirmation</Text>
-                          </View>
-                        )}
-                        {booking.rawStatus === 'confirmed' && (
-                          isBookingTimeReached(booking) ? (
-                            <TouchableOpacity
-                              style={[styles.actionBtn, styles.startBtn]}
-                              onPress={() => handleStart(booking.id)}
-                            >
-                              <Text style={styles.actionBtnText}>Start Service</Text>
-                            </TouchableOpacity>
-                          ) : (
+                        <View style={styles.cardActionsContainer}>
+                          {booking.rawStatus === 'pending' && (
+                            <>
+                              <TouchableOpacity
+                                style={[styles.actionBtn, styles.acceptBtn]}
+                                onPress={() => handleAccept(booking.id)}
+                              >
+                                <Text style={styles.actionBtnText}>Accept</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={[styles.actionBtn, styles.rejectBtn]}
+                                onPress={() => handleReject(booking.id)}
+                              >
+                                <Text style={[styles.actionBtnText, styles.rejectBtnText]}>Reject</Text>
+                              </TouchableOpacity>
+                            </>
+                          )}
+                          {(booking.rawStatus === 'accepted' || booking.rawStatus === 'advance_pending') && (
                             <View style={styles.waitingPillContainer}>
-                              <Text style={styles.waitingPillText}>Starts {booking.date}</Text>
+                              <Text style={styles.waitingPillText}>Waiting for Client Confirmation</Text>
                             </View>
-                          )
-                        )}
-                        {booking.rawStatus === 'in_progress' && (
-                          <TouchableOpacity
-                            style={[styles.actionBtn, styles.completeBtn]}
-                            onPress={() => handleComplete(booking.id)}
-                          >
-                            <Text style={styles.actionBtnText}>Complete Service</Text>
-                          </TouchableOpacity>
-                        )}
+                          )}
+                          {booking.rawStatus === 'confirmed' && (
+                            isBookingTimeReached(booking) ? (
+                              <TouchableOpacity
+                                style={[styles.actionBtn, styles.startBtn]}
+                                onPress={() => handleStart(booking.id)}
+                              >
+                                <Text style={styles.actionBtnText}>Start Service</Text>
+                              </TouchableOpacity>
+                            ) : (
+                              <View style={styles.waitingPillContainer}>
+                                <Text style={styles.waitingPillText}>Starts {booking.date}</Text>
+                              </View>
+                            )
+                          )}
+                          {booking.rawStatus === 'in_progress' && (
+                            <TouchableOpacity
+                              style={[styles.actionBtn, styles.completeBtn]}
+                              onPress={() => handleComplete(booking.id)}
+                            >
+                              <Text style={styles.actionBtnText}>Complete Service</Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      </View>
+                    )}
+
+                    {booking.status === 'Cancelled' && (booking.rejectionReason || booking.cancellationReason) && (
+                      <View style={styles.rejectionBox}>
+                        <Text style={styles.rejectionLabel}>
+                          {booking.cancelledBy === 'system' ? 'Cancellation Reason:' : 'Decline Reason:'}
+                        </Text>
+                        <Text style={styles.rejectionText}>
+                          {booking.rejectionReason || booking.cancellationReason}
+                        </Text>
                       </View>
                     )}
                   </View>
@@ -776,6 +844,45 @@ const styles = StyleSheet.create({
     color: '#FF4F8F',
     fontFamily: 'serif',
     marginLeft: 4,
+  },
+  timerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF7E6',
+    borderColor: '#FFE7BA',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  timerText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#D46B08',
+    marginLeft: 4,
+    fontFamily: 'serif',
+  },
+  rejectionBox: {
+    backgroundColor: '#FFF1F0',
+    borderColor: '#FFA39E',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 8,
+    marginTop: 8,
+  },
+  rejectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#CF1322',
+    fontFamily: 'serif',
+  },
+  rejectionText: {
+    fontSize: 12,
+    color: '#595959',
+    marginTop: 2,
+    fontFamily: 'serif',
   },
 });
 

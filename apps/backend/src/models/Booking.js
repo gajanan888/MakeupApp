@@ -56,6 +56,16 @@ const Booking = sequelize.define("Booking", {
     allowNull: true,
     defaultValue: 0,
   },
+  hasInsurance: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
+  insuranceFee: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: 0,
+  },
   advancePaid: {
     type: DataTypes.BOOLEAN,
     allowNull: false,
@@ -119,6 +129,15 @@ const Booking = sequelize.define("Booking", {
     allowNull: false,
     defaultValue: "razorpay",
   },
+  backupArtistId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  backupStatus: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: "pending",
+  },
 }, {
   timestamps: true,
   paranoid: true,
@@ -126,7 +145,9 @@ const Booking = sequelize.define("Booking", {
 
 Customer.hasMany(Booking, { foreignKey: "customerId", as: "bookings" });
 Artist.hasMany(Booking, { foreignKey: "artistId", as: "bookings" });
+Artist.hasMany(Booking, { foreignKey: "backupArtistId", as: "backupBookings" });
 Booking.belongsTo(Customer, { foreignKey: "customerId", as: "customer" });
 Booking.belongsTo(Artist, { foreignKey: "artistId", as: "artist" });
+Booking.belongsTo(Artist, { foreignKey: "backupArtistId", as: "backupArtist" });
 
 export default Booking;

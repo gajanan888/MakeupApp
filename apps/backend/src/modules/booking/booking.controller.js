@@ -43,6 +43,9 @@ export const createBookingController = async (req, res) => {
       price: req.body.price,
       location: req.body.location,
       addOns: req.body.addOns,
+      hasInsurance: req.body.hasInsurance,
+      insuranceFee: req.body.insuranceFee,
+      backupArtistId: req.body.backupArtistId ? Number(req.body.backupArtistId) : null,
       totalPaid: req.body.totalPaid,
     });
 

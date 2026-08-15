@@ -51,7 +51,7 @@ const AddOnsScreen = ({ navigation, route }) => {
   const addonsTotal = selectedAddons.reduce((sum, a) => sum + a.price, 0);
 
   const handleNext = () => {
-    navigation.navigate('BookingConfirmation', {
+    navigation.navigate('BookingEnsurance', {
       artist,
       selectedService,
       selectedLocation,

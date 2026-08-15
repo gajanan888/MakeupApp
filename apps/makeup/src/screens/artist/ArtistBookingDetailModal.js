@@ -247,12 +247,22 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
               <View style={styles.timelineLine} />
 
               {isCancelled ? (
-                <View style={styles.timelineRow}>
-                  <Ionicons name="close-circle" size={18} color="#CF1322" />
-                  <Text style={[styles.timelineText, { color: '#CF1322' }]}>
-                    Booking Declined/Cancelled
-                  </Text>
-                </View>
+                <>
+                  <View style={styles.timelineRow}>
+                    <Ionicons name="close-circle" size={18} color="#CF1322" />
+                    <Text style={[styles.timelineText, { color: '#CF1322' }]}>
+                      Booking Declined/Cancelled
+                    </Text>
+                  </View>
+                  <View style={styles.rejectionBox}>
+                    <Text style={styles.rejectionLabel}>
+                      {booking.cancelledBy === 'system' ? 'Cancellation Reason:' : 'Decline / Cancellation Reason:'}
+                    </Text>
+                    <Text style={styles.rejectionText}>
+                      {booking.rejectionReason || booking.cancellationReason || booking.rawBooking?.rejectionReason || booking.rawBooking?.cancellationReason || 'Request unconfirmed / cancelled'}
+                    </Text>
+                  </View>
+                </>
               ) : (
                 <>
                   <View style={styles.timelineRow}>
@@ -839,6 +849,27 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#FF4F8F',
+    fontFamily: 'serif',
+  },
+  rejectionBox: {
+    backgroundColor: '#FFF1F0',
+    borderColor: '#FFA39E',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 10,
+    marginBottom: 5,
+  },
+  rejectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#CF1322',
+    fontFamily: 'serif',
+  },
+  rejectionText: {
+    fontSize: 12,
+    color: '#595959',
+    marginTop: 3,
     fontFamily: 'serif',
   },
 });

@@ -43,6 +43,8 @@ import TryThisLookScreen from '../screens/client/TryThisLookScreen';
 import BookLookArtistScreen from '../screens/client/BookLookArtistScreen';
 import SelectDateTimeScreen from '../screens/client/SelectDateTimeScreen';
 import AddOnsScreen from '../screens/client/AddOnsScreen';
+import BookingEnsuranceScreen from '../screens/client/BookingEnsuranceScreen';
+import SelectBackupArtistScreen from '../screens/client/SelectBackupArtistScreen';
 import BookingConfirmationScreen from '../screens/client/BookingConfirmationScreen';
 import PaymentScreen from '../screens/client/PaymentScreen';
 import BookingSuccessScreen from '../screens/client/BookingSuccessScreen';
@@ -242,6 +244,8 @@ const AppNavigator = () => {
         <Stack.Screen name="BookLookArtist" component={BookLookArtistScreen} />
         <Stack.Screen name="SelectDateTime" component={SelectDateTimeScreen} />
         <Stack.Screen name="AddOns" component={AddOnsScreen} />
+        <Stack.Screen name="BookingEnsurance" component={BookingEnsuranceScreen} />
+        <Stack.Screen name="SelectBackupArtist" component={SelectBackupArtistScreen} />
         <Stack.Screen
           name="BookingConfirmation"
           component={BookingConfirmationScreen}

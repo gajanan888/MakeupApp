@@ -25,6 +25,10 @@ const BookingConfirmationScreen = ({ navigation, route }) => {
     dateStr,
     selectedAddons = [],
     addonsTotal = 0,
+    hasInsurance = false,
+    insuranceFee = 0,
+    backupArtist = null,
+    backupArtistId = null,
   } = route?.params || {};
 
   const servicePrice = selectedService?.price || 0;
@@ -37,7 +41,8 @@ const BookingConfirmationScreen = ({ navigation, route }) => {
   };
   const numericServicePrice = parseAmount(servicePrice) * peopleCount;
   const numericAddonsTotal = parseAmount(addonsTotal);
-  const total = numericServicePrice + numericAddonsTotal;
+  const numericInsuranceFee = hasInsurance ? (insuranceFee || 1000) : 0;
+  const total = numericServicePrice + numericAddonsTotal + numericInsuranceFee;
 
   const [loading, setLoading] = useState(false);
   const [isConsentChecked, setIsConsentChecked] = useState(false);
@@ -85,6 +90,9 @@ const BookingConfirmationScreen = ({ navigation, route }) => {
         price: total,
         location: typeof selectedLocation === 'string' ? selectedLocation : selectedLocation?.address || 'At Client Location',
         addOns: selectedAddons,
+        hasInsurance,
+        insuranceFee: numericInsuranceFee,
+        backupArtistId: backupArtist?.id || backupArtistId || null,
         totalPaid: 0,
       };
 
@@ -168,10 +176,42 @@ const BookingConfirmationScreen = ({ navigation, route }) => {
             ))}
           </View>
         )}
+        {/* Booking Ensurance Guarantee */}
+        {hasInsurance && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Booking Protection</Text>
+            <View style={styles.addonRow}>
+              <Text style={styles.addonName}>Artist Cancellation Protection</Text>
+              <Text style={styles.addonPrice}>+₹{numericInsuranceFee}</Text>
+            </View>
+            {backupArtist && (
+              <View style={[styles.addonRow, { marginTop: 6 }]}>
+                <Text style={[styles.addonName, { color: '#FF4F87', fontWeight: '600' }]}>
+                  🛡️ Backup Artist: {backupArtist.name}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
         {/* Total */}
         <View style={styles.totalBox}>
           <Text style={styles.totalLabel}>Total</Text>
           <Text style={styles.totalAmount}>₹{total.toLocaleString('en-IN')}</Text>
+        </View>
+
+        {/* Advance Payment Notice Card */}
+        <View style={styles.advanceNoticeCard}>
+          <View style={styles.advanceNoticeHeader}>
+            <View style={styles.infoCircleIcon}>
+              <Text style={styles.infoIconText}>i</Text>
+            </View>
+            <Text style={styles.advanceNoticeTitle}>
+              Payment to confirm your booking
+            </Text>
+          </View>
+          <Text style={styles.advanceNoticeText}>
+            To confirm your booking after the artist accepts your request, a 10% advance payment + any applicable protection fee is required.
+          </Text>
         </View>
 
         {/* Health & Liability Disclaimer Consent */}
@@ -308,5 +348,47 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#555',
     lineHeight: 18,
+  },
+  advanceNoticeCard: {
+    backgroundColor: '#FFF2F6',
+    borderRadius: 18,
+    padding: 18,
+    marginTop: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FFD3E2',
+  },
+  advanceNoticeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  infoCircleIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FF3B7B',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  infoIconText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '800',
+    fontStyle: 'italic',
+    marginTop: -1,
+  },
+  advanceNoticeTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FF3B7B',
+    flex: 1,
+  },
+  advanceNoticeText: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 21,
+    fontWeight: '400',
   },
 });

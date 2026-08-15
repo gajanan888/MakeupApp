@@ -7,9 +7,30 @@ import ArtistBlock from "../../models/ArtistBlock.js";
 import sequelize from "../../config/db.js";
 import { getRazorpayInstance } from "../../utils/razorpay.js";
 
-// Helper to auto-expire bookings that missed their payment deadline
+// Helper to auto-expire bookings that missed their response/payment deadline
 export const checkAndExpireBookings = async () => {
   const now = new Date();
+  const fifteenMinsAgo = new Date(now.getTime() - 15 * 60 * 1000);
+
+  // 1. Auto-reject pending bookings if artist did not respond within 15 minutes
+  await Booking.update(
+    {
+      status: "rejected",
+      cancelledBy: "system",
+      rejectionReason: "Auto-rejected: Artist did not respond within 15 minutes",
+      cancellationReason: "Auto-rejected: Artist did not respond within 15 minutes",
+    },
+    {
+      where: {
+        status: "pending",
+        createdAt: {
+          [Op.lt]: fifteenMinsAgo,
+        },
+      },
+    }
+  );
+
+  // 2. Auto-cancel accepted bookings that missed advance payment deadline
   await Booking.update(
     {
       status: "cancelled",
@@ -28,7 +49,7 @@ export const checkAndExpireBookings = async () => {
   );
 };
 
-export const createBooking = async ({ customerId, artistId, date, time, category, price, location, addOns, totalPaid }) => {
+export const createBooking = async ({ customerId, artistId, date, time, category, price, location, addOns, hasInsurance = false, insuranceFee = 0, backupArtistId = null, totalPaid }) => {
   const artist = await Artist.findByPk(artistId);
   if (!artist || !artist.isVerified) {
     throw new Error("Artist not found or not verified");
@@ -50,8 +71,12 @@ export const createBooking = async ({ customerId, artistId, date, time, category
     throw new Error("Artist is not available at that time");
   }
 
-  // Calculate 10% advance payment amount
-  const advanceAmount = Math.round((price || 0) * 0.10);
+  // Calculate advance: 10% of base price + ensurance fee (if selected)
+  const actualInsuranceFee = hasInsurance ? (insuranceFee || 1000) : 0;
+  const basePrice = Math.max(0, (price || 0) - actualInsuranceFee);
+  const advanceAmount = Math.round(basePrice * 0.10) + actualInsuranceFee;
+
+  const parsedBackupId = (hasInsurance && backupArtistId) ? Number(backupArtistId) : null;
 
   const booking = await Booking.create({
     customerId,
@@ -62,6 +87,10 @@ export const createBooking = async ({ customerId, artistId, date, time, category
     price,
     location,
     addOns,
+    hasInsurance: !!hasInsurance,
+    insuranceFee: actualInsuranceFee,
+    backupArtistId: parsedBackupId,
+    backupStatus: parsedBackupId ? "pending" : "none",
     totalPaid: 0,
     advanceAmount,
     advancePaid: false,
@@ -79,7 +108,13 @@ export const listCustomerBookings = async ({ customerId, offset, limit }) => {
       {
         model: Artist,
         as: "artist",
-        attributes: ["id", "name"],
+        attributes: ["id", "name", "phone", "profileImage", "rating", "location"],
+      },
+      {
+        model: Artist,
+        as: "backupArtist",
+        attributes: ["id", "name", "phone", "profileImage", "rating", "location"],
+        required: false,
       },
       {
         model: Review,
@@ -98,13 +133,30 @@ export const listCustomerBookings = async ({ customerId, offset, limit }) => {
 
 export const listArtistBookings = async ({ artistId, offset, limit }) => {
   await checkAndExpireBookings();
-  return Booking.findAndCountAll({
-    where: { artistId },
+  const parsedId = Number(artistId);
+  const { count, rows } = await Booking.findAndCountAll({
+    where: {
+      [Op.or]: [
+        { artistId: parsedId },
+        { backupArtistId: parsedId, hasInsurance: true },
+      ],
+    },
     include: [
       {
         model: Customer,
         as: "customer",
         attributes: ["id", "name", "email", "phone"],
+      },
+      {
+        model: Artist,
+        as: "artist",
+        attributes: ["id", "name", "phone", "profileImage"],
+      },
+      {
+        model: Artist,
+        as: "backupArtist",
+        attributes: ["id", "name", "phone", "profileImage"],
+        required: false,
       },
     ],
     order: [
@@ -114,6 +166,14 @@ export const listArtistBookings = async ({ artistId, offset, limit }) => {
     offset,
     limit,
   });
+
+  const items = rows.map((b) => {
+    const json = b.toJSON();
+    json.isBackupBooking = json.backupArtistId === parsedId;
+    return json;
+  });
+
+  return { count, rows: items };
 };
 
 export const acceptBooking = async ({ bookingId, artistId }) => {
