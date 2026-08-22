@@ -70,11 +70,22 @@ const ALLOWED_CERTIFICATE_TYPES = new Set([
 ]);
 
 const ArtistRegisterScreen3 = ({ navigation, route }) => {
-  const { data, setSpecializations, setCertificates } = useArtistRegistration();
+  const { data, setSpecializations, setCertificates, setProfileInfo } = useArtistRegistration();
   const [selectedSpecializations, setSelectedSpecializations] = useState(
     data.specializations || [],
   );
+  
+  const [trainingMethod, setTrainingMethod] = useState(data.profile.trainingMethod || '');
+  const [trainingDetails, setTrainingDetails] = useState(data.profile.trainingDetails || '');
+  const [notableWork, setNotableWork] = useState(data.profile.notableWork || '');
+  const [brandQuery, setBrandQuery] = useState('');
+  const [brandsUsed, setBrandsUsed] = useState(data.profile.brandsUsed || []);
+  const [productsUsed, setProductsUsed] = useState(data.profile.productsUsed || '');
+
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [optionModalVisible, setOptionModalVisible] = useState(false);
+  
+  const trainingOptions = ['Self-Taught', 'Certified (Short Course)', 'Diploma / Degree'];
 
   const [showOtherInput, setShowOtherInput] = useState(false);
 
@@ -439,6 +450,108 @@ const ArtistRegisterScreen3 = ({ navigation, route }) => {
             </TouchableOpacity>
           </View>
 
+          {/* TRAINING */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Training Background</Text>
+
+            <TouchableOpacity
+              style={styles.dropdown}
+              onPress={() => {
+                Keyboard.dismiss();
+                setOptionModalVisible(true);
+              }}
+            >
+              <Text style={trainingMethod ? styles.dropdownText : styles.placeholder}>
+                {trainingMethod || 'Select your training method'}
+              </Text>
+              <Ionicons name="chevron-down" size={22} color="#FF4F8F" />
+            </TouchableOpacity>
+
+            {(trainingMethod === 'Certified (Short Course)' || trainingMethod === 'Diploma / Degree') && (
+              <TextInput
+                placeholder="Name of Academy / Mentor"
+                placeholderTextColor="#C7AAA0"
+                value={trainingDetails}
+                onChangeText={setTrainingDetails}
+                style={[styles.input, { marginTop: 15 }]}
+              />
+            )}
+          </View>
+          
+          {/* NOTABLE WORK */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Notable Work / Celebrity Clients</Text>
+            <TextInput
+              placeholder="e.g. Worked with XYZ celebrity, featured in ABC magazine..."
+              placeholderTextColor="#C7AAA0"
+              multiline
+              value={notableWork}
+              onChangeText={setNotableWork}
+              style={[styles.input, { height: 100, textAlignVertical: 'top', paddingTop: 18 }]}
+            />
+          </View>
+
+          {/* PRODUCTS USED */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>What products do you use?</Text>
+            <TextInput
+              placeholder="e.g. Kryolan, MAC, Huda Beauty, etc."
+              placeholderTextColor="#C7AAA0"
+              multiline
+              value={productsUsed}
+              onChangeText={setProductsUsed}
+              style={[styles.input, { height: 100, textAlignVertical: 'top', paddingTop: 18 }]}
+            />
+          </View>
+
+          {/* BRANDS USED (CHIPS) */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Premium Brands Used</Text>
+
+            <View style={styles.inputWithLoader}> 
+              <TextInput
+                placeholder="Type brand name and press space/enter"
+                placeholderTextColor="#C7AAA0"
+                value={brandQuery}
+                onChangeText={(val) => {
+                  if (val.endsWith(' ') || val.endsWith(',')) {
+                    const brand = val.replace(/[, ]/g, '').trim();
+                    if (brand && !brandsUsed.includes(brand)) {
+                      setBrandsUsed([...brandsUsed, brand]);
+                    }
+                    setBrandQuery('');
+                  } else {
+                    setBrandQuery(val);
+                  }
+                }}
+                onSubmitEditing={() => {
+                  const brand = brandQuery.trim();
+                  if (brand && !brandsUsed.includes(brand)) {
+                    setBrandsUsed([...brandsUsed, brand]);
+                  }
+                  setBrandQuery('');
+                }}
+                style={styles.input}
+              />
+            </View>
+            
+            {brandsUsed.length > 0 && (
+              <View style={styles.chipsContainer}>
+                {brandsUsed.map((brand, idx) => (
+                  <View key={idx} style={styles.chip}>
+                    <Text style={styles.chipText}>{brand}</Text>
+                    <TouchableOpacity
+                      onPress={() => setBrandsUsed(brandsUsed.filter(item => item !== brand))}
+                      style={styles.chipRemoveButton}
+                    >
+                      <Ionicons name="close" size={16} color="#FF4F8F" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+
           {/* BUTTON */}
           <TouchableOpacity
             style={[styles.button, isSubmitting && { opacity: 0.7 }]}
@@ -454,14 +567,24 @@ const ArtistRegisterScreen3 = ({ navigation, route }) => {
                   instituteName: cert?.instituteName,
                 }));
                 
+                const profilePayload = {
+                  trainingMethod,
+                  trainingDetails,
+                  notableWork,
+                  brandsUsed,
+                  productsUsed,
+                };
+                
                 const payload = {
                   specializations: selectedSpecializations,
                   certificates: certPayload,
+                  profile: profilePayload,
                 };
                 
                 await updateArtistProfile(payload);
                 setSpecializations(selectedSpecializations);
                 setCertificates(certificates);
+                setProfileInfo(profilePayload);
                 
                 if (route?.params?.fromPending) {
                   navigation.navigate('ArtistRegistrationPending');
@@ -495,6 +618,37 @@ const ArtistRegisterScreen3 = ({ navigation, route }) => {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+      
+      {/* DROPDOWN MODAL FOR TRAINING METHOD */}
+      {optionModalVisible && (
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setOptionModalVisible(false)}
+        >
+          <View style={styles.bottomSheet}>
+            <Text style={styles.sheetTitle}>Training Background</Text>
+            {trainingOptions.map(item => (
+              <TouchableOpacity
+                key={item}
+                style={styles.sheetButton}
+                onPress={() => {
+                  setTrainingMethod(item);
+                  setOptionModalVisible(false);
+                  if (item === 'Self-Taught') {
+                    setTrainingDetails('');
+                  }
+                }}
+              >
+                <Text style={styles.sheetButtonText}>{item}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={styles.cancelButton} onPress={() => setOptionModalVisible(false)}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 };
@@ -772,6 +926,105 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#FFF',
     fontSize: 20,
+    fontWeight: '700',
+  },
+
+  dropdown: {
+    height: 60,
+    borderWidth: 1.5,
+    borderColor: '#FFD1E1',
+    borderRadius: 22,
+    backgroundColor: '#FFF',
+    paddingHorizontal: 20,
+    marginTop: 18,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
+  dropdownText: {
+    fontSize: 15,
+    color: '#111',
+  },
+  
+  chipsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 12,
+  },
+
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFE4ED',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#FFD1E1',
+  },
+
+  chipText: {
+    color: '#FF4F8F',
+    fontSize: 14,
+    marginRight: 4,
+  },
+
+  chipRemoveButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'flex-end',
+  },
+
+  bottomSheet: {
+    backgroundColor: '#FFF',
+    padding: 25,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+  },
+
+  sheetTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+
+  sheetButton: {
+    paddingVertical: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F1F1',
+  },
+
+  sheetButtonText: {
+    fontSize: 16,
+    color: '#111',
+    textAlign: 'center',
+  },
+
+  cancelButton: {
+    marginTop: 15,
+    backgroundColor: '#FFE4ED',
+    paddingVertical: 15,
+    borderRadius: 20,
+    alignItems: 'center',
+  },
+
+  cancelText: {
+    color: '#FF4F8F',
+    fontSize: 16,
     fontWeight: '700',
   },
 });

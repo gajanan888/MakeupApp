@@ -17,6 +17,17 @@ const initialState = {
     experience: '',
     parlourName: '',
     parlourAddress: '',
+    languages: [],
+    homeService: '',
+    travelToClient: false,
+    travelArea: '',
+    travelChargesType: '',
+    travelChargeAmount: '',
+    trainingMethod: '',
+    trainingDetails: '',
+    notableWork: '',
+    brandsUsed: [],
+    productsUsed: '',
   },
   specializations: [],
   certificates: [],
@@ -28,6 +39,28 @@ const initialState = {
     accountNumber: '',
     ifscCode: '',
     upiId: '',
+  },
+  bookingPolicy: {
+    advanceNotice: '',
+    trialType: '',
+    trialPrice: '',
+    requiresAdvance: false,
+    advanceType: '',
+    advanceValue: '',
+    cancellationPolicy: '',
+    cancellationPolicyCustom: '',
+  },
+  socialLinks: {
+    instagram: '',
+    facebook: '',
+    youtube: '',
+    website: '',
+    whatsapp: '',
+  },
+  artistTypeInfo: {
+    artistType: '',
+    businessName: '',
+    ownerName: '',
   },
 };
 
@@ -83,6 +116,27 @@ export const ArtistRegistrationProvider = ({ children }) => {
     }));
   };
 
+  const setBookingPolicy = bookingPolicy => {
+    setData(prev => ({
+      ...prev,
+      bookingPolicy: { ...prev.bookingPolicy, ...bookingPolicy },
+    }));
+  };
+
+  const setSocialLinks = socialLinks => {
+    setData(prev => ({
+      ...prev,
+      socialLinks: { ...prev.socialLinks, ...socialLinks },
+    }));
+  };
+
+  const setArtistTypeInfo = artistTypeInfo => {
+    setData(prev => ({
+      ...prev,
+      artistTypeInfo: { ...prev.artistTypeInfo, ...artistTypeInfo },
+    }));
+  };
+
   const resetRegistration = () => {
     setData(initialState);
   };
@@ -104,6 +158,17 @@ export const ArtistRegistrationProvider = ({ children }) => {
         experience: profileData.profile?.experience || '',
         parlourName: profileData.profile?.parlourName || '',
         parlourAddress: profileData.profile?.parlourAddress || '',
+        languages: profileData.profile?.languages || [],
+        homeService: profileData.profile?.homeService || '',
+        travelToClient: profileData.profile?.travelToClient || false,
+        travelArea: profileData.profile?.travelArea || '',
+        travelChargesType: profileData.profile?.travelChargesType || '',
+        travelChargeAmount: profileData.profile?.travelChargeAmount || '',
+        trainingMethod: profileData.profile?.trainingMethod || '',
+        trainingDetails: profileData.profile?.trainingDetails || '',
+        notableWork: profileData.profile?.notableWork || '',
+        brandsUsed: profileData.profile?.brandsUsed || [],
+        productsUsed: profileData.profile?.productsUsed || '',
       },
       specializations: (profileData.specializations || []).map(s => s.name || s),
       certificates: (profileData.certificates || []).map(c => ({
@@ -122,8 +187,9 @@ export const ArtistRegistrationProvider = ({ children }) => {
       })),
       portfolio: (profileData.portfolio || []).map(p => ({
         id: p.id || Date.now() + Math.random(),
-        beforeImage: p.beforeImageUrl || '',
-        afterImage: p.afterImageUrl || '',
+        beforeImage: p.beforeImageUrl || p.beforeImage || '',
+        afterImage: p.afterImageUrl || p.afterImage || '',
+        images: Array.isArray(p.images) ? p.images : (p.afterImageUrl || p.afterImage ? [p.afterImageUrl || p.afterImage] : []),
         tag: p.tag || '',
         description: p.description || '',
       })),
@@ -133,6 +199,28 @@ export const ArtistRegistrationProvider = ({ children }) => {
         accountNumber: profileData.payment?.accountNumber || '',
         ifscCode: profileData.payment?.ifscCode || '',
         upiId: profileData.payment?.upiId || '',
+      },
+      bookingPolicy: {
+        advanceNotice: profileData.bookingPolicy?.advanceNotice || '',
+        trialType: profileData.bookingPolicy?.trialType || '',
+        trialPrice: profileData.bookingPolicy?.trialPrice || '',
+        requiresAdvance: profileData.bookingPolicy?.requiresAdvance || false,
+        advanceType: profileData.bookingPolicy?.advanceType || '',
+        advanceValue: profileData.bookingPolicy?.advanceValue || '',
+        cancellationPolicy: profileData.bookingPolicy?.cancellationPolicy || '',
+        cancellationPolicyCustom: profileData.bookingPolicy?.cancellationPolicyCustom || '',
+      },
+      socialLinks: {
+        instagram: profileData.socialLinks?.instagram || '',
+        facebook: profileData.socialLinks?.facebook || '',
+        youtube: profileData.socialLinks?.youtube || '',
+        website: profileData.socialLinks?.website || '',
+        whatsapp: profileData.socialLinks?.whatsapp || '',
+      },
+      artistTypeInfo: {
+        artistType: profileData.artistType || '',
+        businessName: profileData.businessName || '',
+        ownerName: profileData.ownerName || '',
       },
     });
   };
@@ -147,6 +235,9 @@ export const ArtistRegistrationProvider = ({ children }) => {
       setServices,
       setPortfolio,
       setPayment,
+      setBookingPolicy,
+      setSocialLinks,
+      setArtistTypeInfo,
       resetRegistration,
       loadProfileData,
     }),

@@ -108,7 +108,28 @@ async function bootstrapDatabase() {
     try { await qi.addColumn("ArtistProfiles", "parlourAddress", { type: "TEXT" }); } catch (e) {}
     try { await qi.addColumn("ArtistProfiles", "rating", { type: "DOUBLE PRECISION", allowNull: false, defaultValue: 4.5 }); } catch (e) {}
     try { await qi.addColumn("ArtistProfiles", "reviewCount", { type: "INTEGER", allowNull: false, defaultValue: 0 }); } catch (e) {}
+    
+    // Inject missing Artist Registration Onboarding columns
+    try { await qi.addColumn("Artists", "artistType", { type: "VARCHAR(255)" }); } catch (e) {}
+    try { await qi.addColumn("Artists", "businessName", { type: "VARCHAR(255)" }); } catch (e) {}
+    try { await qi.addColumn("Artists", "ownerName", { type: "VARCHAR(255)" }); } catch (e) {}
+    try { await qi.addColumn("ArtistProfiles", "languages", { type: "JSON" }); } catch (e) {}
+    try { await qi.addColumn("ArtistProfiles", "homeService", { type: "VARCHAR(255)" }); } catch (e) {}
+    try { await qi.addColumn("ArtistProfiles", "travelToClient", { type: "BOOLEAN" }); } catch (e) {}
+    try { await qi.addColumn("ArtistProfiles", "travelArea", { type: "VARCHAR(255)" }); } catch (e) {}
+    try { await qi.addColumn("ArtistProfiles", "travelChargesType", { type: "VARCHAR(255)" }); } catch (e) {}
+    try { await qi.addColumn("ArtistProfiles", "travelChargeAmount", { type: "DOUBLE PRECISION" }); } catch (e) {}
+    try { await qi.addColumn("ArtistProfiles", "trainingMethod", { type: "VARCHAR(255)" }); } catch (e) {}
+    try { await qi.addColumn("ArtistProfiles", "trainingDetails", { type: "TEXT" }); } catch (e) {}
+    try { await qi.addColumn("ArtistProfiles", "notableWork", { type: "TEXT" }); } catch (e) {}
+    try { await qi.addColumn("ArtistProfiles", "brandsUsed", { type: "JSON" }); } catch (e) {}
+    try { await qi.addColumn("ArtistProfiles", "productsUsed", { type: "TEXT" }); } catch (e) {}
+
     console.log("Missing ArtistProfiles columns synced successfully.");
+
+    // Sync new models explicitly just in case
+    await (await import("./src/models/BookingPolicy.js")).default.sync();
+    await (await import("./src/models/ArtistSocialLinks.js")).default.sync();
  
     // Inject missing ArtistPortfolios columns
     try {

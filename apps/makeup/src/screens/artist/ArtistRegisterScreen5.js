@@ -483,7 +483,7 @@ const ArtistRegisterScreen5 = ({ navigation, route }) => {
                 {/* Subtitle list style hint */}
                 <Text style={styles.photoHint}>
                   • Add at least 1 photo of without makeup{'\n'}
-                  • Add at least 4-5 photos of a single work
+                  • Add at least 5 photos of a single work
                 </Text>
 
                 <View style={styles.photosRow}>
@@ -571,8 +571,8 @@ const ArtistRegisterScreen5 = ({ navigation, route }) => {
                   return;
                 }
                 
-                if (!w.images || w.images.length === 0) {
-                  Alert.alert('Validation Error', `Please upload at least one Work (After) photo for work ${workNum}`);
+                if (!w.images || w.images.length < 5) {
+                  Alert.alert('Validation Error', `Please upload at least 5 Work (After) photos for work ${workNum}`);
                   return;
                 }
               }
@@ -616,7 +616,7 @@ const ArtistRegisterScreen5 = ({ navigation, route }) => {
                 if (route?.params?.fromPending) {
                   navigation.navigate('ArtistRegistrationPending');
                 } else {
-                  navigation.navigate('ArtistRegister6');
+                  navigation.navigate('BookingPreferencesScreen', route.params);
                 }
               } catch (error) {
                 console.error('Save step 5 error:', error);

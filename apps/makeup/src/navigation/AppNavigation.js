@@ -17,6 +17,9 @@ import ArtistRegisterScreen5 from '../screens/artist/ArtistRegisterScreen5';
 import ArtistRegisterScreen6 from '../screens/artist/ArtistRegisterScreen6';
 import ArtistRegisterSummaryScreen from '../screens/artist/ArtistRegisterSummaryScreen';
 import ArtistOTPVerificationScreen from '../screens/artist/ArtistOTPVerificationScreen';
+import ArtistTypeScreen from '../screens/artist/ArtistTypeScreen';
+import BookingPreferencesScreen from '../screens/artist/BookingPreferencesScreen';
+import SocialLinksScreen from '../screens/artist/SocialLinksScreen';
 import ArtistRegistrationPendingScreen from '../screens/artist/ArtistRegistrationPendingScreen';
 import ArtistHomeScreen from '../screens/artist/ArtistHomeScreen';
 import ClientRegisterScreen from '../screens/client/ClientRegisterScreen';
@@ -173,6 +176,21 @@ const AppNavigator = () => {
         <Stack.Screen
           name="ArtistRegister6"
           component={ArtistRegisterScreen6}
+        />
+        
+        <Stack.Screen
+          name="ArtistTypeScreen"
+          component={ArtistTypeScreen}
+        />
+        
+        <Stack.Screen
+          name="BookingPreferencesScreen"
+          component={BookingPreferencesScreen}
+        />
+        
+        <Stack.Screen
+          name="SocialLinksScreen"
+          component={SocialLinksScreen}
         />
 
         <Stack.Screen

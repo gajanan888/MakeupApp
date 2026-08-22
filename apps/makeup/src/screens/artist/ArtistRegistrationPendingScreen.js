@@ -88,6 +88,18 @@ const CompleteProfileScreen = ({navigation}) => {
   const step5Completed = !!(data.portfolio && data.portfolio.length > 0);
 
   const step6Completed = !!(
+    data.bookingPolicy?.cancellationPolicy || 
+    data.bookingPolicy?.trialType
+  );
+
+  const step7Completed = !!(
+    data.socialLinks?.instagram ||
+    data.socialLinks?.facebook ||
+    data.socialLinks?.website ||
+    data.socialLinks?.whatsapp
+  );
+
+  const step8Completed = !!(
     data.payment?.upiId ||
     (data.payment?.accountNumber && data.payment?.ifscCode)
   );
@@ -130,9 +142,23 @@ const CompleteProfileScreen = ({navigation}) => {
     },
     {
       id: 6,
+      title: 'Booking Preferences',
+      subtitle: 'Trials, Travel & Policies',
+      completed: step6Completed,
+      screen: 'BookingPreferencesScreen',
+    },
+    {
+      id: 7,
+      title: 'Social Links',
+      subtitle: 'Instagram, FB, Website',
+      completed: step7Completed,
+      screen: 'SocialLinksScreen',
+    },
+    {
+      id: 8,
       title: 'Payment Details',
       subtitle: 'Add UPI / Bank details',
-      completed: step6Completed,
+      completed: step8Completed,
       screen: 'ArtistRegister6',
     },
   ];
@@ -156,6 +182,10 @@ const CompleteProfileScreen = ({navigation}) => {
     } else if (!step5Completed) {
       navigation.navigate('ArtistRegister5', { fromPending: true });
     } else if (!step6Completed) {
+      navigation.navigate('BookingPreferencesScreen', { fromPending: true });
+    } else if (!step7Completed) {
+      navigation.navigate('SocialLinksScreen', { fromPending: true });
+    } else if (!step8Completed) {
       navigation.navigate('ArtistRegister6', { fromPending: true });
     } else {
       navigation.navigate('ArtistRegisterSummary');
@@ -239,6 +269,12 @@ const CompleteProfileScreen = ({navigation}) => {
             <Text style={styles.subtitleText}>
               Let's set up your profile and start getting booked.
             </Text>
+            
+            <View style={styles.progressBadge}>
+              <Text style={styles.progressBadgeText}>
+                Profile {percentage}% Complete
+              </Text>
+            </View>
           </View>
 
           {/* STEPS CARD */}
@@ -292,6 +328,16 @@ const CompleteProfileScreen = ({navigation}) => {
           >
             <Text style={styles.buttonText}>
               {remainingSteps === 0 ? 'Get Started' : 'Continue Registration'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* SKIP BUTTON */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate('ArtistHome')}
+            style={styles.skipButton}
+          >
+            <Text style={styles.skipButtonText}>
+              Skip for now
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -388,6 +434,22 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
 
+  progressBadge: {
+    marginTop: 14,
+    backgroundColor: '#FFE4ED',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#FFD1E1',
+  },
+
+  progressBadgeText: {
+    color: '#FF4F8F',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+
   stepsCard: {
     backgroundColor: '#FFF',
     borderRadius: 24,
@@ -478,7 +540,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: 20,
     marginTop: 32,
-    marginBottom: 30,
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
@@ -491,6 +553,22 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     fontFamily: 'serif',
+  },
+
+  skipButton: {
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginBottom: 30,
+  },
+
+  skipButtonText: {
+    color: '#6F625D',
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: 'serif',
+    textDecorationLine: 'underline',
   },
 
   loaderContainer: {

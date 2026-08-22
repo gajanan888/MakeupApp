@@ -11,6 +11,8 @@ import Booking from "../../models/Booking.js";
 import Customer from "../../models/Customer.js";
 import ArtistBlock from "../../models/ArtistBlock.js";
 import Review from "../../models/Review.js";
+import BookingPolicy from "../../models/BookingPolicy.js";
+import ArtistSocialLinks from "../../models/ArtistSocialLinks.js";
 import {
   encryptSensitiveValue,
   maskAccountNumber,
@@ -27,6 +29,8 @@ const artistIncludes = [
   { model: ArtistPayment, as: "payment" },
   { model: ArtistCertificate, as: "certificates" },
   { model: ArtistSpecialization, as: "specializations" },
+  { model: BookingPolicy, as: "bookingPolicy" },
+  { model: ArtistSocialLinks, as: "socialLinks" },
 ];
 
 export const formatArtistProfileData = async (artistInstance) => {
@@ -120,7 +124,7 @@ export const updateArtistProfile = async (artistId, data) => {
     throw new Error("Artist not found");
   }
 
-  const allowedFields = ["name", "email", "phone", "pricing", "experience"];
+  const allowedFields = ["name", "email", "phone", "pricing", "experience", "artistType", "businessName", "ownerName"];
   const updates = {};
 
   for (const key of allowedFields) {
@@ -137,6 +141,17 @@ export const updateArtistProfile = async (artistId, data) => {
     experience: data?.experience,
     parlourName: data?.parlourName,
     parlourAddress: data?.parlourAddress,
+    languages: data?.languages,
+    homeService: data?.homeService,
+    travelToClient: data?.travelToClient,
+    travelArea: data?.travelArea,
+    travelChargesType: data?.travelChargesType,
+    travelChargeAmount: data?.travelChargeAmount,
+    trainingMethod: data?.trainingMethod,
+    trainingDetails: data?.trainingDetails,
+    notableWork: data?.notableWork,
+    brandsUsed: data?.brandsUsed,
+    productsUsed: data?.productsUsed,
   };
 
   const specializations = data?.specializations;
@@ -144,6 +159,8 @@ export const updateArtistProfile = async (artistId, data) => {
   const services = data?.services;
   const portfolio = data?.portfolio;
   const payment = data?.payment;
+  const bookingPolicy = data?.bookingPolicy;
+  const socialLinks = data?.socialLinks;
 
   validatePaymentPayload(payment);
 
@@ -169,6 +186,17 @@ export const updateArtistProfile = async (artistId, data) => {
         "experience",
         "parlourName",
         "parlourAddress",
+        "languages",
+        "homeService",
+        "travelToClient",
+        "travelArea",
+        "travelChargesType",
+        "travelChargeAmount",
+        "trainingMethod",
+        "trainingDetails",
+        "notableWork",
+        "brandsUsed",
+        "productsUsed",
       ];
 
       for (const field of fields) {
@@ -323,6 +351,24 @@ export const updateArtistProfile = async (artistId, data) => {
         },
         { transaction },
       );
+    }
+    
+    if (bookingPolicy && typeof bookingPolicy === "object") {
+      const existingBookingPolicy = await BookingPolicy.findOne({ where: { artistId }, transaction });
+      if (existingBookingPolicy) {
+        await existingBookingPolicy.update(bookingPolicy, { transaction });
+      } else {
+        await BookingPolicy.create({ artistId, ...bookingPolicy }, { transaction });
+      }
+    }
+
+    if (socialLinks && typeof socialLinks === "object") {
+      const existingSocialLinks = await ArtistSocialLinks.findOne({ where: { artistId }, transaction });
+      if (existingSocialLinks) {
+        await existingSocialLinks.update(socialLinks, { transaction });
+      } else {
+        await ArtistSocialLinks.create({ artistId, ...socialLinks }, { transaction });
+      }
     }
 
     await transaction.commit();

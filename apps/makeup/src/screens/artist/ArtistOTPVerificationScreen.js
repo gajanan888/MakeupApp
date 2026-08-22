@@ -113,7 +113,7 @@ const ArtistOTPVerificationScreen = ({ navigation, route }) => {
         emailOtpCode: emailOtpValue,
       });
 
-      navigation.navigate('ArtistRegister2', {
+      navigation.navigate('ArtistTypeScreen', {
         fullName: fullName?.trim(),
       });
     } catch (error) {

@@ -29,6 +29,39 @@ const ArtistProfile = sequelize.define("ArtistProfile", {
   parlourAddress: {
     type: DataTypes.TEXT,
   },
+  languages: {
+    type: DataTypes.JSON,
+  },
+  homeService: {
+    type: DataTypes.STRING,
+  },
+  travelToClient: {
+    type: DataTypes.BOOLEAN,
+  },
+  travelArea: {
+    type: DataTypes.STRING,
+  },
+  travelChargesType: {
+    type: DataTypes.STRING,
+  },
+  travelChargeAmount: {
+    type: DataTypes.FLOAT,
+  },
+  trainingMethod: {
+    type: DataTypes.STRING,
+  },
+  trainingDetails: {
+    type: DataTypes.TEXT,
+  },
+  notableWork: {
+    type: DataTypes.TEXT,
+  },
+  brandsUsed: {
+    type: DataTypes.JSON,
+  },
+  productsUsed: {
+    type: DataTypes.TEXT,
+  },
   rating: {
     type: DataTypes.FLOAT,
     allowNull: false,

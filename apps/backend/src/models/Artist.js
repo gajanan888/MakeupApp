@@ -15,7 +15,15 @@ const Artist = sequelize.define("Artist", {
   phone: {
     type: DataTypes.STRING,
   },
-
+  artistType: {
+    type: DataTypes.STRING,
+  },
+  businessName: {
+    type: DataTypes.STRING,
+  },
+  ownerName: {
+    type: DataTypes.STRING,
+  },
   password: {
     type: DataTypes.STRING,
   },

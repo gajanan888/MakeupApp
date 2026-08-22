@@ -60,6 +60,16 @@ const ProfileSetupScreen = ({ navigation, route }) => {
   const [selectedExperience, setSelectedExperience] = useState(
     data.profile.experience || '',
   );
+  
+  const [selectedHomeService, setSelectedHomeService] = useState(
+    data.profile.homeService || '',
+  );
+  
+  const [languageQuery, setLanguageQuery] = useState('');
+  const [languages, setLanguages] = useState(
+    data.profile.languages || [],
+  );
+
   const [bio, setBio] = useState(data.profile.bio || '');
   const [location, setLocation] = useState(data.profile.location || '');
   const parseParlourAddress = (fullAddress) => {
@@ -205,6 +215,7 @@ const ProfileSetupScreen = ({ navigation, route }) => {
     '4-5 years',
     '5+ years',
   ];
+  const homeServiceOptions = ['Yes, I travel to client', 'No, only Studio/Salon', 'Both Studio and Home Service'];
 
   const openOptionModal = type => {
     Keyboard.dismiss();
@@ -217,6 +228,8 @@ const ProfileSetupScreen = ({ navigation, route }) => {
       setSelectedGender(value);
     } else if (activeOption === 'experience') {
       setSelectedExperience(value);
+    } else if (activeOption === 'homeService') {
+      setSelectedHomeService(value);
     }
     setOptionModalVisible(false);
   };
@@ -365,6 +378,54 @@ const ProfileSetupScreen = ({ navigation, route }) => {
               style={[styles.input, styles.bioInput]}
             />
           </View>
+          
+          {/* LANGUAGES */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Languages Known</Text>
+
+            <View style={styles.inputWithLoader}> 
+              <TextInput
+                placeholder="Type language and press space/enter"
+                placeholderTextColor="#B7A9A1"
+                value={languageQuery}
+                onChangeText={(val) => {
+                  if (val.endsWith(' ') || val.endsWith(',')) {
+                    const lang = val.replace(/[, ]/g, '').trim();
+                    if (lang && !languages.includes(lang)) {
+                      setLanguages([...languages, lang]);
+                    }
+                    setLanguageQuery('');
+                  } else {
+                    setLanguageQuery(val);
+                  }
+                }}
+                onSubmitEditing={() => {
+                  const lang = languageQuery.trim();
+                  if (lang && !languages.includes(lang)) {
+                    setLanguages([...languages, lang]);
+                  }
+                  setLanguageQuery('');
+                }}
+                style={styles.input}
+              />
+            </View>
+            
+            {languages.length > 0 && (
+              <View style={styles.chipsContainer}>
+                {languages.map((lang, idx) => (
+                  <View key={idx} style={styles.chip}>
+                    <Text style={styles.chipText}>{lang}</Text>
+                    <TouchableOpacity
+                      onPress={() => setLanguages(languages.filter(item => item !== lang))}
+                      style={styles.chipRemoveButton}
+                    >
+                      <Ionicons name="close" size={16} color="#FF4F8F" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
 
           {/* GENDER */}
           <View style={styles.inputGroup}>
@@ -400,6 +461,26 @@ const ProfileSetupScreen = ({ navigation, route }) => {
                 }
               >
                 {selectedExperience || 'Select experience'}
+              </Text>
+
+              <Ionicons name="chevron-down" size={22} color="#FF4F8F" />
+            </TouchableOpacity>
+          </View>
+          
+          {/* HOME SERVICE */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Home Service</Text>
+
+            <TouchableOpacity
+              style={styles.dropdown}
+              onPress={() => openOptionModal('homeService')}
+            >
+              <Text
+                style={
+                  selectedHomeService ? styles.dropdownText : styles.placeholder
+                }
+              >
+                {selectedHomeService || 'Do you offer Home Service?'}
               </Text>
 
               <Ionicons name="chevron-down" size={22} color="#FF4F8F" />
@@ -659,6 +740,8 @@ const ProfileSetupScreen = ({ navigation, route }) => {
                   experience: selectedExperience,
                   parlourName: parlourName.trim() || undefined,
                   parlourAddress: combinedAddress || undefined,
+                  languages,
+                  homeService: selectedHomeService,
                 };
                 
                 await updateArtistProfile({ profile: profilePayload });
@@ -750,12 +833,16 @@ const ProfileSetupScreen = ({ navigation, route }) => {
             <Text style={styles.sheetTitle}>
               {activeOption === 'gender'
                 ? 'Select Gender'
-                : 'Select Experience'}
+                : activeOption === 'experience'
+                ? 'Select Experience'
+                : 'Home Service Settings'}
             </Text>
 
             {(activeOption === 'gender'
               ? genderOptions
-              : experienceOptions
+              : activeOption === 'experience'
+              ? experienceOptions
+              : homeServiceOptions
             ).map(item => (
               <TouchableOpacity
                 key={item}
