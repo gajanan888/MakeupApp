@@ -3,10 +3,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Base URLs in order of priority (Active Wi-Fi, ADB reverse USB, Android Emulator)
 export const API_BASE_URLS = [
-  'http://10.70.49.172:5000',  // Active Wi-Fi IP (Laptop on local network)
-  'http://10.146.237.172:5000',       // Active Wi-Fi IP (Added from ipconfig)
-  'http://192.168.29.130:5000',       // Active Wi-Fi IP (from HEAD)
-  'http://10.70.49.172:5000',      // Active Wi-Fi IP (Primary for Wireless)
+  'http://192.168.29.53:5000',  // Active Wi-Fi IP (Laptop on local network)
+  'http://192.168.29.53:5000',       // Active Wi-Fi IP (Added from ipconfig)
+  'http://192.168.29.53:5000',       // Active Wi-Fi IP (from HEAD)
+  'http://192.168.29.53:5000',      // Active Wi-Fi IP (Primary for Wireless)
   'http://127.0.0.1:5000',           // adb reverse loopback fallback
   'http://localhost:5000',           // localhost fallback
   'http://10.0.2.2:5000',            // Android Emulator loopback
@@ -36,9 +36,20 @@ api.interceptors.request.use(async (config) => {
   try {
     const token = await AsyncStorage.getItem('token');
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      const cleanToken = String(token).trim().replace(/[^\x00-\x7F]/g, '');
+      config.headers.Authorization = `Bearer ${cleanToken}`;
     }
   } catch (_) {}
+
+  if (config.headers) {
+    Object.keys(config.headers).forEach((key) => {
+      const val = config.headers[key];
+      if (typeof val === 'string') {
+        config.headers[key] = val.replace(/[^\x00-\x7F]/g, '');
+      }
+    });
+  }
+
   return config;
 });
 

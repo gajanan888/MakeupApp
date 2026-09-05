@@ -257,10 +257,12 @@ const ProfileSetupScreen = ({ navigation, route }) => {
       try {
         setUploadError('');
         const asset = result.assets[0];
+        const rawName = asset.fileName || `photo_${Date.now()}.jpg`;
+        const cleanName = rawName.replace(/[^\x00-\x7F]/g, '_').replace(/[^a-zA-Z0-9_.-]/g, '_');
         const file = {
           uri: asset.uri,
-          name: asset.fileName || `photo_${Date.now()}.jpg`,
-          type: asset.type || 'image/jpeg',
+          name: cleanName || 'photo.jpg',
+          type: (asset.type || 'image/jpeg').replace(/[^\x00-\x7F]/g, ''),
         };
 
         const url = await uploadFile(file);
@@ -294,10 +296,12 @@ const ProfileSetupScreen = ({ navigation, route }) => {
       try {
         setUploadError('');
         const asset = result.assets[0];
+        const rawName = asset.fileName || `photo_${Date.now()}.jpg`;
+        const cleanName = rawName.replace(/[^\x00-\x7F]/g, '_').replace(/[^a-zA-Z0-9_.-]/g, '_');
         const file = {
           uri: asset.uri,
-          name: asset.fileName || `photo_${Date.now()}.jpg`,
-          type: asset.type || 'image/jpeg',
+          name: cleanName || 'photo.jpg',
+          type: (asset.type || 'image/jpeg').replace(/[^\x00-\x7F]/g, ''),
         };
 
         const url = await uploadFile(file);

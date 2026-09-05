@@ -1,5 +1,12 @@
 import api from './client';
 
+export const sanitizeFileName = (name) => {
+  if (!name || typeof name !== 'string') return 'upload.jpg';
+  // Replace non-ASCII characters (like bullet • U+2022) and non-standard symbols with underscores
+  const cleaned = name.replace(/[^\x00-\x7F]/g, '_').replace(/[^a-zA-Z0-9_.-]/g, '_');
+  return cleaned || 'upload.jpg';
+};
+
 export const uploadFile = async file => {
   const fileSize = Number(file?.fileSize || file?.size || 0);
   if (fileSize > 5 * 1024 * 1024) {
@@ -19,10 +26,13 @@ export const uploadFile = async file => {
     }
   }
 
+  const rawName = file?.name || file?.fileName || 'upload.jpg';
+  const safeName = sanitizeFileName(rawName);
+
   formData.append('file', {
     uri: normalizedUri,
-    name: file.name || file.fileName || 'upload.jpg',
-    type: file.type || 'image/jpeg',
+    name: safeName,
+    type: String(file?.type || 'image/jpeg').replace(/[^\x00-\x7F]/g, ''),
   });
 
   try {
@@ -42,3 +52,4 @@ export const uploadFile = async file => {
     throw new Error(message);
   }
 };
+

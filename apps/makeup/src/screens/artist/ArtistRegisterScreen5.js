@@ -154,10 +154,12 @@ const ArtistRegisterScreen5 = ({ navigation, route }) => {
   };
 
   const processSelectedImage = async (type, index, asset) => {
+    const rawName = asset.fileName || `photo_${Date.now()}.jpg`;
+    const cleanName = rawName.replace(/[^\x00-\x7F]/g, '_').replace(/[^a-zA-Z0-9_.-]/g, '_');
     const file = {
       uri: asset.uri,
-      name: asset.fileName || `photo_${Date.now()}.jpg`,
-      type: asset.type || 'image/jpeg',
+      name: cleanName || 'photo.jpg',
+      type: (asset.type || 'image/jpeg').replace(/[^\x00-\x7F]/g, ''),
     };
 
     try {
@@ -236,10 +238,12 @@ const ArtistRegisterScreen5 = ({ navigation, route }) => {
 
     // 2. Upload each asset sequentially
     for (const asset of assets) {
+      const rawName = asset.fileName || `photo_${Date.now()}.jpg`;
+      const cleanName = rawName.replace(/[^\x00-\x7F]/g, '_').replace(/[^a-zA-Z0-9_.-]/g, '_');
       const file = {
         uri: asset.uri,
-        name: asset.fileName || `photo_${Date.now()}.jpg`,
-        type: asset.type || 'image/jpeg',
+        name: cleanName || 'photo.jpg',
+        type: (asset.type || 'image/jpeg').replace(/[^\x00-\x7F]/g, ''),
       };
 
       try {
@@ -471,7 +475,7 @@ const ArtistRegisterScreen5 = ({ navigation, route }) => {
                     onPress={() => {
                       Alert.alert(
                         'Suggestions',
-                        '1. Add at least 1 photo of without makeup\n2. Add at least 4-5 photos of a single work.'
+                        '1. Add at least 1 photo of without makeup\n2. Add at least 3 photos of a single work.'
                       );
                     }}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -483,7 +487,7 @@ const ArtistRegisterScreen5 = ({ navigation, route }) => {
                 {/* Subtitle list style hint */}
                 <Text style={styles.photoHint}>
                   • Add at least 1 photo of without makeup{'\n'}
-                  • Add at least 5 photos of a single work
+                  • Add at least 3 photos of a single work
                 </Text>
 
                 <View style={styles.photosRow}>
@@ -571,8 +575,8 @@ const ArtistRegisterScreen5 = ({ navigation, route }) => {
                   return;
                 }
                 
-                if (!w.images || w.images.length < 5) {
-                  Alert.alert('Validation Error', `Please upload at least 5 Work (After) photos for work ${workNum}`);
+                if (!w.images || w.images.length < 3) {
+                  Alert.alert('Validation Error', `Please upload at least 3 Work (After) photos for work ${workNum}`);
                   return;
                 }
               }

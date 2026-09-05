@@ -30,6 +30,7 @@ import {
   Platform,
   Alert,
   KeyboardAvoidingView,
+  Keyboard,
   ActivityIndicator,
 } from 'react-native';
 
@@ -210,9 +211,11 @@ const ArtistRegisterScreen3 = ({ navigation, route }) => {
       try {
         setCertificateError(index, '');
         
+        const safeName = (result.name || `file_${Date.now()}`).replace(/[^\x00-\x7F]/g, '_').replace(/[^a-zA-Z0-9_.-]/g, '_');
+
         // keep local copy to get a file path
         const [localCopy] = await keepLocalCopy({
-          files: [{ uri: result.uri, fileName: result.name }],
+          files: [{ uri: result.uri, fileName: safeName }],
           destination: 'cachesDirectory',
         });
         
@@ -220,8 +223,8 @@ const ArtistRegisterScreen3 = ({ navigation, route }) => {
 
         const fileObj = {
           uri: localUri,
-          name: result.name || `file_${Date.now()}`,
-          type: result.type || 'application/octet-stream',
+          name: safeName,
+          type: (result.type || 'application/octet-stream').replace(/[^\x00-\x7F]/g, ''),
         };
 
         const url = await uploadFile(fileObj);

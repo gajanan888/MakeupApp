@@ -92,12 +92,7 @@ const CompleteProfileScreen = ({navigation}) => {
     data.bookingPolicy?.trialType
   );
 
-  const step7Completed = !!(
-    data.socialLinks?.instagram ||
-    data.socialLinks?.facebook ||
-    data.socialLinks?.website ||
-    data.socialLinks?.whatsapp
-  );
+  const step7Completed = true; // Social Links are optional for registration
 
   const step8Completed = !!(
     data.payment?.upiId ||
@@ -149,7 +144,7 @@ const CompleteProfileScreen = ({navigation}) => {
     },
     {
       id: 7,
-      title: 'Social Links',
+      title: 'Social Links (Optional)',
       subtitle: 'Instagram, FB, Website',
       completed: step7Completed,
       screen: 'SocialLinksScreen',
@@ -331,15 +326,7 @@ const CompleteProfileScreen = ({navigation}) => {
             </Text>
           </TouchableOpacity>
 
-          {/* SKIP BUTTON */}
-          <TouchableOpacity
-            onPress={() => navigation.navigate('ArtistHome')}
-            style={styles.skipButton}
-          >
-            <Text style={styles.skipButtonText}>
-              Skip for now
-            </Text>
-          </TouchableOpacity>
+        
         </ScrollView>
       )}
     </View>

@@ -144,23 +144,15 @@ export function getUniqueProfileImage(artist) {
   if (artist?.profile?.profileImage) {
     return artist.profile.profileImage;
   }
-  if (typeof artist?.image === 'string') {
+  if (typeof artist?.image === 'string' && artist.image) {
     return artist.image;
   }
   if (artist?.image?.uri) {
     return artist.image.uri;
   }
 
-  const id = artist?.id || 1;
-  const name = artist?.name || 'Artist';
-  const hash = getStringHash(`${id}_${name}`);
-  const isMale = artist?.profile?.gender?.toLowerCase() === 'male' || name.toLowerCase().includes('rohan') || name.toLowerCase().includes('kabir');
-
-  if (isMale) {
-    return maleProfilePhotos[hash % maleProfilePhotos.length];
-  } else {
-    return femaleProfilePhotos[hash % femaleProfilePhotos.length];
-  }
+  // Standard clean default avatar placeholder when no profile image has been uploaded
+  return 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=500&auto=format&fit=crop&q=80';
 }
 
 export function getUniquePortfolio(artist) {

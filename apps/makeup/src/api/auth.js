@@ -125,7 +125,7 @@ export const getTrendingArtists = async () => {
 export const getArtistBookings    = async ()           => (await api.get('/api/booking/artist'))?.data?.data?.items || (await api.get('/api/booking/artist'))?.data?.data || [];
 export const acceptArtistBooking  = async (id)         => (await api.patch(`/api/booking/${id}/accept`))?.data;
 export const rejectArtistBooking  = async (id, reason) => (await api.patch(`/api/booking/${id}/reject`, { reason }))?.data;
-export const startArtistBooking   = async (id)         => (await api.patch(`/api/booking/${id}/start`))?.data;
+export const startArtistBooking   = async (id, otp)    => (await api.patch(`/api/booking/${id}/start`, { otp }))?.data;
 export const completeArtistBooking = async (id)        => (await api.patch(`/api/booking/${id}/complete`))?.data;
 export const cancelArtistBooking  = async (id, reason) => (await api.patch(`/api/booking/${id}/cancel-by-artist`, { reason }))?.data;
 export const addExtraClientsToBooking = async (id, data) => (await api.patch(`/api/booking/${id}/add-clients`, data))?.data;

@@ -5,7 +5,7 @@ import { Platform } from 'react-native';
 const AI_API_BASE_URLS = [
   'http://192.168.29.53:5000', // Active Wi-Fi IP (Current network host)
   'http://192.168.29.53:8000', // Direct FastAPI port
-  'http://172.19.11.224:5000', // Alternate Wi-Fi IP
+  'http://10.178.140.212:5000', // Alternate Wi-Fi IP
   'http://172.19.11.224:8000', // Alternate FastAPI port
   'http://127.0.0.1:5000',     // adb reverse USB
   'http://127.0.0.1:8000',     // adb reverse FastAPI USB
@@ -22,6 +22,12 @@ const normalizeUri = (uri = '') => {
   if (!uri) return '';
   if (uri.startsWith('file://') || uri.startsWith('content://')) return uri;
   return uri.startsWith('file:') ? uri.replace(/^file:\/?\/?\/?/, 'file:///') : `file://${uri}`;
+};
+
+const sanitizeFileName = (name) => {
+  if (!name || typeof name !== 'string') return 'upload.jpg';
+  const cleaned = name.replace(/[^\x00-\x7F]/g, '_').replace(/[^a-zA-Z0-9_.-]/g, '_');
+  return cleaned || 'upload.jpg';
 };
 
 // Probe & lock base URL
@@ -59,9 +65,20 @@ aiApi.interceptors.request.use(async (config) => {
   try {
     const token = await AsyncStorage.getItem('token');
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      const cleanToken = String(token).trim().replace(/[^\x00-\x7F]/g, '');
+      config.headers.Authorization = `Bearer ${cleanToken}`;
     }
   } catch (_) {}
+
+  if (config.headers) {
+    Object.keys(config.headers).forEach((key) => {
+      const val = config.headers[key];
+      if (typeof val === 'string') {
+        config.headers[key] = val.replace(/[^\x00-\x7F]/g, '');
+      }
+    });
+  }
+
   return config;
 });
 
@@ -114,7 +131,7 @@ export const recommendLooks = async (file) => {
   const formData = new FormData();
   formData.append('file', {
     uri: normalizeUri(file?.uri),
-    name: file?.fileName || file?.name || 'upload.jpg',
+    name: sanitizeFileName(file?.fileName || file?.name || 'upload.jpg'),
     type: file?.type || 'image/jpeg',
   });
 
@@ -144,7 +161,7 @@ export const simulateMakeup = async (lookId, step, file) => {
   const formData = new FormData();
   formData.append('file', {
     uri: normalizeUri(file?.uri),
-    name: file?.fileName || file?.name || 'upload.jpg',
+    name: sanitizeFileName(file?.fileName || file?.name || 'upload.jpg'),
     type: file?.type || 'image/jpeg',
   });
 
@@ -158,7 +175,7 @@ export const uploadPreviewSelfie = async (file) => {
   const formData = new FormData();
   formData.append('file', {
     uri: normalizeUri(file?.uri),
-    name: file?.fileName || file?.name || 'upload.jpg',
+    name: sanitizeFileName(file?.fileName || file?.name || 'upload.jpg'),
     type: file?.type || 'image/jpeg',
   });
 
@@ -222,7 +239,7 @@ export const applyVirtualTryon = async (params) => {
   if (params.imageUri) {
     formData.append('file', {
       uri: normalizeUri(params.imageUri),
-      name: params.imageName || 'selfie.jpg',
+      name: sanitizeFileName(params.imageName || 'selfie.jpg'),
       type: params.imageType || 'image/jpeg',
     });
   } else if (params.image) {
@@ -270,7 +287,7 @@ export const recommendArtistsByImage = async (imageAsset) => {
   formData.append('file', {
     uri: fileUri,
     type: imageAsset.type || 'image/jpeg',
-    name: imageAsset.fileName || 'reference_image.jpg',
+    name: sanitizeFileName(imageAsset.fileName || 'reference_image.jpg'),
   });
 
   const response = await aiApi.post('/api/artist/recommend', formData, {

@@ -41,7 +41,7 @@ const ArtistsListByLocationScreen = ({ navigation, route }) => {
 
   const renderArtistItem = ({ item }) => {
     const spec = item.specializations?.[0]?.name || 'Makeup Artist';
-    const rating = item.profile?.rating && Number(item.profile.rating) > 0 ? Number(item.profile.rating).toFixed(1) : 'New';
+    const rating = item.profile?.rating && Number(item.profile.rating) > 0 ? Number(item.profile.rating).toFixed(1) : '0';
     const reviews = item.profile?.reviewCount || 0;
 
     return (

@@ -9,7 +9,9 @@
     "dev": "nodemon server.js",
     "migrate": "npx sequelize-cli db:migrate --config config/config.cjs --migrations-path migrations",
     "migrate:undo": "npx sequelize-cli db:migrate:undo --config config/config.cjs --migrations-path migrations",
-    "migrate:undo:all": "npx sequelize-cli db:migrate:undo:all --config config/config.cjs --migrations-path migrations"
+    "migrate:undo:all": "npx sequelize-cli db:migrate:undo:all --config config/config.cjs --migrations-path migrations",
+    "seed:pune": "node scripts/seed_pune_test_data.js",
+    "remove:pune": "node scripts/remove_pune_test_data.js"
   },
   "keywords": [],
   "author": "",
@@ -37,5 +39,9 @@
   "devDependencies": {
     "nodemon": "^3.1.14",
     "sequelize-cli": "^6.6.5"
+  },
+  "allowScripts": {
+    "sqlite3@6.0.1": true,
+    "bcrypt@6.0.0": true
   }
 }

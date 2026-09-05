@@ -711,6 +711,10 @@ async function seed() {
 
     // Sync database tables securely
     await sequelize.sync();
+    const qi = sequelize.getQueryInterface();
+    try { await qi.addColumn("Bookings", "backupArtistId", { type: "INTEGER", allowNull: true }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "backupStatus", { type: "VARCHAR(255)", allowNull: false, defaultValue: "pending" }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "startOtp", { type: "VARCHAR(255)", allowNull: true }); } catch (e) {}
     console.log("✅ Database tables synchronized");
 
     const clientHashedPassword = await bcrypt.hash(DEFAULT_PASSWORD, 10);

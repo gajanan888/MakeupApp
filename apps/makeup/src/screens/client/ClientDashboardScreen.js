@@ -452,7 +452,7 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
                     <Text style={styles.ratingBadgeText}>
                       {artist.profile?.rating && Number(artist.profile.rating) > 0
                         ? `${Number(artist.profile.rating).toFixed(1)}`
-                        : 'New'}
+                        : '0'}
                     </Text>
                   </View>
                   {/* Heart / Wishlist button */}
@@ -543,7 +543,7 @@ const ClientDashboardScreen = ({ navigation, onNavigate }) => {
                 <View style={styles.popularRatingBox}>
                   <Ionicons name="star" size={14} color="#FFB800" />
                   <Text style={styles.popularRatingText}>
-                    {artist.profile?.rating && Number(artist.profile.rating) > 0 ? Number(artist.profile.rating).toFixed(1) : 'New'}
+                    {artist.profile?.rating && Number(artist.profile.rating) > 0 ? Number(artist.profile.rating).toFixed(1) : '0'}
                   </Text>
                 </View>
                 <TouchableOpacity

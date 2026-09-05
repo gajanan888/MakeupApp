@@ -15,7 +15,7 @@ const isTestEnv =
   process.execArgv.includes("--test") ||
   process.argv.includes("--test");
 
-const usePostgres = Boolean(databaseUrl) && !isTestEnv;
+const usePostgres = Boolean(databaseUrl) && !isTestEnv && process.env.USE_SQLITE !== "true";
 
 const storagePath = isTestEnv
   ? ":memory:"

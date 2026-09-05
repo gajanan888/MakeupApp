@@ -115,7 +115,7 @@ export const getArtists = async ({ minPrice, maxPrice, experience, location, id,
     const reviewsList = artistJson.reviews || [];
     const bookingsList = artistJson.bookings || [];
 
-    const completedBookingsList = bookingsList.filter(b => b.status === "completed");
+    const completedBookingsList = bookingsList.filter(b => (b.status || '').toLowerCase() === "completed");
     const totalBookingsCount = completedBookingsList.length;
     const realReviewCount = reviewsList.length;
 

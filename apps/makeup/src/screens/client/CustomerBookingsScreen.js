@@ -120,6 +120,37 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
     return diffHours >= 36;
   };
 
+  const isOtpActive = (b) => {
+    if (!b || !b.dateRaw) return false;
+    try {
+      let dStr = b.dateRaw;
+      let tStr = b.timeRaw || '00:00';
+      let scheduledDate = new Date(dStr);
+      if (isNaN(scheduledDate.getTime()) && b.dateRaw) {
+        const [y, m, d] = String(b.dateRaw).split('-').map(Number);
+        scheduledDate = new Date(y, m - 1, d);
+      }
+      if (isNaN(scheduledDate.getTime())) return false;
+      let hours = 0;
+      let minutes = 0;
+      if (tStr) {
+        const match = String(tStr).match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+        if (match) {
+          hours = parseInt(match[1], 10);
+          minutes = parseInt(match[2], 10);
+          const ampm = match[3] ? match[3].toUpperCase() : null;
+          if (ampm === 'PM' && hours < 12) hours += 12;
+          if (ampm === 'AM' && hours === 12) hours = 0;
+        }
+      }
+      scheduledDate.setHours(hours, minutes, 0, 0);
+      const startWindow = new Date(scheduledDate.getTime() - 60 * 60 * 1000);
+      return new Date() >= startWindow;
+    } catch (e) {
+      return false;
+    }
+  };
+
   const fetchBookings = async (silent = false) => {
     try {
       if (!silent) setLoading(true);
@@ -191,6 +222,7 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
           refundAmount: b.refundAmount,
           refundStatus: b.refundStatus,
           createdAt: b.createdAt,
+          startOtp: b.startOtp,
         };
       });
 
@@ -415,6 +447,26 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
                       <Text style={styles.priceLabel}>Price</Text>
                       <Text style={styles.priceValue}>{booking.price}</Text>
                     </View>
+
+                    {booking.rawStatus === 'confirmed' && (
+                      <View style={styles.otpCardBox}>
+                        {isOtpActive(booking) ? (
+                          <View style={styles.otpActiveContent}>
+                            <View style={styles.otpHeaderRow}>
+                              <Ionicons name="key" size={16} color="#D46B08" />
+                              <Text style={styles.otpTitle}>Service Start OTP</Text>
+                            </View>
+                            <Text style={styles.otpCode}>{booking.startOtp || '----'}</Text>
+                            <Text style={styles.otpSubtitle}>Share this OTP with your artist when they arrive to start the service.</Text>
+                          </View>
+                        ) : (
+                          <View style={styles.otpPendingContent}>
+                            <Ionicons name="time-outline" size={16} color="#0050B3" style={{ marginRight: 6 }} />
+                            <Text style={styles.otpPendingText}>OTP will be available 1 hour before service start time.</Text>
+                          </View>
+                        )}
+                      </View>
+                    )}
 
                     {booking.rawStatus === 'accepted' && (
                       <View style={styles.advanceRow}>
@@ -726,6 +778,26 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
                     </Text>
                   </View>
                 </View>
+
+                {selectedBookingForDetails.rawStatus === 'confirmed' && (
+                  <View style={[styles.otpCardBox, { marginVertical: 10 }]}>
+                    {isOtpActive(selectedBookingForDetails) ? (
+                      <View style={styles.otpActiveContent}>
+                        <View style={styles.otpHeaderRow}>
+                          <Ionicons name="key" size={16} color="#D46B08" />
+                          <Text style={styles.otpTitle}>Service Start OTP</Text>
+                        </View>
+                        <Text style={styles.otpCode}>{selectedBookingForDetails.startOtp || '----'}</Text>
+                        <Text style={styles.otpSubtitle}>Share this OTP with your artist when they arrive to start the service.</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.otpPendingContent}>
+                        <Ionicons name="time-outline" size={16} color="#0050B3" style={{ marginRight: 6 }} />
+                        <Text style={styles.otpPendingText}>OTP will be available 1 hour before service start time.</Text>
+                      </View>
+                    )}
+                  </View>
+                )}
 
                 {/* Rejection / Cancellation Info */}
                 {selectedBookingForDetails.rawStatus === 'rejected' && selectedBookingForDetails.rejectionReason && (
@@ -1306,6 +1378,57 @@ const styles = StyleSheet.create({
     borderLeftWidth: 2,
     borderLeftColor: '#FFE6EF',
     marginVertical: 2,
+  },
+  otpCardBox: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: 8,
+  },
+  otpActiveContent: {
+    backgroundColor: '#FFF7E6',
+    borderColor: '#FFE7BA',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+  },
+  otpHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  otpTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#D46B08',
+    marginLeft: 6,
+  },
+  otpCode: {
+    fontSize: 26,
+    fontWeight: '900',
+    letterSpacing: 8,
+    color: '#D46B08',
+    marginVertical: 4,
+  },
+  otpSubtitle: {
+    fontSize: 11,
+    color: '#8C4D00',
+    textAlign: 'center',
+  },
+  otpPendingContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E6F7FF',
+    borderColor: '#BAE7FF',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 10,
+  },
+  otpPendingText: {
+    fontSize: 12,
+    color: '#003A8C',
+    fontWeight: '600',
+    flex: 1,
   },
 });
 

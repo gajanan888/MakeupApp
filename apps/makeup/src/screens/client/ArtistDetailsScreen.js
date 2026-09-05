@@ -246,7 +246,7 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
             <View style={styles.ratingRow}>
               <Ionicons name="star" size={14} color="#FFB800" style={{ marginRight: 4 }} />
               <Text style={styles.ratingText}>
-                {currentArtist.profile?.rating > 0 ? Number(currentArtist.profile.rating).toFixed(1) : 'New Artist'}
+                {currentArtist.profile?.rating > 0 ? Number(currentArtist.profile.rating).toFixed(1) : '0'}
                 {' '}({currentArtist.profile?.reviewCount || 0} reviews)
               </Text>
             </View>
@@ -268,17 +268,17 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
           <View style={styles.statDivider} />
           <View style={styles.statColumn}>
             <Text style={styles.statValue}>
-              {currentArtist.profile?.rating > 0 ? Number(currentArtist.profile.rating).toFixed(1) : 'New'}
+              {currentArtist.profile?.rating > 0 ? Number(currentArtist.profile.rating).toFixed(1) : '0'}
             </Text>
             <Text style={styles.statLabel}>
-              {currentArtist.profile?.rating > 0 ? 'Rating' : 'Rating'}
+              Rating
             </Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statColumn}>
             <Text style={styles.statValue}>
               {currentArtist.profile?.experience
-                ? (currentArtist.profile.experience.toLowerCase().includes('yr')
+                ? (/yr|year/i.test(String(currentArtist.profile.experience))
                     ? currentArtist.profile.experience
                     : `${currentArtist.profile.experience} Yrs`)
                 : 'N/A'}
@@ -396,8 +396,10 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
                 <Text style={styles.infoLabel}>Experience</Text>
                 <Text style={styles.infoValue}>
                   {currentArtist.profile?.experience
-                    ? `${currentArtist.profile.experience}+ Years`
-                    : '8+ Years'}
+                    ? (/yr|year/i.test(String(currentArtist.profile.experience))
+                        ? currentArtist.profile.experience
+                        : `${currentArtist.profile.experience} Yrs`)
+                    : 'Not specified'}
                 </Text>
               </View>
 
@@ -409,22 +411,29 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
                 </Text>
               </View>
 
-              <View style={styles.infoRow}>
-                <Ionicons name="time-outline" size={18} color="#666" />
-                <Text style={styles.infoLabel}>Response Time</Text>
-                <Text style={styles.infoValue}>10 mins</Text>
-              </View>
+              {!!currentArtist.profile?.homeService && (
+                <View style={styles.infoRow}>
+                  <Ionicons name="car-outline" size={18} color="#666" />
+                  <Text style={styles.infoLabel}>Service Mode</Text>
+                  <Text style={styles.infoValue}>
+                    {currentArtist.profile.homeService}
+                  </Text>
+                </View>
+              )}
 
               <View style={styles.infoRow}>
                 <Ionicons name="language-outline" size={18} color="#666" />
                 <Text style={styles.infoLabel}>Languages</Text>
-                <Text style={styles.infoValue}>English, Hindi</Text>
+                <Text style={styles.infoValue}>
+                  {Array.isArray(currentArtist.profile?.languages) && currentArtist.profile.languages.length > 0
+                    ? currentArtist.profile.languages.join(', ')
+                    : (currentArtist.profile?.languages || 'Not specified')}
+                </Text>
               </View>
             </View>
             <Text style={styles.sectionTitle}>About Me</Text>
             <Text style={styles.aboutText}>
-              {currentArtist.profile?.bio ||
-                'Passionate makeup artist specializing in bridal looks, party makeup, HD makeup and photoshoot styling. Dedicated to making every client feel confident and beautiful.'}
+              {currentArtist.profile?.bio || 'No bio provided yet.'}
             </Text>
           </>
         )}

@@ -453,9 +453,12 @@ export const startBookingController = async (req, res) => {
       });
     }
 
+    const { otp } = req.body || {};
+
     const booking = await startBooking({
       bookingId,
       artistId: req.artist.id,
+      otp,
     });
 
     await logActivity({

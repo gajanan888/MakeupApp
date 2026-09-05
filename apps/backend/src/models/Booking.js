@@ -138,6 +138,10 @@ const Booking = sequelize.define("Booking", {
     allowNull: false,
     defaultValue: "pending",
   },
+  startOtp: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
 }, {
   timestamps: true,
   paranoid: true,

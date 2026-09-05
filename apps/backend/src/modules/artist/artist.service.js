@@ -39,9 +39,14 @@ export const formatArtistProfileData = async (artistInstance) => {
 
   const artistId = artistData.id;
 
-  // Calculate live rating and review count from Reviews table & real bookings count
+  // Calculate live rating and review count from Reviews table & real COMPLETED bookings count
   const reviews = await Review.findAll({ where: { artistId } });
-  const totalBookings = await Booking.count({ where: { artistId } });
+  const totalBookings = await Booking.count({
+    where: {
+      artistId,
+      status: ['completed', 'COMPLETED'],
+    },
+  });
 
   if (!artistData.profile) {
     artistData.profile = {};
@@ -396,15 +401,15 @@ export const getArtistDashboardStats = async (artistId) => {
     ],
   });
 
-  const completedBookings = bookings.filter((b) => b.status === "completed").length;
-  const cancelledBookings = bookings.filter((b) => b.status === "cancelled").length;
+  const completedBookings = bookings.filter((b) => (b.status || '').toLowerCase() === "completed").length;
+  const cancelledBookings = bookings.filter((b) => (b.status || '').toLowerCase() === "cancelled").length;
   // Booking count increases strictly ONLY after successful completion of service
   const totalBookings = completedBookings;
   const totalEarningsVal = bookings
-    .filter((b) => b.status === "completed")
+    .filter((b) => (b.status || '').toLowerCase() === "completed")
     .reduce((sum, b) => sum + (b.price || 0), 0);
   const totalPenaltyVal = bookings
-    .filter((b) => b.status === "cancelled" && b.artistPenalty)
+    .filter((b) => (b.status || '').toLowerCase() === "cancelled" && b.artistPenalty)
     .reduce((sum, b) => sum + (b.artistPenalty || 0), 0);
   const totalEarnings = Math.max(0, totalEarningsVal - totalPenaltyVal);
 

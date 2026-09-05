@@ -36,6 +36,10 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
   const [rejectionReasonText, setRejectionReasonText] = useState('');
   const [dialogType, setDialogType] = useState('reject'); // 'reject' or 'cancel'
+  
+  const [otpModalVisible, setOtpModalVisible] = useState(false);
+  const [otpInputText, setOtpInputText] = useState('');
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
   const { initiateCall } = useCall();
 
   if (!booking) return null;
@@ -68,8 +72,9 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
       }
 
       scheduledDate.setHours(hours, minutes, 0, 0);
+      const startWindow = new Date(scheduledDate.getTime() - 60 * 60 * 1000); // 1 hour prior
       const now = new Date();
-      return now >= scheduledDate;
+      return now >= startWindow;
     } catch (e) {
       return false;
     }
@@ -88,6 +93,27 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
       Alert.alert('Error', err.response?.data?.message || err.message || 'Failed to update booking status.');
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleVerifyAndStart = async () => {
+    if (!otpInputText || otpInputText.trim().length === 0) {
+      Alert.alert('Required', 'Please enter the 4-digit OTP provided by the client.');
+      return;
+    }
+    try {
+      setVerifyingOtp(true);
+      await startArtistBooking(booking.id, otpInputText.trim());
+      setOtpModalVisible(false);
+      setOtpInputText('');
+      Alert.alert('Success', 'Service started successfully!');
+      if (onStatusUpdate) await onStatusUpdate();
+      onClose();
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Invalid OTP or failed to start service.';
+      Alert.alert('Error', msg);
+    } finally {
+      setVerifyingOtp(false);
     }
   };
 
@@ -366,7 +392,10 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
                     {isTimeReached ? (
                       <TouchableOpacity 
                         style={[styles.actionBtn, styles.startBtn]}
-                        onPress={() => handleAction(startArtistBooking, 'Service started successfully.')}
+                        onPress={() => {
+                          setOtpInputText('');
+                          setOtpModalVisible(true);
+                        }}
                       >
                         <Text style={styles.actionBtnText}>Start Service</Text>
                       </TouchableOpacity>
@@ -473,6 +502,53 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
                 }}
               >
                 <Text style={styles.dialogSubmitText}>{dialogType === 'cancel' ? 'Cancel' : 'Decline'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Start Service OTP Verification Modal */}
+      <Modal visible={otpModalVisible} transparent animationType="fade">
+        <View style={styles.dialogOverlay}>
+          <View style={styles.dialogContainer}>
+            <View style={{ alignItems: 'center', marginBottom: 12 }}>
+              <Ionicons name="key-outline" size={36} color="#FF4F8F" />
+              <Text style={styles.dialogTitle}>Enter Service OTP</Text>
+              <Text style={[styles.dialogLabel, { textAlign: 'center', marginTop: 4 }]}>
+                Ask the client for their 4-digit Service Start OTP to begin the appointment.
+              </Text>
+            </View>
+            <TextInput
+              style={[styles.dialogInput, { textAlign: 'center', fontSize: 24, letterSpacing: 8, fontWeight: '700', color: '#333' }]}
+              placeholder="0000"
+              placeholderTextColor="#CCC"
+              value={otpInputText}
+              onChangeText={setOtpInputText}
+              keyboardType="number-pad"
+              maxLength={4}
+            />
+            <View style={styles.dialogButtons}>
+              <TouchableOpacity
+                style={[styles.dialogBtn, styles.dialogCancelBtn]}
+                onPress={() => {
+                  setOtpModalVisible(false);
+                  setOtpInputText('');
+                }}
+                disabled={verifyingOtp}
+              >
+                <Text style={styles.dialogCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.dialogBtn, styles.dialogSubmitBtn]}
+                onPress={handleVerifyAndStart}
+                disabled={verifyingOtp}
+              >
+                {verifyingOtp ? (
+                  <ActivityIndicator color="#FFF" size="small" />
+                ) : (
+                  <Text style={styles.dialogSubmitText}>Start Service</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>

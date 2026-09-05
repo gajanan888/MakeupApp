@@ -78,6 +78,8 @@ export const createBooking = async ({ customerId, artistId, date, time, category
 
   const parsedBackupId = (hasInsurance && backupArtistId) ? Number(backupArtistId) : null;
 
+  const startOtp = Math.floor(1000 + Math.random() * 9000).toString();
+
   const booking = await Booking.create({
     customerId,
     artistId,
@@ -95,6 +97,7 @@ export const createBooking = async ({ customerId, artistId, date, time, category
     advanceAmount,
     advancePaid: false,
     status: "pending",
+    startOtp,
   });
 
   return booking;
@@ -102,7 +105,7 @@ export const createBooking = async ({ customerId, artistId, date, time, category
 
 export const listCustomerBookings = async ({ customerId, offset, limit }) => {
   await checkAndExpireBookings();
-  return Booking.findAndCountAll({
+  const result = await Booking.findAndCountAll({
     where: { customerId },
     include: [
       {
@@ -129,6 +132,15 @@ export const listCustomerBookings = async ({ customerId, offset, limit }) => {
     offset,
     limit,
   });
+
+  for (const b of result.rows) {
+    if (!b.startOtp) {
+      b.startOtp = Math.floor(1000 + Math.random() * 9000).toString();
+      await b.save();
+    }
+  }
+
+  return result;
 };
 
 export const listArtistBookings = async ({ artistId, offset, limit }) => {
@@ -518,9 +530,16 @@ export const cancelBooking = async ({ bookingId, customerId, artistId, reason })
   throw new Error("Booking cannot be cancelled in its current state.");
 };
 
-export const startBooking = async ({ bookingId, artistId }) => {
+export const startBooking = async ({ bookingId, artistId, otp }) => {
+  const parsedId = Number(artistId);
   const booking = await Booking.findOne({
-    where: { id: bookingId, artistId },
+    where: {
+      id: bookingId,
+      [Op.or]: [
+        { artistId: parsedId },
+        { backupArtistId: parsedId, hasInsurance: true },
+      ],
+    },
   });
 
   if (!booking) {
@@ -529,6 +548,39 @@ export const startBooking = async ({ bookingId, artistId }) => {
 
   if (booking.status !== "confirmed") {
     throw new Error("Only confirmed bookings can be started");
+  }
+
+  // 1. Verify 1-hour window prior to service start time
+  let hours = 12;
+  let minutes = 0;
+  if (booking.time) {
+    const parts = booking.time.split(" ");
+    const timeStr = parts[0];
+    const ampm = parts[1] || "AM";
+    const [h, m] = timeStr.split(":").map(Number);
+    hours = h;
+    minutes = m;
+    if (ampm.toUpperCase() === "PM" && hours !== 12) hours += 12;
+    if (ampm.toUpperCase() === "AM" && hours === 12) hours = 0;
+  }
+
+  const serviceDate = new Date(`${booking.date}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`);
+  const now = new Date();
+  const startWindow = new Date(serviceDate.getTime() - 60 * 60 * 1000); // 1 hour before scheduled time
+
+  if (now < startWindow) {
+    throw new Error("Service can only be started within 1 hour of the scheduled appointment time.");
+  }
+
+  // Ensure startOtp exists
+  if (!booking.startOtp) {
+    booking.startOtp = Math.floor(1000 + Math.random() * 9000).toString();
+    await booking.save();
+  }
+
+  // 2. Verify OTP
+  if (!otp || String(otp).trim() !== String(booking.startOtp).trim()) {
+    throw new Error("Invalid OTP. Please ask the client for the 4-digit service start OTP.");
   }
 
   booking.status = "in_progress";

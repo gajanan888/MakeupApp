@@ -101,6 +101,9 @@ async function bootstrapDatabase() {
     try { await qi.addColumn("Bookings", "paymentFailureReason", { type: "VARCHAR(255)" }); } catch (e) {}
     try { await qi.addColumn("Bookings", "paymentGateway", { type: "VARCHAR(255)", allowNull: false, defaultValue: "razorpay" }); } catch (e) {}
     try { await qi.addColumn("Bookings", "artistPenalty", { type: "INTEGER", allowNull: true, defaultValue: 0 }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "backupArtistId", { type: "INTEGER", allowNull: true }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "backupStatus", { type: "VARCHAR(255)", allowNull: false, defaultValue: "pending" }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "startOtp", { type: "VARCHAR(255)", allowNull: true }); } catch (e) {}
     console.log("Missing Razorpay & Bookings columns synced successfully.");
 
     // Inject missing ArtistProfiles columns
