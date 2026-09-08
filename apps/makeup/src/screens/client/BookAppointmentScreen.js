@@ -17,6 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getSavedAddresses } from '../../utils/addressStorage';
 import { isLocationMatch, getCleanCityName } from '../../utils/locationHelper';
 import ScreenHeader from '../../components/ScreenHeader';
+import { getUniqueProfileImage } from '../../utils/artistImageHelper';
 
 const BookAppointmentScreen = ({ navigation, route }) => {
   const { artist } = route.params;
@@ -234,16 +235,10 @@ const BookAppointmentScreen = ({ navigation, route }) => {
         >
         {/* Artist Profile Info Segment */}
         <View style={styles.artistRow}>
-          {artist.profile?.profileImage || artist.image ? (
-            <Image
-              source={{ uri: artist.profile?.profileImage || artist.image }}
-              style={styles.artistImage}
-            />
-          ) : (
-            <View style={[styles.artistImage, styles.artistImagePlaceholder]}>
-              <Ionicons name="person" size={32} color="#FF4F87" />
-            </View>
-          )}
+          <Image
+            source={{ uri: getUniqueProfileImage(artist) }}
+            style={styles.artistImage}
+          />
           <View style={styles.artistMeta}>
             <Text style={styles.artistName}>{artist.name}</Text>
             <Text style={styles.artistSpeciality}>

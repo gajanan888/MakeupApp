@@ -21,6 +21,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { getArtistProfile, updateArtistProfile, getArtistDashboard, changeArtistPassword } from '../../api/auth';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { uploadFile } from '../../api/files';
+import { DEFAULT_AVATAR } from '../../utils/artistImageHelper';
 
 const DURATION_OPTIONS = [
   '15 mins',
@@ -2036,7 +2037,7 @@ const ArtistProfileScreen = ({ onBack }) => {
             {/* INSTAGRAM POST HEADER */}
             <View style={styles.instaPostHeader}>
               <Image 
-                source={{ uri: profile.profileImage || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80' }} 
+                source={{ uri: profile.profileImage || DEFAULT_AVATAR }} 
                 style={styles.instaAvatar} 
               />
               <View style={styles.instaHeaderInfo}>
@@ -2221,7 +2222,7 @@ const ArtistProfileScreen = ({ onBack }) => {
             activeOpacity={0.85}
           >
             <Image
-              source={{ uri: profile.profileImage || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80' }}
+              source={{ uri: profile.profileImage || DEFAULT_AVATAR }}
               style={styles.avatar}
             />
             <View style={styles.editAvatarBadge}>

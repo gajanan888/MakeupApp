@@ -18,13 +18,14 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { updateArtistProfile } from '../../api/auth';
 import { useArtistRegistration } from '../../context/ArtistRegistrationContext';
 
+import { DEFAULT_AVATAR } from '../../utils/artistImageHelper';
+
 const ArtistRegisterSummaryScreen = ({ navigation }) => {
   const { data, resetRegistration } = useArtistRegistration();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const profileImageUri =
-    data.profile?.profileImage ||
-    'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=500';
+    data.profile?.profileImage || DEFAULT_AVATAR;
 
   const specializations =
     Array.isArray(data.specializations) && data.specializations.length > 0

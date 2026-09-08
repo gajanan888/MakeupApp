@@ -15,6 +15,9 @@ import {
   getArtistBookedSlots,
   addExtraClientsToBooking,
   createArtistDirectBooking,
+  acceptBackupService,
+  rejectBackupService,
+  reselectBackupService,
 } from "./booking.service.js";
 import { verifyWebhookSignature } from "../../utils/razorpay.js";
 import {
@@ -597,6 +600,76 @@ export const createArtistDirectBookingController = async (req, res) => {
     res.status(400).json({
       success: false,
       message: error.message || "Failed to create direct booking",
+      data: null,
+    });
+  }
+};
+
+export const acceptBackupBookingController = async (req, res) => {
+  try {
+    const bookingId = Number(req.params.id);
+    const booking = await acceptBackupService({
+      bookingId,
+      artistId: req.artist.id,
+    });
+
+    res.json({
+      success: true,
+      message: "Backup booking request accepted successfully",
+      data: booking,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message || "Failed to accept backup booking request",
+      data: null,
+    });
+  }
+};
+
+export const rejectBackupBookingController = async (req, res) => {
+  try {
+    const bookingId = Number(req.params.id);
+    const { reason } = req.body;
+    const booking = await rejectBackupService({
+      bookingId,
+      artistId: req.artist.id,
+      reason,
+    });
+
+    res.json({
+      success: true,
+      message: "Backup booking request declined",
+      data: booking,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message || "Failed to decline backup booking request",
+      data: null,
+    });
+  }
+};
+
+export const reselectBackupArtistController = async (req, res) => {
+  try {
+    const bookingId = Number(req.params.id);
+    const { newBackupArtistId } = req.body;
+    const booking = await reselectBackupService({
+      bookingId,
+      customerId: req.customer.id,
+      newBackupArtistId,
+    });
+
+    res.json({
+      success: true,
+      message: "New backup artist assigned successfully",
+      data: booking,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message || "Failed to assign new backup artist",
       data: null,
     });
   }

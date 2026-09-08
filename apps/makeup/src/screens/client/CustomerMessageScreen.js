@@ -23,6 +23,7 @@ import {
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { DEFAULT_AVATAR } from '../../utils/artistImageHelper';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { uploadFile } from '../../api/files';
 import { getCustomerConversations, sendCustomerMessage, getCustomerBookings } from '../../api/auth';
@@ -339,7 +340,7 @@ const CustomerMessageScreen = ({ isTab = false, activeTab }) => {
   const activeContact = conversations.find(c => c.id === activeArtistId) || (activeArtistId ? {
     id: activeArtistId,
     name: route.params?.artistName || "Makeup Artist",
-    avatar: route.params?.artistAvatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200",
+    avatar: route.params?.artistAvatar || DEFAULT_AVATAR,
     messages: [],
     isChatEnabled: true,
   } : null);

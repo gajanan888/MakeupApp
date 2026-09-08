@@ -22,6 +22,7 @@ import {
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { DEFAULT_AVATAR } from '../../utils/artistImageHelper';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { uploadFile } from '../../api/files';
 import { getArtistConversations, sendArtistMessage } from '../../api/auth';
@@ -235,7 +236,7 @@ const ArtistMessageScreen = () => {
   const activeContact = contacts.find(c => c.id === activeContactId) || (activeContactId ? {
     id: activeContactId,
     name: route.params?.customerName || "Client",
-    avatar: route.params?.customerAvatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200",
+    avatar: route.params?.customerAvatar || DEFAULT_AVATAR,
     messages: [],
     isChatEnabled: true,
   } : null);

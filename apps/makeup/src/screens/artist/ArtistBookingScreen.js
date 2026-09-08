@@ -21,8 +21,12 @@ import {
   rejectArtistBooking,
   startArtistBooking,
   completeArtistBooking,
+  cancelArtistBooking,
+  acceptBackupBooking,
+  rejectBackupBooking,
 } from '../../api/auth';
 import ArtistBookingDetailModal from './ArtistBookingDetailModal';
+import { getUserProfileImage, DEFAULT_AVATAR } from '../../utils/artistImageHelper';
 
 const ArtistPendingCountdownTimer = ({ createdAt, onExpire }) => {
   const [timeLeft, setTimeLeft] = useState('');
@@ -84,19 +88,20 @@ const ArtistBookingScreen = ({ onBack }) => {
       
       const mapped = data.map(b => {
         let mappedStatus = 'Upcoming';
+        const isBackup = !!b.isBackupBooking;
+        const backupStat = b.backupStatus || 'none';
+
         if (b.status === 'completed') {
           mappedStatus = 'Completed';
-        } else if (b.status === 'cancelled' || b.status === 'rejected') {
+        } else if (
+          b.status === 'cancelled' || 
+          b.status === 'rejected' || 
+          (isBackup && backupStat === 'rejected')
+        ) {
           mappedStatus = 'Cancelled';
         }
 
-        const avatars = [
-          'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=200',
-          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200',
-          'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200',
-          'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?q=80&w=200',
-        ];
-        const avatar = avatars[Number(b.customerId) % avatars.length];
+        const avatar = getUserProfileImage(b.customer);
 
         let dateText = '';
         if (b.date) {
@@ -122,6 +127,11 @@ const ArtistBookingScreen = ({ onBack }) => {
           }
         }
 
+        const numericPrice = typeof b.price === 'number' ? b.price : (parseFloat(String(b.price || 0).replace(/[^0-9.]/g, '')) || 0);
+        const hasInsurance = !!(b.hasInsurance || b.backupArtistId || b.backupArtist);
+        const insuranceFee = hasInsurance ? (b.insuranceFee || 1000) : 0;
+        const basePrice = Math.max(0, numericPrice - insuranceFee);
+
         return {
           id: String(b.id),
           customerId: b.customerId,
@@ -129,7 +139,14 @@ const ArtistBookingScreen = ({ onBack }) => {
           category: b.category || 'Makeup Service',
           date: formattedDate,
           location: b.location || 'At Client Location',
-          price: `₹${b.price || 0}`,
+          price: `₹${numericPrice.toLocaleString('en-IN')}`,
+          numericPrice,
+          basePrice,
+          hasInsurance,
+          insuranceFee,
+          backupArtist: b.backupArtist || null,
+          backupArtistId: b.backupArtistId || null,
+          advanceAmount: b.advanceAmount || 0,
           status: mappedStatus,
           rawStatus: b.status,
           phone: b.customer?.phone || '',
@@ -143,6 +160,9 @@ const ArtistBookingScreen = ({ onBack }) => {
           cancellationReason: b.cancellationReason,
           cancelledBy: b.cancelledBy,
           isBackupBooking: b.isBackupBooking || false,
+          backupStatus: b.backupStatus || 'none',
+          backupDeadline: b.backupDeadline || null,
+          backupRejectionReason: b.backupRejectionReason || null,
           primaryArtistName: b.artist?.name || '',
           rawBooking: b,
         };
@@ -172,6 +192,24 @@ const ArtistBookingScreen = ({ onBack }) => {
     } catch (error) {
       console.warn('Failed to accept booking:', error);
     }
+  };
+
+  const handleAcceptBackup = async (bookingId) => {
+    try {
+      await acceptBackupBooking(bookingId);
+      Alert.alert('Backup Confirmed', 'You have accepted this backup artist assignment.');
+      await fetchBookings();
+    } catch (error) {
+      const msg = error.response?.data?.message || error.message || 'Failed to accept backup request.';
+      Alert.alert('Error', msg);
+    }
+  };
+
+  const handleRejectBackup = async (bookingId) => {
+    setRejectBookingId(bookingId);
+    setRejectionReasonText('');
+    setIsBackupRejection(true);
+    setRejectModalVisible(true);
   };
 
   const handleReject = (bookingId) => {
@@ -255,6 +293,20 @@ const ArtistBookingScreen = ({ onBack }) => {
   const filteredBookings = bookings.filter(booking => booking.status === activeSubTab);
 
   const getStatusStyle = (status, rawStatus) => {
+    if (status === 'Cancelled') {
+      return {
+        bg: '#FFF1F0',
+        text: '#CF1322',
+        label: rawStatus === 'rejected' ? 'Declined' : 'Cancelled',
+      };
+    }
+    if (status === 'Completed') {
+      return {
+        bg: '#F6FFED',
+        text: '#389E0D',
+        label: 'Completed',
+      };
+    }
     if (rawStatus === 'in_progress') {
       return {
         bg: '#FFF7E6',
@@ -264,7 +316,7 @@ const ArtistBookingScreen = ({ onBack }) => {
     }
     if (rawStatus === 'accepted' || rawStatus === 'advance_pending') {
       return {
-        bg: '#E6F7FF',
+        bg: '#E6F4FF',
         text: '#0050B3',
         label: 'Accepted',
       };
@@ -318,12 +370,8 @@ const ArtistBookingScreen = ({ onBack }) => {
         <TouchableOpacity style={styles.headerButton} onPress={onBack}>
           <Ionicons name="arrow-back-outline" size={24} color="#111" />
         </TouchableOpacity>
-        
         <Text style={styles.headerTitle}>Bookings</Text>
-
-        <TouchableOpacity style={styles.headerButton}>
-          <Ionicons name="time-outline" size={22} color="#5E1735" />
-        </TouchableOpacity>
+        <View style={styles.headerButton} />
       </View>
 
       {/* SUB-TABS */}
@@ -359,44 +407,114 @@ const ArtistBookingScreen = ({ onBack }) => {
               const badgeColors = getStatusStyle(booking.status, booking.rawStatus);
               return (
                 <TouchableOpacity key={booking.id} style={styles.bookingCard} onPress={() => setSelectedBooking(booking)}>
-                  <Image
-                    source={{ uri: booking.avatar }}
-                    style={styles.clientAvatar}
-                  />
-
-                  <View style={styles.bookingDetails}>
-                    <Text style={styles.clientName}>{booking.name}</Text>
-                    <Text style={styles.bookingCategory}>{booking.category}</Text>
-                    
-                    <View style={styles.bookingMetaRow}>
-                      <Ionicons name="calendar-outline" size={12} color="#777" />
-                      <Text style={styles.bookingMetaText}>{booking.date}</Text>
+                  {/* Top Header Row with Avatar, Client Info, and Status Badge */}
+                  <View style={styles.cardHeaderRow}>
+                    <Image source={{ uri: booking.avatar }} style={styles.clientAvatarHeader} />
+                    <View style={styles.clientMainInfo}>
+                      <Text style={styles.clientName}>{booking.name}</Text>
+                      <Text style={styles.bookingCategory}>{booking.category}</Text>
+                      <View style={styles.bookingMetaRow}>
+                        <Ionicons name="calendar-outline" size={12} color="#777" />
+                        <Text style={styles.bookingMetaText}>{booking.date}</Text>
+                      </View>
+                      <View style={styles.bookingMetaRow}>
+                        <Ionicons name="location-outline" size={12} color="#777" />
+                        <Text style={styles.bookingMetaText}>{booking.location}</Text>
+                      </View>
                     </View>
-
-                    <View style={styles.bookingMetaRow}>
-                      <Ionicons name="location-outline" size={12} color="#777" />
-                      <Text style={styles.bookingMetaText}>{booking.location}</Text>
+                    <View style={styles.bookingBadgeContainer}>
+                      <View style={[styles.statusBadge, { backgroundColor: badgeColors.bg }]}>
+                        <Text style={[styles.statusBadgeText, { color: badgeColors.text }]}>
+                          {badgeColors.label}
+                        </Text>
+                      </View>
                     </View>
+                  </View>
 
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                      <Text style={styles.bookingPrice}>{booking.price}</Text>
-                      {booking.isBackupBooking && (
-                        <View style={[styles.extraBadge, { backgroundColor: '#FFF0F5', borderColor: '#FF4F8F' }]}>
-                          <Ionicons name="shield-checkmark" size={12} color="#FF4F8F" />
-                          <Text style={[styles.extraBadgeText, { color: '#FF4F8F', fontWeight: '700' }]}>
-                            Backup Request
-                          </Text>
+                  {/* Full-width Details & Price Breakdown */}
+                  <View style={styles.cardBody}>
+                    {/* Price Breakdown Distribution Box */}
+                    <View style={styles.priceBreakdownCard}>
+                      <View style={styles.priceRow}>
+                        <Text style={styles.priceLabel}>Base Service Rate:</Text>
+                        <Text style={styles.basePriceVal}>₹{booking.basePrice.toLocaleString('en-IN')}</Text>
+                      </View>
+                      {booking.hasInsurance && (
+                        <View style={styles.priceRow}>
+                          <Text style={styles.priceLabel}>Ensurance Protection:</Text>
+                          <Text style={styles.insuranceFeeVal}>+₹{booking.insuranceFee.toLocaleString('en-IN')}</Text>
                         </View>
                       )}
-                      {booking.addOns && booking.addOns.length > 0 && !booking.isBackupBooking && (
-                        <View style={styles.extraBadge}>
-                          <Ionicons name="people" size={12} color="#FF4F8F" />
-                          <Text style={styles.extraBadgeText}>
-                            +{booking.addOns.reduce((sum, a) => sum + (a.count || 1), 0)} Extra
+                      <View style={styles.priceDivider} />
+                      <View style={styles.priceRow}>
+                        <Text style={styles.totalLabel}>Total Client Paid:</Text>
+                        <Text style={styles.totalVal}>₹{booking.numericPrice.toLocaleString('en-IN')}</Text>
+                      </View>
+                      <View style={[styles.priceRow, { marginTop: 4 }]}>
+                        <Text style={[styles.totalLabel, { color: '#FF4F8F', fontWeight: '800' }]}>Artist Payout:</Text>
+                        <Text style={[styles.totalVal, { color: '#FF4F8F', fontWeight: '800' }]}>₹{booking.basePrice.toLocaleString('en-IN')}</Text>
+                      </View>
+                    </View>
+
+                    {/* Assigned Backup Artist Info Row */}
+                    {booking.backupArtist && (
+                      <View style={styles.backupCardRow}>
+                        <Ionicons name="shield-checkmark" size={14} color="#059669" />
+                        <Text style={styles.backupCardText}>
+                          Assigned Backup: <Text style={{ fontWeight: '700', color: '#111' }}>{booking.backupArtist.name}</Text>
+                        </Text>
+                      </View>
+                    )}
+
+                    {booking.isBackupBooking && (
+                      <View style={[
+                        styles.backupCardRow, 
+                        { 
+                          backgroundColor: booking.backupStatus === 'accepted' ? '#ECFDF5' : (booking.backupStatus === 'rejected' ? '#FEF2F2' : '#FFF0F5'), 
+                          borderColor: booking.backupStatus === 'accepted' ? '#A7F3D0' : (booking.backupStatus === 'rejected' ? '#FCA5A5' : '#FF4F8F'),
+                          flexDirection: 'column',
+                          alignItems: 'flex-start',
+                        }
+                      ]}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Ionicons 
+                            name={booking.backupStatus === 'accepted' ? "checkmark-circle" : (booking.backupStatus === 'rejected' ? "close-circle" : "shield-checkmark")} 
+                            size={16} 
+                            color={booking.backupStatus === 'accepted' ? '#059669' : (booking.backupStatus === 'rejected' ? '#DC2626' : '#FF4F8F')} 
+                            style={{ marginRight: 4 }}
+                          />
+                          <Text style={[
+                            styles.backupCardText, 
+                            { color: booking.backupStatus === 'accepted' ? '#065F46' : (booking.backupStatus === 'rejected' ? '#991B1B' : '#FF4F8F') }
+                          ]}>
+                            Backup Request for: <Text style={{ fontWeight: '700' }}>{booking.primaryArtistName || 'Primary Artist'}</Text>
                           </Text>
                         </View>
-                      )}
-                    </View>
+                        <Text style={{ fontSize: 11, marginTop: 2, color: '#666' }}>
+                          Status: {booking.backupStatus === 'accepted' ? 'Accepted' : (booking.backupStatus === 'rejected' ? 'Declined / Cancelled' : 'Pending Confirmation (1h limit)')}
+                        </Text>
+                      </View>
+                    )}
+
+                    {booking.addOns && booking.addOns.length > 0 && !booking.isBackupBooking && (
+                      <View style={[styles.extraBadge, { marginTop: 6, alignSelf: 'flex-start' }]}>
+                        <Ionicons name="sparkles" size={12} color="#FF4F8F" />
+                        <Text style={styles.extraBadgeText}>
+                          +{booking.addOns.length} {booking.addOns.some(a => a.count || a.service) ? 'Extra Clients' : 'Add-On Services'}
+                        </Text>
+                      </View>
+                    )}
+
+                    {booking.status === 'Cancelled' && (
+                      <View style={{ backgroundColor: '#FFF1F0', borderWidth: 1, borderColor: '#FFA39E', borderRadius: 8, padding: 10, marginTop: 8 }}>
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: '#CF1322' }}>
+                          {booking.cancelledBy === 'system' ? 'Cancellation Reason:' : 'Decline / Cancellation Reason:'}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: '#8C0009', marginTop: 2 }}>
+                          {booking.backupRejectionReason || booking.rejectionReason || booking.cancellationReason || 'Booking was cancelled or declined.'}
+                        </Text>
+                      </View>
+                    )}
 
                     {booking.status === 'Upcoming' && (
                       <View style={{ flexDirection: 'column' }}>
@@ -404,7 +522,7 @@ const ArtistBookingScreen = ({ onBack }) => {
                           <ArtistPendingCountdownTimer createdAt={booking.createdAt} onExpire={fetchBookings} />
                         )}
                         <View style={styles.cardActionsContainer}>
-                          {booking.rawStatus === 'pending' && (
+                          {booking.rawStatus === 'pending' && !booking.isBackupBooking && (
                             <>
                               <TouchableOpacity
                                 style={[styles.actionBtn, styles.acceptBtn]}
@@ -417,6 +535,22 @@ const ArtistBookingScreen = ({ onBack }) => {
                                 onPress={() => handleReject(booking.id)}
                               >
                                 <Text style={[styles.actionBtnText, styles.rejectBtnText]}>Reject</Text>
+                              </TouchableOpacity>
+                            </>
+                          )}
+                          {booking.isBackupBooking && booking.backupStatus === 'pending' && (
+                            <>
+                              <TouchableOpacity
+                                style={[styles.actionBtn, styles.acceptBtn]}
+                                onPress={() => handleAcceptBackup(booking.id)}
+                              >
+                                <Text style={styles.actionBtnText}>Accept Backup</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={[styles.actionBtn, styles.rejectBtn]}
+                                onPress={() => handleRejectBackup(booking.id)}
+                              >
+                                <Text style={[styles.actionBtnText, styles.rejectBtnText]}>Decline Backup</Text>
                               </TouchableOpacity>
                             </>
                           )}
@@ -461,14 +595,6 @@ const ArtistBookingScreen = ({ onBack }) => {
                         </Text>
                       </View>
                     )}
-                  </View>
-
-                  <View style={styles.bookingBadgeContainer}>
-                    <View style={[styles.statusBadge, { backgroundColor: badgeColors.bg }]}>
-                      <Text style={[styles.statusBadgeText, { color: badgeColors.text }]}>
-                        {badgeColors.label}
-                      </Text>
-                    </View>
                   </View>
                 </TouchableOpacity>
               );
@@ -667,7 +793,7 @@ const styles = StyleSheet.create({
   },
 
   bookingCard: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     backgroundColor: '#FFF',
     borderRadius: 16,
     padding: 14,
@@ -681,17 +807,25 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
 
-  clientAvatar: {
-    width: 65,
-    height: 75,
-    borderRadius: 12,
-    alignSelf: 'center',
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 8,
   },
 
-  bookingDetails: {
+  clientAvatarHeader: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 10,
+  },
+
+  clientMainInfo: {
     flex: 1,
-    marginLeft: 14,
-    justifyContent: 'center',
+  },
+
+  cardBody: {
+    width: '100%',
   },
 
   clientName: {
@@ -955,6 +1089,67 @@ const styles = StyleSheet.create({
     color: '#595959',
     marginTop: 2,
     fontFamily: 'serif',
+  },
+  priceBreakdownCard: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 10,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: 2,
+  },
+  priceLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  basePriceVal: {
+    fontSize: 12,
+    color: '#111827',
+    fontWeight: '600',
+  },
+  insuranceFeeVal: {
+    fontSize: 12,
+    color: '#059669',
+    fontWeight: '700',
+  },
+  priceDivider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 6,
+  },
+  totalLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  totalVal: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FF4F87',
+  },
+  backupCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginTop: 8,
+    gap: 6,
+  },
+  backupCardText: {
+    fontSize: 12,
+    color: '#065F46',
+    flex: 1,
   },
 });
 

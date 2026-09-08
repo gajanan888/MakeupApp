@@ -140,9 +140,14 @@ function getStringHash(str) {
   return Math.abs(hash);
 }
 
+export const DEFAULT_AVATAR = 'https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png';
+
 export function getUniqueProfileImage(artist) {
   if (artist?.profile?.profileImage) {
     return artist.profile.profileImage;
+  }
+  if (artist?.profileImage) {
+    return artist.profileImage;
   }
   if (typeof artist?.image === 'string' && artist.image) {
     return artist.image;
@@ -150,9 +155,32 @@ export function getUniqueProfileImage(artist) {
   if (artist?.image?.uri) {
     return artist.image.uri;
   }
+  if (artist?.avatar) {
+    return artist.avatar;
+  }
 
-  // Standard clean default avatar placeholder when no profile image has been uploaded
-  return 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=500&auto=format&fit=crop&q=80';
+  // Standard neutral default avatar placeholder when no profile image has been uploaded
+  return DEFAULT_AVATAR;
+}
+
+export function getUserProfileImage(user) {
+  if (user?.profileImage) {
+    return user.profileImage;
+  }
+  if (user?.avatar) {
+    return user.avatar;
+  }
+  if (user?.profile?.profileImage) {
+    return user.profile.profileImage;
+  }
+  if (typeof user?.image === 'string' && user.image) {
+    return user.image;
+  }
+  if (user?.image?.uri) {
+    return user.image.uri;
+  }
+
+  return DEFAULT_AVATAR;
 }
 
 export function getUniquePortfolio(artist) {

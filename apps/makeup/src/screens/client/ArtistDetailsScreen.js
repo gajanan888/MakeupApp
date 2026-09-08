@@ -4,7 +4,7 @@ import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context'
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getArtistReviews, getArtists } from '../../api/auth';
-import { getUniqueProfileImage, getUniquePortfolio } from '../../utils/artistImageHelper';
+import { getUniqueProfileImage, getUniquePortfolio, DEFAULT_AVATAR } from '../../utils/artistImageHelper';
 
 import {
   View,
@@ -235,7 +235,7 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
         {/* PROFILE CARD */}
         <View style={styles.profileCard}>
           <Image
-            source={{ uri: heroImageUri || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80' }}
+            source={{ uri: heroImageUri || DEFAULT_AVATAR }}
             style={styles.avatar}
           />
           <View style={styles.profileDetails}>
@@ -524,7 +524,7 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
               {/* Header */}
               <View style={styles.instaPostHeader}>
                 <Image 
-                  source={{ uri: heroImageUri || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80' }} 
+                  source={{ uri: heroImageUri || DEFAULT_AVATAR }} 
                   style={styles.instaAvatar} 
                 />
                 <View style={styles.instaHeaderInfo}>

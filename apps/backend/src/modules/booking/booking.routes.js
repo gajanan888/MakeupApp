@@ -16,6 +16,9 @@ import {
   getArtistBookedSlotsController,
   addExtraClientsController,
   createArtistDirectBookingController,
+  acceptBackupBookingController,
+  rejectBackupBookingController,
+  reselectBackupArtistController,
 } from "./booking.controller.js";
 import { protectCustomer } from "../../middleware/authMiddleware.js";
 import { protectArtist } from "../../middleware/artistAuth.js";
@@ -34,11 +37,14 @@ router.post("/:id/verify-payment", protectCustomer, paymentLimiter, verifyPaymen
 router.post("/webhook/razorpay", express.json({ type: 'application/json' }), razorpayWebhookController);
 
 router.post("/:id/decline-advance", protectCustomer, declineAdvancePaymentController);
+router.post("/:id/reselect-backup", protectCustomer, reselectBackupArtistController);
 router.get("/artist/:artistId/booked-slots", protectCustomer, getArtistBookedSlotsController);
 
 router.get("/artist", protectArtist, listArtistBookingsController);
 router.patch("/:id/accept", protectArtist, acceptBookingController);
 router.patch("/:id/reject", protectArtist, rejectBookingController);
+router.post("/:id/backup-accept", protectArtist, acceptBackupBookingController);
+router.post("/:id/backup-reject", protectArtist, rejectBackupBookingController);
 router.patch("/:id/cancel-by-artist", protectArtist, cancelBookingController);
 router.patch("/:id/start", protectArtist, startBookingController);
 router.patch("/:id/complete", protectArtist, completeBookingController);

@@ -6,6 +6,8 @@ import ArtistService from "../../models/ArtistService.js";
 import Booking from "../../models/Booking.js";
 import ArtistPortfolio from "../../models/ArtistPortfolio.js";
 import Review from "../../models/Review.js";
+import BookingPolicy from "../../models/BookingPolicy.js";
+import ArtistBlock from "../../models/ArtistBlock.js";
 
 /**
  * Calculates Bayesian Rating Score for artist ranking
@@ -50,11 +52,45 @@ const calculateBayesianScore = (artistJson, globalMean, m_r = 5) => {
   };
 };
 
-export const getArtists = async ({ minPrice, maxPrice, experience, location, id, page, limit, search, category, rating, priceRange, gender }) => {
+export const getArtists = async ({ minPrice, maxPrice, experience, location, id, page, limit, search, category, rating, priceRange, gender, availableDate, availableTime }) => {
   const where = { isVerified: true };
 
   if (id) {
     where.id = id;
+  }
+
+  // Filter out artists who are booked or blocked on availableDate (and availableTime if specified)
+  if (availableDate) {
+    const bookingWhere = {
+      date: availableDate,
+      status: { [Op.notIn]: ['rejected', 'cancelled'] },
+    };
+    if (availableTime) {
+      bookingWhere.time = availableTime;
+    }
+
+    const blockWhere = { date: availableDate };
+    if (availableTime) {
+      blockWhere.time = availableTime;
+    }
+
+    const [busyBookings, busyBlocks] = await Promise.all([
+      Booking.findAll({ where: bookingWhere, attributes: ['artistId'] }),
+      ArtistBlock.findAll({ where: blockWhere, attributes: ['artistId'] }),
+    ]);
+
+    const busyIds = [...new Set([
+      ...busyBookings.map(b => b.artistId),
+      ...busyBlocks.map(b => b.artistId),
+    ])];
+
+    if (busyIds.length > 0) {
+      if (where.id) {
+        where.id = { [Op.and]: [where.id, { [Op.notIn]: busyIds }] };
+      } else {
+        where.id = { [Op.notIn]: busyIds };
+      }
+    }
   }
 
   // Fetch all verified artists to perform reliable filtering & Bayesian rating calculations
@@ -93,6 +129,10 @@ export const getArtists = async ({ minPrice, maxPrice, experience, location, id,
         as: "reviews",
         required: false,
         attributes: ["id", "rating"],
+      },
+      {
+        model: BookingPolicy,
+        as: "bookingPolicy",
       },
     ],
   });
@@ -272,6 +312,10 @@ export const getTrendingArtists = async () => {
         where: { status: "completed" },
         required: false,
         attributes: ["id"],
+      },
+      {
+        model: BookingPolicy,
+        as: "bookingPolicy",
       },
     ],
   });

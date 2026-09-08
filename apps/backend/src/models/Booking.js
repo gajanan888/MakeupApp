@@ -138,6 +138,14 @@ const Booking = sequelize.define("Booking", {
     allowNull: false,
     defaultValue: "pending",
   },
+  backupDeadline: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  backupRejectionReason: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
   startOtp: {
     type: DataTypes.STRING,
     allowNull: true,

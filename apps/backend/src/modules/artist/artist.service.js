@@ -1,3 +1,4 @@
+import { Op } from "sequelize";
 import bcrypt from "bcrypt";
 import sequelize from "../../config/db.js";
 import Artist from "../../models/Artist.js";
@@ -413,10 +414,18 @@ export const getArtistDashboardStats = async (artistId) => {
     .reduce((sum, b) => sum + (b.artistPenalty || 0), 0);
   const totalEarnings = Math.max(0, totalEarningsVal - totalPenaltyVal);
 
-  const upcomingBookings = await Booking.findAll({
+  const upcomingBookingsRaw = await Booking.findAll({
     where: {
-      artistId,
-      status: ["pending", "accepted", "confirmed", "in_progress"],
+      [Op.or]: [
+        {
+          artistId,
+          status: { [Op.in]: ["pending", "accepted", "confirmed", "in_progress"] },
+        },
+        {
+          backupArtistId: artistId,
+          backupStatus: { [Op.in]: ["pending", "accepted"] },
+        },
+      ],
     },
     include: [
       {
@@ -430,6 +439,12 @@ export const getArtistDashboardStats = async (artistId) => {
       ["time", "ASC"],
     ],
     limit: 5,
+  });
+
+  const upcomingBookings = upcomingBookingsRaw.map((b) => {
+    const json = b.toJSON ? b.toJSON() : b;
+    json.isBackupBooking = json.backupArtistId === Number(artistId);
+    return json;
   });
 
   const reviews = await Review.findAll({ where: { artistId } });

@@ -41,6 +41,7 @@ import { pick, isCancel, types, keepLocalCopy } from '@react-native-documents/pi
 import { uploadFile } from '../../api/files';
 import { useArtistRegistration } from '../../context/ArtistRegistrationContext';
 import { updateArtistProfile } from '../../api/auth';
+import { DEFAULT_AVATAR } from '../../utils/artistImageHelper';
 
 const SPECIALIZATIONS = [
   'Bridal',
@@ -290,8 +291,7 @@ const ArtistRegisterScreen3 = ({ navigation, route }) => {
             <Image
               source={{
                 uri:
-                  data?.profile?.profileImage ||
-                  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=500',
+                  data?.profile?.profileImage || DEFAULT_AVATAR,
               }}
               style={styles.profileImage}
             />

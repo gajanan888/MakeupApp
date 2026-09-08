@@ -194,34 +194,36 @@ const ArtistAddExtraClientsScreen = ({ navigation, route }) => {
       
       {/* HEADER BAR */}
       <View style={styles.headerBar}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#111" />
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.7}>
+          <Ionicons name="arrow-back" size={22} color="#111" />
         </TouchableOpacity>
         <View style={styles.headerTextContainer}>
           <Text style={styles.headerTitle}>New Booking / Add Clients</Text>
-          <Text style={styles.headerSubtitle}>Add extra customers to an ongoing session</Text>
+          <Text style={styles.headerSubtitle}>Add extra customers to an ongoing session or log walk-in</Text>
         </View>
       </View>
 
-      {/* SEGMENTED TAB SELECTOR */}
+      {/* SEGMENTED TAB SELECTOR (CLEAN NON-OVERLAPPING TABS) */}
       <View style={styles.tabContainer}>
         <TouchableOpacity
           style={[styles.tabBtn, activeTab === 'add_to_existing' && styles.tabBtnActive]}
           onPress={() => setActiveTab('add_to_existing')}
+          activeOpacity={0.8}
         >
-          <Ionicons name="person-add-outline" size={16} color={activeTab === 'add_to_existing' ? '#FFF' : '#FF4F8F'} style={{ marginRight: 6 }} />
-          <Text style={[styles.tabText, activeTab === 'add_to_existing' && styles.tabTextActive]}>
-            Add to Active Session
+          <Ionicons name="person-add-outline" size={15} color={activeTab === 'add_to_existing' ? '#FFF' : '#FF4F8F'} style={{ marginRight: 6 }} />
+          <Text numberOfLines={1} style={[styles.tabText, activeTab === 'add_to_existing' && styles.tabTextActive]}>
+            Active Session
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.tabBtn, activeTab === 'new_walkin' && styles.tabBtnActive]}
           onPress={() => setActiveTab('new_walkin')}
+          activeOpacity={0.8}
         >
-          <Ionicons name="calendar-outline" size={16} color={activeTab === 'new_walkin' ? '#FFF' : '#FF4F8F'} style={{ marginRight: 6 }} />
-          <Text style={[styles.tabText, activeTab === 'new_walkin' && styles.tabTextActive]}>
-            New Walk-In Client
+          <Ionicons name="calendar-outline" size={15} color={activeTab === 'new_walkin' ? '#FFF' : '#FF4F8F'} style={{ marginRight: 6 }} />
+          <Text numberOfLines={1} style={[styles.tabText, activeTab === 'new_walkin' && styles.tabTextActive]}>
+            Walk-In Client
           </Text>
         </TouchableOpacity>
       </View>
@@ -238,7 +240,7 @@ const ArtistAddExtraClientsScreen = ({ navigation, route }) => {
               {/* STEP 1: SELECT UPCOMING / ONGOING BOOKING */}
               <Text style={styles.sectionLabel}>1. Select Booking Session</Text>
               {upcomingBookings && upcomingBookings.length > 0 ? (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 18, flexDirection: 'row' }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 18 }}>
                   {upcomingBookings.map((b) => {
                     const isSelected = selectedBookingId === b.id;
                     const custName = b.customer?.name || `Booking #${b.id}`;
@@ -250,6 +252,7 @@ const ArtistAddExtraClientsScreen = ({ navigation, route }) => {
                         key={b.id}
                         style={[styles.bookingCard, isSelected && styles.bookingCardSelected]}
                         onPress={() => setSelectedBookingId(b.id)}
+                        activeOpacity={0.8}
                       >
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                           <Text style={[styles.bookingCustName, isSelected && { color: '#FF4F8F' }]} numberOfLines={1}>
@@ -272,7 +275,7 @@ const ArtistAddExtraClientsScreen = ({ navigation, route }) => {
               ) : (
                 <View style={styles.noBookingBox}>
                   <Ionicons name="alert-circle-outline" size={22} color="#FF4F8F" />
-                  <Text style={styles.noBookingText}>No active or upcoming bookings found. Switch to "New Walk-In Client" tab to log a fresh client.</Text>
+                  <Text style={styles.noBookingText}>No active or upcoming bookings found. Switch to "Walk-In Client" tab to log a fresh client.</Text>
                 </View>
               )}
 
@@ -287,7 +290,7 @@ const ArtistAddExtraClientsScreen = ({ navigation, route }) => {
                   <View key={serviceItem.name} style={styles.serviceRow}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.serviceName}>{serviceItem.name}</Text>
-                      <Text style={styles.serviceUnitPrice}>₹{serviceItem.price} per person</Text>
+                      <Text style={styles.serviceUnitPrice}>₹{serviceItem.price.toLocaleString('en-IN')} per person</Text>
                     </View>
 
                     <View style={styles.counterRow}>
@@ -295,6 +298,7 @@ const ArtistAddExtraClientsScreen = ({ navigation, route }) => {
                         style={[styles.counterBtn, count === 0 && styles.counterBtnDisabled]}
                         onPress={() => updateServiceCount(serviceItem.name, -1)}
                         disabled={count === 0}
+                        activeOpacity={0.7}
                       >
                         <Ionicons name="remove" size={18} color={count === 0 ? '#CCC' : '#FF4F8F'} />
                       </TouchableOpacity>
@@ -304,6 +308,7 @@ const ArtistAddExtraClientsScreen = ({ navigation, route }) => {
                       <TouchableOpacity
                         style={styles.counterBtn}
                         onPress={() => updateServiceCount(serviceItem.name, 1)}
+                        activeOpacity={0.7}
                       >
                         <Ionicons name="add" size={18} color="#FF4F8F" />
                       </TouchableOpacity>
@@ -314,13 +319,16 @@ const ArtistAddExtraClientsScreen = ({ navigation, route }) => {
 
               {/* STEP 3: EXTRA NOTES */}
               <Text style={[styles.sectionLabel, { marginTop: 16 }]}>3. Extra Client Notes (Optional)</Text>
-              <TextInput
-                style={styles.textInput}
-                value={extraNotes}
-                onChangeText={setExtraNotes}
-                placeholder="e.g. 2 extra bridesmaids, 1 saree draping on-site..."
-                placeholderTextColor="#B7A9A1"
-              />
+              <View style={styles.inputContainer}>
+                <Ionicons name="create-outline" size={18} color="#8A7D77" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.textInput}
+                  value={extraNotes}
+                  onChangeText={setExtraNotes}
+                  placeholder="e.g. 2 extra bridesmaids, 1 saree draping on-site..."
+                  placeholderTextColor="#B7A9A1"
+                />
+              </View>
             </View>
           ) : (
             /* NEW WALK-IN CLIENT TAB */
@@ -328,34 +336,43 @@ const ArtistAddExtraClientsScreen = ({ navigation, route }) => {
               <Text style={styles.sectionLabel}>1. Walk-In Client Information</Text>
               
               <Text style={styles.inputTitle}>Client Full Name *</Text>
-              <TextInput
-                style={styles.textInput}
-                value={walkinClientName}
-                onChangeText={setWalkinClientName}
-                placeholder="e.g. Ananya Roy"
-                placeholderTextColor="#B7A9A1"
-              />
+              <View style={styles.inputContainer}>
+                <Ionicons name="person-outline" size={18} color="#8A7D77" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.textInput}
+                  value={walkinClientName}
+                  onChangeText={setWalkinClientName}
+                  placeholder="e.g. Ananya Roy"
+                  placeholderTextColor="#B7A9A1"
+                />
+              </View>
 
               <Text style={styles.inputTitle}>Client Phone Number (Optional)</Text>
-              <TextInput
-                style={styles.textInput}
-                value={walkinClientPhone}
-                onChangeText={setWalkinClientPhone}
-                placeholder="e.g. 9876543210"
-                placeholderTextColor="#B7A9A1"
-                keyboardType="phone-pad"
-              />
+              <View style={styles.inputContainer}>
+                <Ionicons name="call-outline" size={18} color="#8A7D77" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.textInput}
+                  value={walkinClientPhone}
+                  onChangeText={setWalkinClientPhone}
+                  placeholder="e.g. 9876543210"
+                  placeholderTextColor="#B7A9A1"
+                  keyboardType="phone-pad"
+                />
+              </View>
 
               <Text style={styles.inputTitle}>Location / Venue (Optional)</Text>
-              <TextInput
-                style={styles.textInput}
-                value={walkinLocation}
-                onChangeText={setWalkinLocation}
-                placeholder="e.g. Studio, Hotel Park, Pune"
-                placeholderTextColor="#B7A9A1"
-              />
+              <View style={styles.inputContainer}>
+                <Ionicons name="location-outline" size={18} color="#8A7D77" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.textInput}
+                  value={walkinLocation}
+                  onChangeText={setWalkinLocation}
+                  placeholder="e.g. Studio, Hotel Park, Pune"
+                  placeholderTextColor="#B7A9A1"
+                />
+              </View>
 
-              <Text style={styles.sectionLabel}>2. Select Services & Customer Count</Text>
+              <Text style={[styles.sectionLabel, { marginTop: 16 }]}>2. Select Services & Customer Count</Text>
               {artistServices.map((serviceItem) => {
                 const count = serviceCounts[serviceItem.name] || 0;
 
@@ -363,7 +380,7 @@ const ArtistAddExtraClientsScreen = ({ navigation, route }) => {
                   <View key={serviceItem.name} style={styles.serviceRow}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.serviceName}>{serviceItem.name}</Text>
-                      <Text style={styles.serviceUnitPrice}>₹{serviceItem.price} per person</Text>
+                      <Text style={styles.serviceUnitPrice}>₹{serviceItem.price.toLocaleString('en-IN')} per person</Text>
                     </View>
 
                     <View style={styles.counterRow}>
@@ -371,6 +388,7 @@ const ArtistAddExtraClientsScreen = ({ navigation, route }) => {
                         style={[styles.counterBtn, count === 0 && styles.counterBtnDisabled]}
                         onPress={() => updateServiceCount(serviceItem.name, -1)}
                         disabled={count === 0}
+                        activeOpacity={0.7}
                       >
                         <Ionicons name="remove" size={18} color={count === 0 ? '#CCC' : '#FF4F8F'} />
                       </TouchableOpacity>
@@ -380,6 +398,7 @@ const ArtistAddExtraClientsScreen = ({ navigation, route }) => {
                       <TouchableOpacity
                         style={styles.counterBtn}
                         onPress={() => updateServiceCount(serviceItem.name, 1)}
+                        activeOpacity={0.7}
                       >
                         <Ionicons name="add" size={18} color="#FF4F8F" />
                       </TouchableOpacity>
@@ -399,13 +418,13 @@ const ArtistAddExtraClientsScreen = ({ navigation, route }) => {
 
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Additional Services Amount:</Text>
-              <Text style={styles.summaryPriceHighlight}>+ ₹{totalAdditionalPrice}</Text>
+              <Text style={styles.summaryPriceHighlight}>+ ₹{totalAdditionalPrice.toLocaleString('en-IN')}</Text>
             </View>
 
             {activeTab === 'add_to_existing' && selectedBooking && (
               <View style={[styles.summaryRow, { borderTopWidth: 1, borderTopColor: '#FFE4ED', paddingTop: 8, marginTop: 4 }]}>
                 <Text style={styles.summaryLabelBold}>New Total Booking Amount:</Text>
-                <Text style={styles.summaryTotalHighlight}>₹{newBookingTotalPrice}</Text>
+                <Text style={styles.summaryTotalHighlight}>₹{newBookingTotalPrice.toLocaleString('en-IN')}</Text>
               </View>
             )}
           </View>
@@ -418,14 +437,15 @@ const ArtistAddExtraClientsScreen = ({ navigation, route }) => {
           style={[styles.submitBtn, (submitting || totalExtraClientsCount === 0) && { backgroundColor: '#E0E0E0' }]}
           onPress={handleSubmit}
           disabled={submitting || totalExtraClientsCount === 0}
+          activeOpacity={0.8}
         >
           {submitting ? (
             <ActivityIndicator size="small" color="#FFF" />
           ) : (
             <Text style={styles.submitBtnText}>
               {activeTab === 'add_to_existing'
-                ? `Confirm & Add Extra Customers (₹${totalAdditionalPrice})`
-                : `Create Direct Booking (₹${totalAdditionalPrice})`}
+                ? `Confirm & Add Extra Customers (₹${totalAdditionalPrice.toLocaleString('en-IN')})`
+                : `Create Direct Booking (₹${totalAdditionalPrice.toLocaleString('en-IN')})`}
             </Text>
           )}
         </TouchableOpacity>
@@ -451,11 +471,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#FCFCFC',
   },
   backBtn: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F5F5F5',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
+    marginRight: 12,
   },
   headerTextContainer: {
     flex: 1,
@@ -467,15 +489,15 @@ const styles = StyleSheet.create({
     fontFamily: 'serif',
   },
   headerSubtitle: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#8A7D77',
     fontFamily: 'serif',
     marginTop: 2,
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#FFF0F4',
-    borderRadius: 12,
+    backgroundColor: '#FFE4ED',
+    borderRadius: 14,
     padding: 4,
     marginHorizontal: 20,
     marginVertical: 14,
@@ -486,10 +508,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 10,
-    borderRadius: 8,
+    paddingHorizontal: 8,
+    borderRadius: 10,
   },
   tabBtnActive: {
     backgroundColor: '#FF4F8F',
+    shadowColor: '#FF4F8F',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   tabText: {
     fontSize: 13,
@@ -588,13 +616,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#FCFCFC',
+    backgroundColor: '#FFF',
     paddingHorizontal: 14,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#F3ECF0',
+    borderColor: '#F1F1F1',
     marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.02,
+    shadowRadius: 4,
+    elevation: 1,
   },
   serviceName: {
     fontSize: 14,
@@ -642,21 +675,29 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontFamily: 'serif',
   },
-  textInput: {
-    backgroundColor: '#FCFCFC',
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
     borderWidth: 1,
     borderColor: '#FFE4ED',
     borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  inputIcon: {
+    marginRight: 8,
+  },
+  textInput: {
+    flex: 1,
+    paddingVertical: 11,
     fontSize: 14,
     color: '#111',
     fontFamily: 'serif',
-    marginBottom: 12,
   },
   summaryCard: {
     backgroundColor: '#FFF0F4',
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 16,
     marginVertical: 14,
     borderWidth: 1,
@@ -713,6 +754,11 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 14,
     alignItems: 'center',
+    shadowColor: '#FF4F8F',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   submitBtnText: {
     color: '#FFF',

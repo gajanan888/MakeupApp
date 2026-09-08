@@ -113,7 +113,7 @@ const BookingEnsuranceScreen = ({ navigation, route }) => {
             <View style={[styles.checkbox, hasInsurance && styles.checkboxActive]}>
               {hasInsurance && <Ionicons name="checkmark" size={16} color="#FFF" />}
             </View>
-            <Text style={styles.cardTitle}>Add Insurance Protection</Text>
+            <Text style={styles.cardTitle}>Add Ensurance Protection</Text>
             <View style={styles.pricePill}>
               <Text style={styles.pricePillText}>+₹{INSURANCE_FEE}</Text>
             </View>
@@ -176,7 +176,7 @@ const BookingEnsuranceScreen = ({ navigation, route }) => {
           <View style={styles.noticeContent}>
             <Text style={styles.noticeTitle}>This protection is optional and skippable.</Text>
             <Text style={styles.noticeSubtext}>
-              You can leave it unchecked if you prefer to proceed without insurance guarantee.
+              You can leave it unchecked if you prefer to proceed without Ensurance guarantee.
             </Text>
           </View>
           <View style={styles.umbrellaIconBox}>
@@ -194,7 +194,7 @@ const BookingEnsuranceScreen = ({ navigation, route }) => {
         >
           <Text style={styles.actionBtnText}>
             {hasInsurance
-              ? `Continue with Insurance`
+              ? `Continue with Ensurance`
               : 'Skip'}
           </Text>
           <Ionicons name="chevron-forward" size={18} color="#FFF" style={{ marginLeft: 6 }} />

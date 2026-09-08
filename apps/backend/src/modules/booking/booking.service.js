@@ -1,6 +1,7 @@
 import { Op } from "sequelize";
 import Booking from "../../models/Booking.js";
 import Artist from "../../models/Artist.js";
+import ArtistProfile from "../../models/ArtistProfile.js";
 import Customer from "../../models/Customer.js";
 import Review from "../../models/Review.js";
 import ArtistBlock from "../../models/ArtistBlock.js";
@@ -47,6 +48,26 @@ export const checkAndExpireBookings = async () => {
       },
     }
   );
+
+  // 3. Auto-cancel pending backup artist requests if 1 hour has elapsed
+  const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+  await Booking.update(
+    {
+      backupStatus: "rejected",
+      backupRejectionReason: "Auto-cancelled: Backup artist did not respond within 1 hour",
+    },
+    {
+      where: {
+        backupStatus: "pending",
+        hasInsurance: true,
+        backupArtistId: { [Op.ne]: null },
+        [Op.or]: [
+          { backupDeadline: { [Op.ne]: null, [Op.lt]: now } },
+          { createdAt: { [Op.lt]: oneHourAgo } },
+        ],
+      },
+    }
+  );
 };
 
 export const createBooking = async ({ customerId, artistId, date, time, category, price, location, addOns, hasInsurance = false, insuranceFee = 0, backupArtistId = null, totalPaid }) => {
@@ -77,6 +98,7 @@ export const createBooking = async ({ customerId, artistId, date, time, category
   const advanceAmount = Math.round(basePrice * 0.10) + actualInsuranceFee;
 
   const parsedBackupId = (hasInsurance && backupArtistId) ? Number(backupArtistId) : null;
+  const backupDeadline = parsedBackupId ? new Date(Date.now() + 60 * 60 * 1000) : null;
 
   const startOtp = Math.floor(1000 + Math.random() * 9000).toString();
 
@@ -93,6 +115,7 @@ export const createBooking = async ({ customerId, artistId, date, time, category
     insuranceFee: actualInsuranceFee,
     backupArtistId: parsedBackupId,
     backupStatus: parsedBackupId ? "pending" : "none",
+    backupDeadline,
     totalPaid: 0,
     advanceAmount,
     advancePaid: false,
@@ -111,12 +134,28 @@ export const listCustomerBookings = async ({ customerId, offset, limit }) => {
       {
         model: Artist,
         as: "artist",
-        attributes: ["id", "name", "phone", "profileImage", "rating", "location"],
+        attributes: ["id", "name", "phone", "email"],
+        include: [
+          {
+            model: ArtistProfile,
+            as: "profile",
+            attributes: ["profileImage", "rating", "location"],
+            required: false,
+          },
+        ],
       },
       {
         model: Artist,
         as: "backupArtist",
-        attributes: ["id", "name", "phone", "profileImage", "rating", "location"],
+        attributes: ["id", "name", "phone", "email"],
+        include: [
+          {
+            model: ArtistProfile,
+            as: "profile",
+            attributes: ["profileImage", "rating", "location"],
+            required: false,
+          },
+        ],
         required: false,
       },
       {
@@ -126,6 +165,7 @@ export const listCustomerBookings = async ({ customerId, offset, limit }) => {
       },
     ],
     order: [
+      ["createdAt", "DESC"],
       ["date", "DESC"],
       ["time", "DESC"],
     ],
@@ -133,14 +173,30 @@ export const listCustomerBookings = async ({ customerId, offset, limit }) => {
     limit,
   });
 
+  const formattedRows = [];
   for (const b of result.rows) {
     if (!b.startOtp) {
       b.startOtp = Math.floor(1000 + Math.random() * 9000).toString();
       await b.save();
     }
+    const json = b.toJSON ? b.toJSON() : b;
+    if (json.artist) {
+      json.artist.profileImage = json.artist.profile?.profileImage || null;
+      json.artist.rating = json.artist.profile?.rating || 0;
+      json.artist.location = json.artist.profile?.location || null;
+    }
+    if (json.backupArtist) {
+      json.backupArtist.profileImage = json.backupArtist.profile?.profileImage || null;
+      json.backupArtist.rating = json.backupArtist.profile?.rating || 0;
+      json.backupArtist.location = json.backupArtist.profile?.location || null;
+    }
+    formattedRows.push(json);
   }
 
-  return result;
+  return {
+    count: result.count,
+    rows: formattedRows,
+  };
 };
 
 export const listArtistBookings = async ({ artistId, offset, limit }) => {
@@ -150,7 +206,7 @@ export const listArtistBookings = async ({ artistId, offset, limit }) => {
     where: {
       [Op.or]: [
         { artistId: parsedId },
-        { backupArtistId: parsedId, hasInsurance: true },
+        { backupArtistId: parsedId },
       ],
     },
     include: [
@@ -162,16 +218,33 @@ export const listArtistBookings = async ({ artistId, offset, limit }) => {
       {
         model: Artist,
         as: "artist",
-        attributes: ["id", "name", "phone", "profileImage"],
+        attributes: ["id", "name", "phone", "email"],
+        include: [
+          {
+            model: ArtistProfile,
+            as: "profile",
+            attributes: ["profileImage", "rating", "location"],
+            required: false,
+          },
+        ],
       },
       {
         model: Artist,
         as: "backupArtist",
-        attributes: ["id", "name", "phone", "profileImage"],
+        attributes: ["id", "name", "phone", "email"],
+        include: [
+          {
+            model: ArtistProfile,
+            as: "profile",
+            attributes: ["profileImage", "rating", "location"],
+            required: false,
+          },
+        ],
         required: false,
       },
     ],
     order: [
+      ["createdAt", "DESC"],
       ["date", "DESC"],
       ["time", "DESC"],
     ],
@@ -180,8 +253,14 @@ export const listArtistBookings = async ({ artistId, offset, limit }) => {
   });
 
   const items = rows.map((b) => {
-    const json = b.toJSON();
+    const json = b.toJSON ? b.toJSON() : b;
     json.isBackupBooking = json.backupArtistId === parsedId;
+    if (json.artist) {
+      json.artist.profileImage = json.artist.profile?.profileImage || null;
+    }
+    if (json.backupArtist) {
+      json.backupArtist.profileImage = json.backupArtist.profile?.profileImage || null;
+    }
     return json;
   });
 
@@ -266,7 +345,9 @@ export const createRazorpayOrderService = async ({ bookingId, customerId }) => {
   }
 
   const razorpay = getRazorpayInstance();
-  const advanceAmount = Math.round((booking.price || 0) * 0.10);
+  const actualInsuranceFee = booking.hasInsurance ? (booking.insuranceFee || 1000) : 0;
+  const basePrice = Math.max(0, (booking.price || 0) - actualInsuranceFee);
+  const advanceAmount = booking.advanceAmount || (Math.round(basePrice * 0.10) + actualInsuranceFee);
   
   if (advanceAmount <= 0) {
     throw new Error("Invalid payment amount");
@@ -343,7 +424,10 @@ export const verifyPaymentService = async ({ bookingId, customerId, razorpayOrde
     throw new Error("Invalid currency");
   }
 
-  const expectedAmount = Math.round((booking.price || 0) * 0.10) * 100;
+  const actualInsuranceFee = booking.hasInsurance ? (booking.insuranceFee || 1000) : 0;
+  const basePrice = Math.max(0, (booking.price || 0) - actualInsuranceFee);
+  const expectedAdvanceAmount = booking.advanceAmount || (Math.round(basePrice * 0.10) + actualInsuranceFee);
+  const expectedAmount = expectedAdvanceAmount * 100;
   if (paymentDetails.amount !== expectedAmount) {
     throw new Error("Amount mismatch");
   }
@@ -717,6 +801,83 @@ export const createArtistDirectBooking = async ({ artistId, clientName, clientPh
     totalPaid: 0,
     advancePaid: false,
   });
+
+  return booking;
+};
+
+export const acceptBackupService = async ({ bookingId, artistId }) => {
+  const booking = await Booking.findOne({
+    where: { id: bookingId, backupArtistId: artistId },
+  });
+
+  if (!booking) {
+    throw new Error("Backup booking request not found");
+  }
+
+  if (booking.backupStatus !== "pending") {
+    throw new Error(`Backup request is already ${booking.backupStatus}`);
+  }
+
+  if (booking.backupDeadline && new Date() > new Date(booking.backupDeadline)) {
+    booking.backupStatus = "rejected";
+    booking.backupRejectionReason = "Auto-cancelled: Backup artist did not respond within 1 hour";
+    await booking.save();
+    throw new Error("Backup request 1-hour confirmation window has expired");
+  }
+
+  booking.backupStatus = "accepted";
+  booking.backupRejectionReason = null;
+  await booking.save();
+
+  return booking;
+};
+
+export const rejectBackupService = async ({ bookingId, artistId, reason }) => {
+  const booking = await Booking.findOne({
+    where: { id: bookingId, backupArtistId: artistId },
+  });
+
+  if (!booking) {
+    throw new Error("Backup booking request not found");
+  }
+
+  booking.backupStatus = "rejected";
+  booking.backupRejectionReason = (reason && reason.trim()) 
+    ? reason.trim() 
+    : "Backup artist declined the assignment request";
+  await booking.save();
+
+  return booking;
+};
+
+export const reselectBackupService = async ({ bookingId, customerId, newBackupArtistId }) => {
+  const booking = await Booking.findOne({
+    where: { id: bookingId, customerId },
+  });
+
+  if (!booking) {
+    throw new Error("Booking not found");
+  }
+
+  if (!booking.hasInsurance) {
+    throw new Error("Ensurance Protection was not purchased for this booking");
+  }
+
+  const newBackup = await Artist.findByPk(newBackupArtistId);
+  if (!newBackup || !newBackup.isVerified) {
+    throw new Error("Selected backup artist not found or not verified");
+  }
+
+  if (Number(newBackupArtistId) === Number(booking.artistId)) {
+    throw new Error("Backup artist cannot be the same as the primary artist");
+  }
+
+  booking.backupArtistId = Number(newBackupArtistId);
+  booking.backupStatus = "pending";
+  booking.backupDeadline = new Date(Date.now() + 60 * 60 * 1000); // 1-hour deadline for new backup
+  booking.backupRejectionReason = null;
+
+  await booking.save();
 
   return booking;
 };

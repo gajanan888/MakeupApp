@@ -17,6 +17,7 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { getCustomerBookings, cancelCustomerBooking, declineCustomerBookingAdvance, getCustomerProfile, submitBookingReview } from '../../api/auth';
 import BottomNavigation from '../../components/BottomNavigation';
 import { useCall } from '../../context/CallContext';
+import { getUniqueProfileImage, DEFAULT_AVATAR } from '../../utils/artistImageHelper';
 
 const CountdownTimer = ({ deadline, onExpire, label = "Pay within:" }) => {
   const [timeLeft, setTimeLeft] = useState('');
@@ -170,13 +171,7 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
           tabGroup = 'Cancelled';
         }
 
-        const avatars = [
-          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-          'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80',
-          'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=200&q=80',
-          'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80',
-        ];
-        const avatar = avatars[Number(b.artistId) % avatars.length];
+        const avatar = getUniqueProfileImage(b.artist);
 
         let dateText = '';
         if (b.date) {
@@ -193,14 +188,20 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
         }
         const formattedDate = b.time ? `${dateText} • ${b.time}` : dateText;
 
+        const numericPrice = typeof b.price === 'number' ? b.price : (parseFloat(String(b.price || 0).replace(/[^0-9.]/g, '')) || 0);
+        const hasInsurance = !!b.hasInsurance;
+        const insuranceFee = hasInsurance ? (b.insuranceFee || 1000) : 0;
+        const basePrice = Math.max(0, numericPrice - insuranceFee);
+
         return {
           id: String(b.id),
           artistName: b.artist?.name || 'Makeup Artist',
           category: b.category || 'Makeup Service',
           date: formattedDate,
           location: b.location || 'At Client Location',
-          price: `₹${b.price || 0}`,
-          priceRaw: b.price || 0,
+          price: `₹${numericPrice.toLocaleString('en-IN')}`,
+          priceRaw: numericPrice,
+          basePrice,
           addOns: b.addOns,
           totalPaid: b.totalPaid || 0,
           tabGroup,
@@ -208,9 +209,11 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
           avatar,
           rejectionReason: b.rejectionReason,
           advanceAmount: b.advanceAmount || 0,
-          hasInsurance: b.hasInsurance,
-          insuranceFee: b.insuranceFee || 0,
+          hasInsurance,
+          insuranceFee,
           backupArtist: b.backupArtist,
+          backupStatus: b.backupStatus || 'none',
+          backupRejectionReason: b.backupRejectionReason || null,
           advancePaid: b.advancePaid,
           paymentDeadline: b.paymentDeadline,
           artistRaw: b.artist,
@@ -443,10 +446,76 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
                       <CountdownTimer deadline={booking.paymentDeadline} onExpire={fetchBookings} />
                     )}
 
-                    <View style={styles.priceRow}>
-                      <Text style={styles.priceLabel}>Price</Text>
-                      <Text style={styles.priceValue}>{booking.price}</Text>
+                    {/* Price & Ensurance Fee Distribution Box */}
+                    <View style={{ backgroundColor: '#F9FAFB', borderRadius: 10, padding: 8, marginVertical: 6, borderWidth: 1, borderColor: '#E5E7EB' }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                        <Text style={{ fontSize: 12, color: '#666' }}>Service Rate:</Text>
+                        <Text style={{ fontSize: 12, fontWeight: '600', color: '#333' }}>₹{booking.basePrice.toLocaleString('en-IN')}</Text>
+                      </View>
+                      {booking.hasInsurance && (
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 }}>
+                          <Text style={{ fontSize: 12, color: '#666' }}>Ensurance Guarantee:</Text>
+                          <Text style={{ fontSize: 12, fontWeight: '700', color: '#059669' }}>+₹{booking.insuranceFee.toLocaleString('en-IN')}</Text>
+                        </View>
+                      )}
+                      <View style={{ height: 1, backgroundColor: '#E5E7EB', marginVertical: 4 }} />
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#111' }}>Total Amount:</Text>
+                        <Text style={{ fontSize: 14, fontWeight: '800', color: '#FF4F87' }}>{booking.price}</Text>
+                      </View>
                     </View>
+
+                    {/* Backup Artist Status / Re-selection Warning Box */}
+                    {booking.hasInsurance && (
+                      booking.backupStatus === 'rejected' || booking.backupStatus === 'expired' ? (
+                        <View style={{ backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FCA5A5', borderRadius: 10, padding: 10, marginBottom: 8 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                            <Ionicons name="warning" size={16} color="#DC2626" style={{ marginRight: 6 }} />
+                            <Text style={{ fontSize: 13, fontWeight: '700', color: '#991B1B' }}>Backup Artist Cancelled</Text>
+                          </View>
+                          <Text style={{ fontSize: 12, color: '#B91C1C', marginBottom: 8 }}>
+                            {booking.backupRejectionReason || 'The assigned backup artist was cancelled or did not confirm in time.'}
+                          </Text>
+                          <TouchableOpacity
+                            style={{ backgroundColor: '#FF4F87', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}
+                            onPress={() => navigation.navigate('SelectBackupArtist', {
+                              bookingId: booking.id,
+                              isReselecting: true,
+                              artist: booking.artistRaw || { id: booking.artistId, name: booking.artistName },
+                              selectedDate: booking.dateRaw || booking.date,
+                              selectedTime: booking.timeRaw || booking.time,
+                              dateStr: booking.date,
+                            })}
+                          >
+                            <Ionicons name="refresh" size={14} color="#FFF" style={{ marginRight: 4 }} />
+                            <Text style={{ fontSize: 12, fontWeight: '700', color: '#FFF' }}>Select New Backup Artist</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        <View style={{ 
+                          flexDirection: 'row', 
+                          alignItems: 'center', 
+                          backgroundColor: booking.backupStatus === 'accepted' ? '#ECFDF5' : '#FFFBEB', 
+                          borderWidth: 1, 
+                          borderColor: booking.backupStatus === 'accepted' ? '#A7F3D0' : '#FDE68A', 
+                          borderRadius: 8, 
+                          paddingHorizontal: 8, 
+                          paddingVertical: 6, 
+                          marginBottom: 6 
+                        }}>
+                          <Ionicons 
+                            name={booking.backupStatus === 'accepted' ? "shield-checkmark" : "time-outline"} 
+                            size={14} 
+                            color={booking.backupStatus === 'accepted' ? "#059669" : "#D97706"} 
+                            style={{ marginRight: 4 }} 
+                          />
+                          <Text style={{ fontSize: 12, color: booking.backupStatus === 'accepted' ? '#065F46' : '#92400E', fontWeight: '600', flex: 1 }}>
+                            Backup Artist: <Text style={{ fontWeight: '700' }}>{booking.backupArtist?.name || 'Assigned'}</Text>
+                            {booking.backupStatus === 'accepted' ? ' (Confirmed)' : ' (Pending 1h Confirmation)'}
+                          </Text>
+                        </View>
+                      )
+                    )}
 
                     {booking.rawStatus === 'confirmed' && (
                       <View style={styles.otpCardBox}>
@@ -748,31 +817,35 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
                 <View style={styles.detailsSection}>
                   <Text style={styles.detailsSectionTitle}>Payment Summary</Text>
                   <View style={styles.detailsRow}>
-                    <Text style={styles.detailsLabel}>Total Service Price</Text>
-                    <Text style={styles.detailsValue}>{selectedBookingForDetails.price}</Text>
+                    <Text style={styles.detailsLabel}>Base Service Rate</Text>
+                    <Text style={styles.detailsValue}>₹{selectedBookingForDetails.basePrice?.toLocaleString('en-IN')}</Text>
                   </View>
                   {selectedBookingForDetails.hasInsurance && (
-                    <>
-                      <View style={styles.detailsRow}>
-                        <Text style={styles.detailsLabel}>Ensurance Guarantee</Text>
-                        <Text style={styles.detailsValue}>+₹{selectedBookingForDetails.insuranceFee || 1000}</Text>
-                      </View>
-                      {selectedBookingForDetails.backupArtist && (
-                        <View style={styles.detailsRow}>
-                          <Text style={[styles.detailsLabel, { color: '#FF4F87', fontWeight: '600' }]}>🛡️ Backup Artist</Text>
-                          <Text style={[styles.detailsValue, { color: '#FF4F87', fontWeight: '600' }]}>{selectedBookingForDetails.backupArtist.name}</Text>
-                        </View>
-                      )}
-                    </>
+                    <View style={styles.detailsRow}>
+                      <Text style={styles.detailsLabel}>Ensurance Protection Fee</Text>
+                      <Text style={[styles.detailsValue, { color: '#059669', fontWeight: '700' }]}>+₹{(selectedBookingForDetails.insuranceFee || 1000).toLocaleString('en-IN')}</Text>
+                    </View>
                   )}
                   <View style={styles.detailsRow}>
-                    <Text style={styles.detailsLabel}>Advance Paid</Text>
+                    <Text style={[styles.detailsLabel, { fontWeight: '700' }]}>Total Booking Amount</Text>
+                    <Text style={[styles.detailsValue, { fontWeight: '700' }]}>{selectedBookingForDetails.price}</Text>
+                  </View>
+                  {selectedBookingForDetails.backupArtist && (
+                    <View style={[styles.detailsRow, { backgroundColor: '#ECFDF5', padding: 8, borderRadius: 8, marginVertical: 4 }]}>
+                      <Text style={[styles.detailsLabel, { color: '#065F46', fontWeight: '700' }]}>🛡️ Assigned Backup Artist</Text>
+                      <Text style={[styles.detailsValue, { color: '#065F46', fontWeight: '700' }]}>
+                        {selectedBookingForDetails.backupArtist.name}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.detailsRow}>
+                    <Text style={styles.detailsLabel}>Advance Deposit</Text>
                     <Text style={styles.detailsValue}>
                       ₹{selectedBookingForDetails.advanceAmount} ({selectedBookingForDetails.advancePaid ? 'Paid' : 'Pending'})
                     </Text>
                   </View>
                   <View style={styles.detailsRow}>
-                    <Text style={styles.detailsLabel}>Amount Due at Service</Text>
+                    <Text style={styles.detailsLabel}>Remaining Amount Due at Service</Text>
                     <Text style={styles.detailsValueHighlight}>
                       ₹{Math.max(0, selectedBookingForDetails.priceRaw - (selectedBookingForDetails.advancePaid ? selectedBookingForDetails.advanceAmount : 0))}
                     </Text>

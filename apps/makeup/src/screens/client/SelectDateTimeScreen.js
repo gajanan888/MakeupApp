@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { getArtistBookedSlots } from '../../api/auth';
+import { getArtistBookedSlots, getArtists } from '../../api/auth';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DAY_CELL_SIZE = Math.floor((SCREEN_WIDTH - 48) / 7);
@@ -30,20 +30,155 @@ const TIME_SLOTS = [
   'Evening Slot (3:00 PM - 8:00 PM)',
 ];
 
+const SLOT_START_HOURS = {
+  'Morning Slot (7:00 AM - 11:00 AM)': 7,
+  'Afternoon Slot (11:00 AM - 3:00 PM)': 11,
+  'Evening Slot (3:00 PM - 8:00 PM)': 15,
+};
+
 const SLOT_END_HOURS = {
   'Morning Slot (7:00 AM - 11:00 AM)': 11,
   'Afternoon Slot (11:00 AM - 3:00 PM)': 15,
   'Evening Slot (3:00 PM - 8:00 PM)': 20,
 };
 
-// Build calendar grid for a given month/year
-// Returns array of {day, isCurrentMonth, isToday, isPast} objects padded to full weeks
-const buildCalendar = (year, month) => {
+const SLOT_PRESETS = {
+  'Morning Slot (7:00 AM - 11:00 AM)': [
+    '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM',
+  ],
+  'Afternoon Slot (11:00 AM - 3:00 PM)': [
+    '11:00 AM', '11:30 AM', '12:00 PM', '12:30 PM', '01:00 PM', '01:30 PM', '02:00 PM', '02:30 PM', '03:00 PM',
+  ],
+  'Evening Slot (3:00 PM - 8:00 PM)': [
+    '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM', '05:00 PM', '05:30 PM', '06:00 PM', '06:30 PM', '07:00 PM', '07:30 PM', '08:00 PM',
+  ],
+};
+
+export const parseTimeToMinutes = (timeStr) => {
+  if (!timeStr || typeof timeStr !== 'string') return null;
+  const cleaned = timeStr.trim();
+  if (!cleaned) return null;
+
+  // Pattern 1: HH:MM AM/PM or HH AM/PM (e.g. 8:30 AM, 08:30am, 9 PM, 9:00 PM)
+  const match12 = cleaned.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
+  if (match12) {
+    let hours = parseInt(match12[1], 10);
+    const minutes = match12[2] ? parseInt(match12[2], 10) : 0;
+    const ampm = match12[3].toUpperCase();
+
+    if (hours < 1 || hours > 12 || minutes < 0 || minutes > 59) return null;
+
+    if (ampm === 'PM' && hours < 12) hours += 12;
+    if (ampm === 'AM' && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+  }
+
+  // Pattern 2: HH:MM 24-hour format (e.g. 08:30, 14:30, 09:00)
+  const match24 = cleaned.match(/^(\d{1,2}):(\d{2})$/);
+  if (match24) {
+    const hours = parseInt(match24[1], 10);
+    const minutes = parseInt(match24[2], 10);
+
+    if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+    return hours * 60 + minutes;
+  }
+
+  // Pattern 3: Simple hour integer (e.g. 8, 14, 9)
+  const matchHour = cleaned.match(/^(\d{1,2})$/);
+  if (matchHour) {
+    const hours = parseInt(matchHour[1], 10);
+    if (hours < 0 || hours > 23) return null;
+    return hours * 60;
+  }
+
+  return null;
+};
+
+export const validateSlotTime = (timeStr, slot, selectedDate) => {
+  if (!slot) return { isValid: false, error: 'Please select a time slot first.' };
+  if (!timeStr || !timeStr.trim()) return { isValid: false, error: 'Please specify the service start time.' };
+
+  const totalMins = parseTimeToMinutes(timeStr);
+  if (totalMins === null) {
+    return { isValid: false, error: 'Invalid time format. Example: 08:30 AM or 14:30' };
+  }
+
+  let startMins = 7 * 60; // 07:00 AM
+  let endMins = 11 * 60;  // 11:00 AM
+  let slotName = 'Morning Slot';
+
+  if (slot.includes('Afternoon')) {
+    startMins = 11 * 60; // 11:00 AM
+    endMins = 15 * 60;   // 15:00 (3:00 PM)
+    slotName = 'Afternoon Slot';
+  } else if (slot.includes('Evening')) {
+    startMins = 15 * 60; // 15:00 (3:00 PM)
+    endMins = 20 * 60;   // 20:00 (8:00 PM)
+    slotName = 'Evening Slot';
+  }
+
+  if (totalMins < startMins || totalMins > endMins) {
+    const formatMins = (m) => {
+      let h = Math.floor(m / 60);
+      const min = m % 60;
+      const ap = h >= 12 ? 'PM' : 'AM';
+      if (h > 12) h -= 12;
+      if (h === 0) h = 12;
+      return `${h}:${String(min).padStart(2, '0')} ${ap}`;
+    };
+    return {
+      isValid: false,
+      error: `Time must be between ${formatMins(startMins)} and ${formatMins(endMins)} for ${slotName}.`,
+    };
+  }
+
+  if (selectedDate) {
+    const now = new Date();
+    const isToday =
+      selectedDate.getDate() === now.getDate() &&
+      selectedDate.getMonth() === now.getMonth() &&
+      selectedDate.getFullYear() === now.getFullYear();
+
+    if (isToday) {
+      const nowMins = now.getHours() * 60 + now.getMinutes();
+      if (totalMins <= nowMins) {
+        return { isValid: false, error: 'This time has already passed today.' };
+      }
+    }
+  }
+
+  return { isValid: true, error: null };
+};
+
+// Parse advance notice string into milliseconds
+export const parseAdvanceNoticeMs = (noticeStr) => {
+  if (!noticeStr || typeof noticeStr !== 'string') return 0;
+  const str = noticeStr.trim().toLowerCase();
+
+  if (str.includes('24 hour') || str === '24h' || str === '24 hrs') return 24 * 60 * 60 * 1000;
+  if (str.includes('48 hour') || str === '48h' || str === '48 hrs') return 48 * 60 * 60 * 1000;
+  if (str.includes('1 week') || str === '1wk') return 7 * 24 * 60 * 60 * 1000;
+  if (str.includes('2 week') || str === '2wks') return 14 * 24 * 60 * 60 * 1000;
+  if (str.includes('1 month') || str === '1mo') return 30 * 24 * 60 * 60 * 1000;
+
+  const match = str.match(/(\d+)\s*(hour|hr|day|d|week|wk|month|mo)/i);
+  if (match) {
+    const num = parseInt(match[1], 10);
+    const unit = match[2].toLowerCase();
+    if (unit.startsWith('hour') || unit === 'hr') return num * 60 * 60 * 1000;
+    if (unit.startsWith('day') || unit === 'd') return num * 24 * 60 * 60 * 1000;
+    if (unit.startsWith('week') || unit === 'wk') return num * 7 * 24 * 60 * 60 * 1000;
+    if (unit.startsWith('month') || unit === 'mo') return num * 30 * 24 * 60 * 60 * 1000;
+  }
+  return 0;
+};
+
+// Build calendar grid for a given month/year respecting minBookingTime
+const buildCalendar = (year, month, minBookingTime) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   const firstDay = new Date(year, month, 1);
-  // Monday = 0 offset (0=Mon, 6=Sun)
   const startOffset = (firstDay.getDay() + 6) % 7;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const daysInPrevMonth = new Date(year, month, 0).getDate();
@@ -52,17 +187,30 @@ const buildCalendar = (year, month) => {
 
   // Trailing days from prev month
   for (let i = startOffset - 1; i >= 0; i--) {
-    cells.push({ day: daysInPrevMonth - i, isCurrentMonth: false, isPast: true });
+    cells.push({ day: daysInPrevMonth - i, isCurrentMonth: false, isPast: true, isUnavailable: true });
   }
 
   // Days of current month
   for (let d = 1; d <= daysInMonth; d++) {
     const date = new Date(year, month, d);
+    const dateMidnight = new Date(date);
+    dateMidnight.setHours(0, 0, 0, 0);
+
+    const isPast = dateMidnight < today;
+
+    // Check if the latest possible slot start time (15:00) on this day is before minBookingTime
+    const maxSlotStartTimeOnDate = new Date(year, month, d, 15, 0, 0, 0);
+    const isAdvanceRestricted = maxSlotStartTimeOnDate < minBookingTime;
+
+    const isUnavailable = isPast || isAdvanceRestricted;
+
     cells.push({
       day: d,
       isCurrentMonth: true,
-      isToday: date.getTime() === today.getTime(),
-      isPast: date < today,
+      isToday: dateMidnight.getTime() === today.getTime(),
+      isPast,
+      isAdvanceRestricted,
+      isUnavailable,
       date,
     });
   }
@@ -71,7 +219,7 @@ const buildCalendar = (year, month) => {
   const remaining = 7 - (cells.length % 7);
   if (remaining < 7) {
     for (let d = 1; d <= remaining; d++) {
-      cells.push({ day: d, isCurrentMonth: false, isPast: false });
+      cells.push({ day: d, isCurrentMonth: false, isPast: false, isUnavailable: true });
     }
   }
 
@@ -81,32 +229,53 @@ const buildCalendar = (year, month) => {
 const SelectDateTimeScreen = ({ navigation, route }) => {
   const { artist, selectedService, selectedLocation } = route?.params || {};
 
+  const [artistData, setArtistData] = useState(artist);
   const today = new Date();
   const [viewYear, setViewYear]   = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
   const [selectedDate, setSelectedDate] = useState(null);
-  const [selectedTime, setSelectedTime] = useState(null);
+  const [selectedTime, setSelectedTime] = useState(null); // Selected Slot Name
+  const [exactTime, setExactTime] = useState('');         // Selected/Entered Exact Service Time (e.g. "08:30 AM")
   const [bookedSlots, setBookedSlots] = useState([]);
   const [loadingBooked, setLoadingBooked] = useState(false);
 
   useEffect(() => {
     if (artist?.id) {
-      const fetchBooked = async () => {
+      const fetchData = async () => {
         try {
           setLoadingBooked(true);
-          const data = await getArtistBookedSlots(artist.id);
-          setBookedSlots(data);
+          const [slots, artistsList] = await Promise.all([
+            getArtistBookedSlots(artist.id),
+            getArtists({ id: artist.id }).catch(() => []),
+          ]);
+          setBookedSlots(slots);
+          if (artistsList && artistsList.length > 0) {
+            setArtistData(prev => ({
+              ...prev,
+              ...artistsList[0],
+              bookingPolicy: artistsList[0].bookingPolicy || prev?.bookingPolicy,
+            }));
+          }
         } catch (err) {
-          console.warn('Failed to fetch booked slots:', err);
+          console.warn('Failed to fetch artist details or booked slots:', err);
         } finally {
           setLoadingBooked(false);
         }
       };
-      fetchBooked();
+      fetchData();
     }
   }, [artist?.id]);
 
-  const calendarCells = useMemo(() => buildCalendar(viewYear, viewMonth), [viewYear, viewMonth]);
+  const advanceNotice = artistData?.bookingPolicy?.advanceNotice || artistData?.advanceNotice;
+  const noticeMs = useMemo(() => parseAdvanceNoticeMs(advanceNotice), [advanceNotice]);
+
+  const minBookingTime = useMemo(() => {
+    const now = new Date();
+    if (noticeMs <= 0) return now;
+    return new Date(now.getTime() + noticeMs);
+  }, [noticeMs]);
+
+  const calendarCells = useMemo(() => buildCalendar(viewYear, viewMonth, minBookingTime), [viewYear, viewMonth, minBookingTime]);
 
   const goToPrevMonth = () => {
     if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1); }
@@ -119,15 +288,31 @@ const SelectDateTimeScreen = ({ navigation, route }) => {
   };
 
   const handleSelectDay = (cell) => {
-    if (!cell.isCurrentMonth || cell.isPast) return;
+    if (!cell.isCurrentMonth || cell.isUnavailable) return;
     setSelectedDate(cell.date);
-    setSelectedTime(null); // Reset time when date changes
+    setSelectedTime(null);
+    setExactTime('');
+  };
+
+  const handleSelectSlot = (slot) => {
+    setSelectedTime(slot);
+    const defaultTime = slot.includes('Morning')
+      ? '08:00 AM'
+      : slot.includes('Afternoon')
+      ? '12:00 PM'
+      : '04:00 PM';
+    setExactTime(defaultTime);
   };
 
   const isSelectedDate = (cell) => {
     if (!selectedDate || !cell.date) return false;
     return cell.date.getTime() === selectedDate.getTime();
   };
+
+  const slotValidation = useMemo(() => {
+    if (!selectedTime) return { isValid: false, error: null };
+    return validateSlotTime(exactTime, selectedTime, selectedDate);
+  }, [exactTime, selectedTime, selectedDate]);
 
   const timeSlotStatuses = useMemo(() => {
     if (!selectedDate) return TIME_SLOTS.map(slot => ({ slot, isAvailable: true, statusText: null }));
@@ -163,9 +348,22 @@ const SelectDateTimeScreen = ({ navigation, route }) => {
         }
       }
 
+      // 3. Check minimum advance notice limit requirement
+      const startHour = SLOT_START_HOURS[slot] || 7;
+      const slotStartTime = new Date(selectedDate);
+      slotStartTime.setHours(startHour, 0, 0, 0);
+
+      if (slotStartTime < minBookingTime) {
+        return {
+          slot,
+          isAvailable: false,
+          statusText: advanceNotice ? `Requires ${advanceNotice} Notice` : 'Advance Notice Limit',
+        };
+      }
+
       return { slot, isAvailable: true, statusText: null };
     });
-  }, [selectedDate, bookedSlots]);
+  }, [selectedDate, bookedSlots, minBookingTime, advanceNotice]);
 
   const handleNext = () => {
     if (!selectedDate) {
@@ -176,17 +374,33 @@ const SelectDateTimeScreen = ({ navigation, route }) => {
       Alert.alert('Required', 'Please select a time slot.');
       return;
     }
+    if (!exactTime || !exactTime.trim()) {
+      Alert.alert('Required', 'Please enter or select a specific service time.');
+      return;
+    }
+    if (!slotValidation.isValid) {
+      Alert.alert('Invalid Time', slotValidation.error || 'The entered time is invalid for the selected slot.');
+      return;
+    }
+
+    const slotPrefix = selectedTime.startsWith('Morning')
+      ? 'Morning Slot'
+      : selectedTime.startsWith('Afternoon')
+      ? 'Afternoon Slot'
+      : 'Evening Slot';
+
+    const finalTimeString = `${slotPrefix} (${exactTime.trim()})`;
 
     const dateStr = selectedDate.toLocaleDateString('en-IN', {
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
     });
 
     navigation.navigate('AddOns', {
-      artist,
+      artist: artistData || artist,
       selectedService,
       selectedLocation,
       selectedDate: selectedDate.toISOString(),
-      selectedTime,
+      selectedTime: finalTimeString,
       dateStr,
     });
   };
@@ -213,6 +427,21 @@ const SelectDateTimeScreen = ({ navigation, route }) => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
+        {/* Advance Notice Info Banner */}
+        {!!advanceNotice && (
+          <View style={styles.advanceNoticeBanner}>
+            <View style={styles.advanceNoticeBannerHeader}>
+              <Ionicons name="time-outline" size={18} color="#FF4F87" />
+              <Text style={styles.advanceNoticeBannerTitle}>Artist Advance Booking Time</Text>
+            </View>
+            <Text style={styles.advanceNoticeBannerText}>
+              This artist requires a minimum advance notice of{' '}
+              <Text style={styles.advanceNoticeBannerHighlight}>{advanceNotice}</Text>.
+              Dates and time slots prior to this notice window are unavailable.
+            </Text>
+          </View>
+        )}
+
         {/* ── Calendar Card ───────────────────────────────────────────── */}
         <View style={styles.calendarCard}>
 
@@ -243,7 +472,7 @@ const SelectDateTimeScreen = ({ navigation, route }) => {
             {calendarCells.map((cell, idx) => {
               const isSelected = isSelectedDate(cell);
               const isToday    = cell.isToday;
-              const isGray     = !cell.isCurrentMonth || cell.isPast;
+              const isGray     = !cell.isCurrentMonth || cell.isUnavailable;
 
               return (
                 <TouchableOpacity
@@ -253,8 +482,8 @@ const SelectDateTimeScreen = ({ navigation, route }) => {
                     isSelected && styles.dayCellSelected,
                   ]}
                   onPress={() => handleSelectDay(cell)}
-                  activeOpacity={cell.isCurrentMonth && !cell.isPast ? 0.7 : 1}
-                  disabled={!cell.isCurrentMonth || cell.isPast}
+                  activeOpacity={cell.isCurrentMonth && !cell.isUnavailable ? 0.7 : 1}
+                  disabled={!cell.isCurrentMonth || cell.isUnavailable}
                 >
                   <Text
                     style={[
@@ -304,42 +533,115 @@ const SelectDateTimeScreen = ({ navigation, route }) => {
         ) : !selectedDate ? (
           <Text style={styles.selectDatePromptText}>Please select a date to view available time slots.</Text>
         ) : (
-          <View style={styles.timeSlotsGrid}>
-            {timeSlotStatuses.map(({ slot, isAvailable, statusText }) => {
-              const isActive = selectedTime === slot;
-              return (
-                <TouchableOpacity
-                  key={slot}
-                  style={[
-                    styles.timeChip,
-                    isActive && styles.timeChipActive,
-                    !isAvailable && styles.timeChipDisabled,
-                  ]}
-                  onPress={() => {
-                    if (isAvailable) setSelectedTime(slot);
-                  }}
-                  disabled={!isAvailable}
-                  activeOpacity={isAvailable ? 0.75 : 1}
-                >
-                  <View style={styles.timeChipContent}>
-                    <Text
-                      style={[
-                        styles.timeChipText,
-                        isActive && styles.timeChipTextActive,
-                        !isAvailable && styles.timeChipTextDisabled,
-                      ]}
-                    >
-                      {slot}
-                    </Text>
-                    {!isAvailable && (
-                      <View style={styles.unavailableBadge}>
-                        <Text style={styles.unavailableBadgeText}>{statusText || 'Unavailable'}</Text>
-                      </View>
-                    )}
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
+          <View>
+            <View style={styles.timeSlotsGrid}>
+              {timeSlotStatuses.map(({ slot, isAvailable, statusText }) => {
+                const isActive = selectedTime === slot;
+                return (
+                  <TouchableOpacity
+                    key={slot}
+                    style={[
+                      styles.timeChip,
+                      isActive && styles.timeChipActive,
+                      !isAvailable && styles.timeChipDisabled,
+                    ]}
+                    onPress={() => {
+                      if (isAvailable) handleSelectSlot(slot);
+                    }}
+                    disabled={!isAvailable}
+                    activeOpacity={isAvailable ? 0.75 : 1}
+                  >
+                    <View style={styles.timeChipContent}>
+                      <Text
+                        style={[
+                          styles.timeChipText,
+                          isActive && styles.timeChipTextActive,
+                          !isAvailable && styles.timeChipTextDisabled,
+                        ]}
+                      >
+                        {slot}
+                      </Text>
+                      {!isAvailable && (
+                        <View style={styles.unavailableBadge}>
+                          <Text style={styles.unavailableBadgeText}>{statusText || 'Unavailable'}</Text>
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* ── Exact Service Start Time Chips (Scoped to Selected Slot) ── */}
+            {selectedTime && (
+              <View style={styles.exactTimeCard}>
+                <View style={styles.exactTimeHeader}>
+                  <Ionicons name="time-outline" size={18} color="#FF4F87" />
+                  <Text style={styles.exactTimeTitle}>Select Service Start Time</Text>
+                </View>
+                <Text style={styles.exactTimeSubtext}>
+                  Choose a start time within{' '}
+                  <Text style={styles.exactTimeSubtextHighlight}>
+                    {selectedTime.includes('Morning')
+                      ? '7:00 AM - 11:00 AM'
+                      : selectedTime.includes('Afternoon')
+                      ? '11:00 AM - 3:00 PM'
+                      : '3:00 PM - 8:00 PM'}
+                  </Text>
+                </Text>
+
+                {/* Preset Time Chips Grid */}
+                <View style={styles.presetGrid}>
+                  {(SLOT_PRESETS[selectedTime] || []).map((preset) => {
+                    const isPresetActive = exactTime.trim().toUpperCase() === preset.trim().toUpperCase();
+
+                    // Check if preset time has already passed today
+                    let isPastTime = false;
+                    if (selectedDate) {
+                      const now = new Date();
+                      const isToday =
+                        selectedDate.getDate() === now.getDate() &&
+                        selectedDate.getMonth() === now.getMonth() &&
+                        selectedDate.getFullYear() === now.getFullYear();
+
+                      if (isToday) {
+                        const presetMins = parseTimeToMinutes(preset);
+                        const nowMins = now.getHours() * 60 + now.getMinutes();
+                        if (presetMins !== null && presetMins <= nowMins) {
+                          isPastTime = true;
+                        }
+                      }
+                    }
+
+                    return (
+                      <TouchableOpacity
+                        key={preset}
+                        style={[
+                          styles.presetGridChip,
+                          isPresetActive && styles.presetGridChipActive,
+                          isPastTime && styles.presetGridChipDisabled,
+                        ]}
+                        onPress={() => {
+                          if (!isPastTime) setExactTime(preset);
+                        }}
+                        disabled={isPastTime}
+                        activeOpacity={isPastTime ? 1 : 0.75}
+                      >
+                        <Text
+                          style={[
+                            styles.presetGridChipText,
+                            isPresetActive && styles.presetGridChipTextActive,
+                            isPastTime && styles.presetGridChipTextDisabled,
+                          ]}
+                        >
+                          {preset}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
           </View>
         )}
 
@@ -347,7 +649,7 @@ const SelectDateTimeScreen = ({ navigation, route }) => {
         <TouchableOpacity
           style={[
             styles.nextBtn,
-            (!selectedDate || !selectedTime) && styles.nextBtnDisabled,
+            (!selectedDate || !selectedTime || !exactTime || !slotValidation.isValid) && styles.nextBtnDisabled,
           ]}
           onPress={handleNext}
           activeOpacity={0.85}
@@ -361,9 +663,6 @@ const SelectDateTimeScreen = ({ navigation, route }) => {
 
 export default SelectDateTimeScreen;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// STYLES
-// ─────────────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -399,6 +698,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 20,
     paddingBottom: 40,
+  },
+
+  // Advance Notice Banner
+  advanceNoticeBanner: {
+    backgroundColor: '#FFF0F5',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: '#FFD6E5',
+  },
+  advanceNoticeBannerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+    gap: 6,
+  },
+  advanceNoticeBannerTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FF4F87',
+  },
+  advanceNoticeBannerText: {
+    fontSize: 13,
+    color: '#444',
+    lineHeight: 18,
+  },
+  advanceNoticeBannerHighlight: {
+    fontWeight: '700',
+    color: '#FF4F87',
   },
 
   // ── Calendar Card ──────────────────────────────────────────────────────────
@@ -556,7 +885,7 @@ const styles = StyleSheet.create({
   timeSlotsGrid: {
     flexDirection: 'column',
     gap: 10,
-    marginBottom: 32,
+    marginBottom: 16,
   },
   timeChip: {
     paddingVertical: 14,
@@ -616,6 +945,87 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#6B7280',
+  },
+
+  // ── Exact Time Section ─────────────────────────────────────────────────────
+  exactTimeCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+    borderWidth: 1.5,
+    borderColor: '#F3F4F6',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  exactTimeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+    gap: 6,
+  },
+  exactTimeTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  exactTimeSubtext: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 12,
+  },
+  exactTimeSubtextHighlight: {
+    fontWeight: '700',
+    color: '#FF4F87',
+  },
+  presetGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+  },
+  presetGridChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    minWidth: '28%',
+    flexGrow: 1,
+  },
+  presetGridChipActive: {
+    backgroundColor: '#FF4F87',
+    borderColor: '#FF4F87',
+    shadowColor: '#FF4F87',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  presetGridChipDisabled: {
+    backgroundColor: '#F3F4F6',
+    borderColor: '#E5E7EB',
+    opacity: 0.5,
+  },
+  presetGridChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  presetGridChipTextActive: {
+    color: '#FFF',
+    fontWeight: '700',
+  },
+  presetGridChipTextDisabled: {
+    color: '#9CA3AF',
+    textDecorationLine: 'line-through',
   },
 
   // ── Next Button ────────────────────────────────────────────────────────────

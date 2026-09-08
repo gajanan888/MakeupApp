@@ -14,8 +14,9 @@ import {
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ScreenHeader from '../../components/ScreenHeader';
-import { getArtists } from '../../api/auth';
+import { getArtists, getArtistBookedSlots, reselectBackupArtist } from '../../api/auth';
 import { getUniqueProfileImage } from '../../utils/artistImageHelper';
+import { parseAdvanceNoticeMs } from './SelectDateTimeScreen';
 
 const SelectBackupArtistScreen = ({ navigation, route }) => {
   const {
@@ -29,6 +30,8 @@ const SelectBackupArtistScreen = ({ navigation, route }) => {
     addonsTotal = 0,
     hasInsurance = true,
     insuranceFee = 1000,
+    isReselecting = false,
+    bookingId = null,
   } = route?.params || {};
 
   const [artists, setArtists] = useState([]);
@@ -40,27 +43,58 @@ const SelectBackupArtistScreen = ({ navigation, route }) => {
     (typeof selectedLocation === 'string' ? selectedLocation : selectedLocation?.address) || 
     '';
 
+  // Format date to YYYY-MM-DD
+  let dateFormatted = '';
+  if (selectedDate) {
+    const dObj = new Date(selectedDate);
+    if (!isNaN(dObj.getTime())) {
+      const year = dObj.getFullYear();
+      const month = String(dObj.getMonth() + 1).padStart(2, '0');
+      const day = String(dObj.getDate()).padStart(2, '0');
+      dateFormatted = `${year}-${month}-${day}`;
+    }
+  }
+
   useEffect(() => {
     const fetchCandidateArtists = async () => {
       try {
         setLoading(true);
-        // Try fetching artists by location first
-        let data = await getArtists({ location: targetLocation });
+
+        const filterParams = { location: targetLocation };
+        if (dateFormatted) filterParams.availableDate = dateFormatted;
+        if (selectedTime) filterParams.availableTime = selectedTime;
+
+        // Fetch candidate artists matching location & date filters
+        let data = await getArtists(filterParams);
         
         // Exclude primary artist
         let filtered = Array.isArray(data) ? data.filter(a => String(a.id) !== String(artist?.id)) : [];
 
-        // Fallback: if no artists in same specific location, fetch all artists and filter out primary
+        // Fallback: if no artists in specific location, fetch all available on date
         if (filtered.length === 0) {
-          const allData = await getArtists({});
+          const allData = await getArtists({
+            availableDate: dateFormatted,
+            availableTime: selectedTime,
+          });
           filtered = Array.isArray(allData) ? allData.filter(a => String(a.id) !== String(artist?.id)) : [];
         }
 
-        setArtists(filtered);
+        // Perform thorough individual availability check (booked slots & advance notice limit)
+        const verifiedAvailable = [];
+        for (const candidate of filtered) {
+          const isAvailable = await checkCandidateAvailability(candidate);
+          if (isAvailable) {
+            verifiedAvailable.push(candidate);
+          }
+        }
 
-        // Pre-select first candidate artist if available
-        if (filtered.length > 0) {
-          setSelectedBackupArtist(filtered[0]);
+        setArtists(verifiedAvailable);
+
+        // Pre-select first candidate backup artist if available
+        if (verifiedAvailable.length > 0) {
+          setSelectedBackupArtist(verifiedAvailable[0]);
+        } else {
+          setSelectedBackupArtist(null);
         }
       } catch (err) {
         console.warn('Failed to load backup artists:', err);
@@ -70,11 +104,75 @@ const SelectBackupArtistScreen = ({ navigation, route }) => {
     };
 
     fetchCandidateArtists();
-  }, [artist, targetLocation]);
+  }, [artist?.id, targetLocation, dateFormatted, selectedTime]);
 
-  const handleConfirm = () => {
+  // Check if candidate backup artist is 100% available on booking date and slot
+  const checkCandidateAvailability = async (candidate) => {
+    try {
+      // 1. Advance notice requirement check
+      const noticeStr = candidate?.bookingPolicy?.advanceNotice || candidate?.advanceNotice;
+      const noticeMs = parseAdvanceNoticeMs(noticeStr);
+      if (noticeMs > 0 && selectedDate) {
+        const now = new Date();
+        const minTime = new Date(now.getTime() + noticeMs);
+        const slotStartTime = new Date(selectedDate);
+        if (selectedTime?.includes('Afternoon')) slotStartTime.setHours(11, 0, 0, 0);
+        else if (selectedTime?.includes('Evening')) slotStartTime.setHours(15, 0, 0, 0);
+        else slotStartTime.setHours(7, 0, 0, 0);
+
+        if (slotStartTime < minTime) {
+          return false; // Candidate requires more advance notice
+        }
+      }
+
+      // 2. Booked and blocked slots check for date and time
+      if (dateFormatted) {
+        const booked = await getArtistBookedSlots(candidate.id);
+        if (Array.isArray(booked) && booked.length > 0) {
+          const isBusy = booked.some(b => {
+            if (b.date !== dateFormatted) return false;
+            if (!selectedTime || !b.time) return true;
+            return b.time.trim() === selectedTime.trim();
+          });
+          if (isBusy) return false; // Candidate is already booked/blocked at this slot
+        }
+      }
+
+      return true;
+    } catch (err) {
+      console.warn(`Availability check error for artist ${candidate.id}:`, err);
+      return true;
+    }
+  };
+
+  const handleConfirm = async () => {
     if (!selectedBackupArtist) {
-      Alert.alert('Backup Artist Required', 'Please select a backup artist to proceed with Insurance Protection.');
+      Alert.alert('Backup Artist Required', 'Please select a backup artist.');
+      return;
+    }
+
+    if (isReselecting && bookingId) {
+      try {
+        setLoading(true);
+        await reselectBackupArtist(bookingId, selectedBackupArtist.id);
+        Alert.alert(
+          'Backup Artist Assigned',
+          `Selected ${selectedBackupArtist.name} as your new backup artist. They have 1 hour to confirm.`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                navigation.navigate('ClientHome', { activeTab: 'Bookings' });
+              },
+            },
+          ]
+        );
+      } catch (error) {
+        const msg = error.response?.data?.message || error.message || 'Failed to assign new backup artist.';
+        Alert.alert('Error', msg);
+      } finally {
+        setLoading(false);
+      }
       return;
     }
 
@@ -137,6 +235,12 @@ const SelectBackupArtistScreen = ({ navigation, route }) => {
               <Text style={styles.metaText}>{rating}</Text>
             </View>
           </View>
+
+          {/* Date Availability Indicator Badge */}
+          <View style={styles.dateAvailBadge}>
+            <Ionicons name="checkmark-circle-outline" size={12} color="#059669" style={{ marginRight: 3 }} />
+            <Text style={styles.dateAvailText}>Available on {dateStr ? dateStr.split(',')[0] : 'Booking Date'}</Text>
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -160,27 +264,27 @@ const SelectBackupArtistScreen = ({ navigation, route }) => {
           <View style={styles.bannerTextBox}>
             <Text style={styles.bannerTitle}>Protection Active</Text>
             <Text style={styles.bannerSubtext}>
-              Choose a backup artist in your city. If {artist?.name || 'your primary artist'} faces an emergency, your backup will complete the service.
+              Choose a backup artist available on your booking date ({dateStr || 'Selected Date'}). If {artist?.name || 'your primary artist'} faces an emergency, your backup will step in.
             </Text>
           </View>
         </View>
 
         {/* List Title */}
         <Text style={styles.listHeaderTitle}>
-          Available Backup Artists ({artists.length})
+          Available Backup Artists on {dateStr || 'Booking Date'} ({artists.length})
         </Text>
 
         {loading ? (
           <View style={styles.loaderBox}>
             <ActivityIndicator size="large" color="#FF4F87" />
-            <Text style={styles.loadingText}>Finding nearby backup artists...</Text>
+            <Text style={styles.loadingText}>Checking backup artists availability for {dateStr || 'booking date'}...</Text>
           </View>
         ) : artists.length === 0 ? (
           <View style={styles.emptyBox}>
-            <Ionicons name="people-outline" size={48} color="#CCC" />
-            <Text style={styles.emptyTitle}>No Backup Artists Found</Text>
+            <Ionicons name="calendar-outline" size={48} color="#CCC" />
+            <Text style={styles.emptyTitle}>No Backup Artists Available on Date</Text>
             <Text style={styles.emptySubtext}>
-              We couldn't find other artists nearby right now. You can still proceed and our system will auto-assign a backup if needed.
+              We couldn't find other available artists on your selected date ({dateStr || 'Booking Date'}). You can still proceed and our system will assign an available backup if needed.
             </Text>
           </View>
         ) : (
@@ -218,7 +322,7 @@ export default SelectBackupArtistScreen;
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFF',
+    backgroundColor: '#FCFCFC',
   },
   container: {
     flex: 1,
@@ -229,22 +333,27 @@ const styles = StyleSheet.create({
   // Banner
   bannerCard: {
     flexDirection: 'row',
-    backgroundColor: '#FFF0F5',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 18,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#FFE0EB',
+    backgroundColor: '#FFF0F5',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: '#FFD6E5',
+    marginBottom: 20,
   },
   bannerIconBox: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#FFF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 14,
+    shadowColor: '#FF4F87',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
   },
   bannerTextBox: {
     flex: 1,
@@ -252,75 +361,82 @@ const styles = StyleSheet.create({
   bannerTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FF4F87',
+    color: '#111',
     marginBottom: 2,
   },
   bannerSubtext: {
     fontSize: 12,
-    color: '#555',
+    color: '#666',
     lineHeight: 17,
   },
 
-  // List Header
+  // Header Title
   listHeaderTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: '#111',
-    marginBottom: 12,
+    marginBottom: 14,
   },
+
+  // List
   listContent: {
-    paddingBottom: 20,
+    paddingBottom: 100,
   },
 
   // Card
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FAFAFC',
-    borderRadius: 16,
+    backgroundColor: '#FFF',
+    borderRadius: 18,
     padding: 14,
-    marginBottom: 12,
+    marginBottom: 14,
     borderWidth: 1.5,
     borderColor: '#EFEFEF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
   cardSelected: {
-    backgroundColor: '#FFF',
     borderColor: '#FF4F87',
-    shadowColor: '#FF4F87',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
+    backgroundColor: '#FFF9FB',
   },
+
+  // Radio
   radioCircle: {
     width: 22,
     height: 22,
     borderRadius: 11,
     borderWidth: 1.5,
-    borderColor: '#BBB',
-    marginRight: 12,
+    borderColor: '#CCC',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFF',
+    marginRight: 12,
   },
   radioCircleSelected: {
     borderColor: '#FF4F87',
     backgroundColor: '#FF4F87',
   },
+
+  // Avatar
   avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    marginRight: 12,
-    backgroundColor: '#EEE',
+    width: 58,
+    height: 58,
+    borderRadius: 16,
+    backgroundColor: '#F3F3F3',
+    marginRight: 14,
   },
+
+  // Info
   infoBox: {
     flex: 1,
   },
   nameRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 2,
   },
   artistName: {
@@ -328,7 +444,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111',
     flex: 1,
-    marginRight: 8,
+    marginRight: 6,
   },
   backupBadge: {
     flexDirection: 'row',
@@ -336,21 +452,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF0F5',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FFD6E5',
   },
   backupBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 10,
+    fontWeight: '700',
     color: '#FF4F87',
   },
   specText: {
     fontSize: 13,
-    color: '#666',
-    marginBottom: 4,
+    color: '#777',
+    marginBottom: 6,
   },
+
+  // Meta
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 6,
   },
   metaItem: {
     flexDirection: 'row',
@@ -359,20 +480,39 @@ const styles = StyleSheet.create({
   metaText: {
     fontSize: 12,
     color: '#555',
+    fontWeight: '500',
   },
   metaDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
     backgroundColor: '#CCC',
     marginHorizontal: 8,
   },
 
+  // Date Availability Badge
+  dateAvailBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  dateAvailText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#059669',
+  },
+
   // Loader & Empty
   loaderBox: {
-    flex: 1,
-    justifyContent: 'center',
+    paddingVertical: 50,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   loadingText: {
     marginTop: 12,
@@ -380,10 +520,15 @@ const styles = StyleSheet.create({
     color: '#777',
   },
   emptyBox: {
-    flex: 1,
-    justifyContent: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
     alignItems: 'center',
-    paddingHorizontal: 24,
+    justifyContent: 'center',
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#EFEFEF',
+    marginTop: 10,
   },
   emptyTitle: {
     fontSize: 16,
@@ -391,6 +536,7 @@ const styles = StyleSheet.create({
     color: '#333',
     marginTop: 12,
     marginBottom: 6,
+    textAlign: 'center',
   },
   emptySubtext: {
     fontSize: 13,
@@ -401,26 +547,28 @@ const styles = StyleSheet.create({
 
   // Footer
   footer: {
-    paddingVertical: 14,
-    backgroundColor: '#FFF',
-    borderTopWidth: 1,
-    borderTopColor: '#F5F5F7',
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
   },
   confirmBtn: {
-    backgroundColor: '#FF4F87',
     height: 54,
+    backgroundColor: '#FF4F87',
     borderRadius: 18,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#FF4F87',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
     elevation: 4,
   },
   confirmBtnDisabled: {
-    backgroundColor: '#FFB8CF',
+    backgroundColor: '#FFAEC4',
+    shadowOpacity: 0.1,
+    elevation: 1,
   },
   confirmBtnText: {
     fontSize: 16,

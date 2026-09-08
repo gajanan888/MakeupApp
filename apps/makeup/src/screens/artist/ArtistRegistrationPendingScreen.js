@@ -18,6 +18,7 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useArtistRegistration } from '../../context/ArtistRegistrationContext';
 import { getArtistProfile } from '../../api/auth';
+import { DEFAULT_AVATAR } from '../../utils/artistImageHelper';
 
 const CompleteProfileScreen = ({navigation}) => {
   const { data, loadProfileData } = useArtistRegistration();
@@ -248,9 +249,7 @@ const CompleteProfileScreen = ({navigation}) => {
               source={
                 data.profile?.profileImage
                   ? { uri: data.profile.profileImage }
-                  : {
-                      uri: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=500',
-                    }
+                  : { uri: DEFAULT_AVATAR }
               }
               style={styles.avatarImage}
             />

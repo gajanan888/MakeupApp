@@ -17,6 +17,7 @@ import Geolocation from '@react-native-community/geolocation';
 import { getArtistDashboard, getArtistProfile } from '../../api/auth';
 import ArtistBookingDetailModal from './ArtistBookingDetailModal';
 import ArtistAddExtraClientsModal from './ArtistAddExtraClientsModal';
+import { getUserProfileImage, DEFAULT_AVATAR } from '../../utils/artistImageHelper';
 
 const ArtistDashboardScreen = ({ onNavigate }) => {
   const navigation = useNavigation();
@@ -27,7 +28,7 @@ const ArtistDashboardScreen = ({ onNavigate }) => {
     upcomingBookings: []
   });
   const [loadingDashboard, setLoadingDashboard] = useState(true);
-  const [profileImage, setProfileImage] = useState('https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80');
+  const [profileImage, setProfileImage] = useState(DEFAULT_AVATAR);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [artistProfile, setArtistProfile] = useState(null);
   const [addClientsModalVisible, setAddClientsModalVisible] = useState(false);
@@ -166,13 +167,7 @@ const ArtistDashboardScreen = ({ onNavigate }) => {
   }, []);
 
   const handleOpenBookingDetail = (b) => {
-    const avatars = [
-      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=200',
-      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200',
-      'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200',
-      'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?q=80&w=200',
-    ];
-    const avatar = avatars[Number(b.customerId) % avatars.length];
+    const avatar = getUserProfileImage(b.customer);
     
     let dateText = '';
     if (b.date) {
@@ -196,6 +191,20 @@ const ArtistDashboardScreen = ({ onNavigate }) => {
       mappedStatus = 'Cancelled';
     }
 
+    let addOnsList = [];
+    if (b.addOns) {
+      if (Array.isArray(b.addOns)) {
+        addOnsList = b.addOns;
+      } else if (typeof b.addOns === 'object') {
+        addOnsList = [b.addOns];
+      }
+    }
+
+    const numericPrice = typeof b.price === 'number' ? b.price : (parseFloat(String(b.price || 0).replace(/[^0-9.]/g, '')) || 0);
+    const hasInsurance = !!(b.hasInsurance || b.backupArtistId || b.backupArtist);
+    const insuranceFee = hasInsurance ? (b.insuranceFee || 1000) : 0;
+    const basePrice = Math.max(0, numericPrice - insuranceFee);
+
     const detailObj = {
       id: String(b.id),
       customerId: b.customerId,
@@ -203,7 +212,14 @@ const ArtistDashboardScreen = ({ onNavigate }) => {
       category: b.category || 'Makeup Service',
       date: formattedDate,
       location: b.location || 'At Client Location',
-      price: `₹${b.price || 0}`,
+      price: `₹${numericPrice.toLocaleString('en-IN')}`,
+      numericPrice,
+      basePrice,
+      hasInsurance,
+      insuranceFee,
+      backupArtist: b.backupArtist || null,
+      backupArtistId: b.backupArtistId || null,
+      advanceAmount: b.advanceAmount || 0,
       status: mappedStatus,
       rawStatus: b.status,
       phone: b.customer?.phone || '',
@@ -211,6 +227,14 @@ const ArtistDashboardScreen = ({ onNavigate }) => {
       avatar,
       rawDate: b.date,
       rawTime: b.time,
+      addOns: addOnsList,
+      createdAt: b.createdAt,
+      rejectionReason: b.rejectionReason,
+      cancellationReason: b.cancellationReason,
+      cancelledBy: b.cancelledBy,
+      isBackupBooking: b.isBackupBooking || false,
+      primaryArtistName: b.artist?.name || '',
+      rawBooking: b,
     };
     setSelectedBooking(detailObj);
   };
@@ -310,46 +334,101 @@ const ArtistDashboardScreen = ({ onNavigate }) => {
       </View>
 
       {dashboardData.upcomingBookings.length > 0 ? (
-        dashboardData.upcomingBookings.map((booking) => (
-          <TouchableOpacity key={booking.id} style={styles.bookingCard} onPress={() => handleOpenBookingDetail(booking)}>
-            <Image
-              source={{
-                uri: [
-                  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=200',
-                  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200',
-                  'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200',
-                  'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?q=80&w=200',
-                ][(booking.customerId || 0) % 4],
-              }}
-              style={styles.clientAvatar}
-            />
+        dashboardData.upcomingBookings.map((booking) => {
+          const numericPrice = typeof booking.price === 'number' ? booking.price : (parseFloat(String(booking.price || 0).replace(/[^0-9.]/g, '')) || 0);
+          const hasInsurance = !!(booking.hasInsurance || booking.backupArtistId || booking.backupArtist);
+          const insuranceFee = hasInsurance ? (booking.insuranceFee || 1000) : 0;
+          const basePrice = Math.max(0, numericPrice - insuranceFee);
+          const addOnsList = Array.isArray(booking.addOns) ? booking.addOns : (booking.addOns ? [booking.addOns] : []);
 
-            <View style={styles.bookingDetails}>
-              <View style={styles.clientNameRow}>
-                <Text style={styles.clientName}>{booking.customer?.name || 'Client'}</Text>
-                <Ionicons name="sparkles" size={12} color="#FFD700" style={{ marginLeft: 4 }} />
-              </View>
-              
-              <Text style={styles.bookingCategory}>{booking.category || 'Bridal Makeup'}</Text>
-              
-              <View style={styles.bookingMetaRow}>
-                <Ionicons name="calendar-outline" size={12} color="#777" />
-                <Text style={styles.bookingMetaText}>{booking.date} • {booking.time}</Text>
+          return (
+            <TouchableOpacity key={booking.id} style={styles.bookingCard} onPress={() => handleOpenBookingDetail(booking)}>
+              {/* Top Header Row with Avatar, Client Info, and Status Badge */}
+              <View style={styles.cardHeaderRow}>
+                <Image
+                  source={{ uri: getUserProfileImage(booking.customer) }}
+                  style={styles.clientAvatarHeader}
+                />
+                <View style={styles.clientMainInfo}>
+                  <View style={styles.clientNameRow}>
+                    <Text style={styles.clientName}>{booking.customer?.name || 'Client'}</Text>
+                    <Ionicons name="sparkles" size={12} color="#FFD700" style={{ marginLeft: 4 }} />
+                  </View>
+                  <Text style={styles.bookingCategory}>{booking.category || 'Bridal Makeup'}</Text>
+                  <View style={styles.bookingMetaRow}>
+                    <Ionicons name="calendar-outline" size={12} color="#777" />
+                    <Text style={styles.bookingMetaText}>{booking.date} • {booking.time}</Text>
+                  </View>
+                  {booking.location ? (
+                    <View style={styles.bookingMetaRow}>
+                      <Ionicons name="location-outline" size={12} color="#777" />
+                      <Text style={styles.bookingMetaText}>{booking.location}</Text>
+                    </View>
+                  ) : null}
+                </View>
+                <View style={styles.bookingBadgeContainer}>
+                  <View style={styles.upcomingBadge}>
+                    <Text style={styles.upcomingBadgeText}>{booking.status}</Text>
+                  </View>
+                </View>
               </View>
 
-              <View style={styles.bookingMetaRow}>
-                <Ionicons name="cash-outline" size={12} color="#777" style={{ marginRight: 2 }} />
-                <Text style={styles.bookingMetaText}>₹{booking.price || 0}</Text>
-              </View>
-            </View>
+              {/* Full-width Details & Price Breakdown */}
+              <View style={styles.cardBody}>
+                {/* Price Breakdown Box */}
+                <View style={styles.priceBreakdownCard}>
+                  <View style={styles.priceRow}>
+                    <Text style={styles.priceLabel}>Base Service Rate:</Text>
+                    <Text style={styles.basePriceVal}>₹{basePrice.toLocaleString('en-IN')}</Text>
+                  </View>
+                  {hasInsurance && (
+                    <View style={styles.priceRow}>
+                      <Text style={styles.priceLabel}>Ensurance Protection:</Text>
+                      <Text style={styles.insuranceFeeVal}>+₹{insuranceFee.toLocaleString('en-IN')}</Text>
+                    </View>
+                  )}
+                  <View style={styles.priceDivider} />
+                  <View style={styles.priceRow}>
+                    <Text style={styles.totalLabel}>Total Client Paid:</Text>
+                    <Text style={styles.totalVal}>₹{numericPrice.toLocaleString('en-IN')}</Text>
+                  </View>
+                  <View style={[styles.priceRow, { marginTop: 4 }]}>
+                    <Text style={[styles.totalLabel, { color: '#FF4F8F', fontWeight: '800' }]}>Artist Payout:</Text>
+                    <Text style={[styles.totalVal, { color: '#FF4F8F', fontWeight: '800' }]}>₹{basePrice.toLocaleString('en-IN')}</Text>
+                  </View>
+                </View>
 
-            <View style={styles.bookingBadgeContainer}>
-              <View style={styles.upcomingBadge}>
-                <Text style={styles.upcomingBadgeText}>{booking.status}</Text>
+                {/* Assigned Backup Artist Info Row */}
+                {booking.backupArtist && (
+                  <View style={styles.backupCardRow}>
+                    <Ionicons name="shield-checkmark" size={14} color="#059669" />
+                    <Text style={styles.backupCardText}>
+                      Assigned Backup: <Text style={{ fontWeight: '700', color: '#111' }}>{booking.backupArtist.name}</Text>
+                    </Text>
+                  </View>
+                )}
+
+                {booking.isBackupBooking && (
+                  <View style={[styles.backupCardRow, { backgroundColor: '#FFF0F5', borderColor: '#FF4F8F' }]}>
+                    <Ionicons name="shield-checkmark" size={14} color="#FF4F8F" />
+                    <Text style={[styles.backupCardText, { color: '#FF4F8F' }]}>
+                      Backup Assignment for: <Text style={{ fontWeight: '700' }}>{booking.primaryArtistName || 'Primary Artist'}</Text>
+                    </Text>
+                  </View>
+                )}
+
+                {addOnsList.length > 0 && !booking.isBackupBooking && (
+                  <View style={[styles.extraBadge, { marginTop: 6, alignSelf: 'flex-start' }]}>
+                    <Ionicons name="sparkles" size={12} color="#FF4F8F" />
+                    <Text style={styles.extraBadgeText}>
+                      +{addOnsList.length} {addOnsList.some(a => a.count || a.service) ? 'Extra Clients' : 'Add-On Services'}
+                    </Text>
+                  </View>
+                )}
               </View>
-            </View>
-          </TouchableOpacity>
-        ))
+            </TouchableOpacity>
+          );
+        })
       ) : (
         <View style={[styles.bookingCard, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
           <Text style={styles.bookingCategory}>No upcoming bookings</Text>
@@ -618,11 +697,12 @@ const styles = StyleSheet.create({
   },
 
   bookingCard: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     backgroundColor: '#FFF',
     borderRadius: 16,
     padding: 14,
     marginHorizontal: 20,
+    marginBottom: 14,
     borderWidth: 1,
     borderColor: '#F1F1F1',
     shadowColor: '#000',
@@ -632,17 +712,25 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
 
-  clientAvatar: {
-    width: 65,
-    height: 75,
-    borderRadius: 12,
-    alignSelf: 'center',
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 8,
   },
 
-  bookingDetails: {
+  clientAvatarHeader: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 10,
+  },
+
+  clientMainInfo: {
     flex: 1,
-    marginLeft: 14,
-    justifyContent: 'center',
+  },
+
+  cardBody: {
+    width: '100%',
   },
 
   clientNameRow: {
@@ -739,6 +827,83 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1.5,
     borderColor: '#FF4F8F',
+  },
+  priceBreakdownCard: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 10,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: 2,
+  },
+  priceLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  basePriceVal: {
+    fontSize: 12,
+    color: '#111827',
+    fontWeight: '600',
+  },
+  insuranceFeeVal: {
+    fontSize: 12,
+    color: '#059669',
+    fontWeight: '700',
+  },
+  priceDivider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 6,
+  },
+  totalLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  totalVal: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FF4F87',
+  },
+  backupCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginTop: 8,
+    gap: 6,
+  },
+  backupCardText: {
+    fontSize: 12,
+    color: '#065F46',
+    flex: 1,
+  },
+  extraBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF0F5',
+    borderWidth: 1,
+    borderColor: '#FFB6C1',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    gap: 4,
+  },
+  extraBadgeText: {
+    fontSize: 11,
+    color: '#FF4F8F',
+    fontWeight: '700',
   },
 });
 

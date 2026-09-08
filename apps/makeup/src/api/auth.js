@@ -128,6 +128,8 @@ export const rejectArtistBooking  = async (id, reason) => (await api.patch(`/api
 export const startArtistBooking   = async (id, otp)    => (await api.patch(`/api/booking/${id}/start`, { otp }))?.data;
 export const completeArtistBooking = async (id)        => (await api.patch(`/api/booking/${id}/complete`))?.data;
 export const cancelArtistBooking  = async (id, reason) => (await api.patch(`/api/booking/${id}/cancel-by-artist`, { reason }))?.data;
+export const acceptBackupBooking = async (id) => (await api.post(`/api/booking/${id}/backup-accept`))?.data;
+export const rejectBackupBooking = async (id, reason) => (await api.post(`/api/booking/${id}/backup-reject`, { reason }))?.data;
 export const addExtraClientsToBooking = async (id, data) => (await api.patch(`/api/booking/${id}/add-clients`, data))?.data;
 export const createArtistDirectBooking = async (data) => (await api.post('/api/booking/artist-direct', data))?.data;
 
@@ -146,6 +148,7 @@ export const payCustomerBookingAdvance = async (id) => (await api.post(`/api/boo
 export const createRazorpayOrder = async (id) => (await api.post(`/api/booking/${id}/razorpay-order`))?.data?.data;
 export const verifyRazorpayPayment = async (id, data) => (await api.post(`/api/booking/${id}/verify-payment`, data))?.data?.data;
 export const declineCustomerBookingAdvance = async (id) => (await api.post(`/api/booking/${id}/decline-advance`))?.data;
+export const reselectBackupArtist = async (id, newBackupArtistId) => (await api.post(`/api/booking/${id}/reselect-backup`, { newBackupArtistId }))?.data;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CUSTOMER PROFILE

@@ -21,6 +21,8 @@ import {
   startArtistBooking,
   completeArtistBooking,
   cancelArtistBooking,
+  acceptBackupBooking,
+  rejectBackupBooking,
 } from '../../api/auth';
 
 const STYLE_PREFERENCES = [
@@ -117,10 +119,14 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
     }
   };
 
-  // Parse price number & 10% platform fee advance deduction
+  // Parse price number & Ensurance fee distribution
   const totalBookingAmount = Math.round(parseFloat(booking.price ? String(booking.price).replace(/[^0-9.]/g, '') : '0'));
-  const platformFee = Math.round(totalBookingAmount * 0.10);
-  const artistNetPayout = totalBookingAmount - platformFee;
+  const hasInsurance = !!(booking.hasInsurance || booking.rawBooking?.hasInsurance || booking.backupArtist || booking.backupArtistId || booking.rawBooking?.backupArtistId);
+  const insuranceFee = hasInsurance ? Math.round(parseFloat(booking.insuranceFee || booking.rawBooking?.insuranceFee || 1000)) : 0;
+  const baseServiceAmount = Math.max(0, totalBookingAmount - insuranceFee);
+  const platformFee = Math.round(baseServiceAmount * 0.10);
+  const artistNetPayout = baseServiceAmount;
+  const backupArtistObj = booking.backupArtist || booking.rawBooking?.backupArtist || null;
 
   // Set default phone if undefined
   const clientPhone = booking.phone || '9876543210';
@@ -245,22 +251,61 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
               </View>
             )}
 
+            {/* BACKUP ARTIST DETAILS & PROTECTION */}
+            {(backupArtistObj || booking.isBackupBooking || hasInsurance) && (
+              <View style={{ marginBottom: 15 }}>
+                <Text style={styles.sectionTitle}>ENSURANCE & BACKUP PROTECTION</Text>
+                <View style={styles.backupCardBox}>
+                  <View style={styles.backupCardHeader}>
+                    <Ionicons name="shield-checkmark" size={18} color="#FF4F87" />
+                    <Text style={styles.backupCardTitle}>Ensurance Protection Active</Text>
+                  </View>
+                  {backupArtistObj ? (
+                    <View style={{ marginTop: 8 }}>
+                      <Text style={styles.backupLabel}>Assigned Backup Artist:</Text>
+                      <Text style={styles.backupVal}>{backupArtistObj.name}</Text>
+                      <Text style={[styles.backupSubtext, { marginTop: 4, fontStyle: 'italic', fontSize: 11 }]}>
+                        Ensurance protection fee (+₹{insuranceFee.toLocaleString('en-IN')}) is reserved exclusively for the backup artist protection.
+                      </Text>
+                    </View>
+                  ) : booking.isBackupBooking ? (
+                    <Text style={styles.backupSubtext}>
+                      You are assigned as the Backup Artist for {booking.primaryArtistName || 'the primary artist'}.
+                    </Text>
+                  ) : (
+                    <Text style={styles.backupSubtext}>
+                      Client opted for Ensurance Protection (+₹{insuranceFee.toLocaleString('en-IN')}). System will auto-assign a backup if needed.
+                    </Text>
+                  )}
+                </View>
+              </View>
+            )}
+
             {/* PAYMENT INVOICE BREAKDOWN */}
             <Text style={styles.sectionTitle}>PAYMENT BREAKDOWN</Text>
             <View style={styles.invoiceCard}>
               <View style={styles.invoiceRow}>
-                <Text style={styles.invoiceLabel}>Total Service Rate</Text>
-                <Text style={styles.invoiceValue}>₹{totalBookingAmount.toLocaleString('en-IN')}</Text>
+                <Text style={styles.invoiceLabel}>Base Service Rate</Text>
+                <Text style={styles.invoiceValue}>₹{baseServiceAmount.toLocaleString('en-IN')}</Text>
               </View>
+              {hasInsurance && (
+                <View style={styles.invoiceRow}>
+                  <Text style={styles.invoiceLabel}>Ensurance Protection Fee (Backup Artist)</Text>
+                  <Text style={[styles.invoiceValue, { color: '#059669', fontWeight: '700' }]}>+₹{insuranceFee.toLocaleString('en-IN')}</Text>
+                </View>
+              )}
               <View style={styles.invoiceRow}>
-                <Text style={styles.invoiceLabel}>Platform Fee (10% Advance)</Text>
-                <Text style={[styles.invoiceValue, { color: '#CF1322', fontWeight: '600' }]}>-₹{platformFee.toLocaleString('en-IN')}</Text>
+                <Text style={[styles.invoiceLabel, { fontWeight: '700' }]}>Total Client Paid</Text>
+                <Text style={[styles.invoiceValue, { fontWeight: '700', color: '#111' }]}>₹{totalBookingAmount.toLocaleString('en-IN')}</Text>
               </View>
               <View style={styles.invoiceDivider} />
               <View style={styles.invoiceRow}>
-                <Text style={[styles.invoiceLabel, styles.invoiceTotalLabel]}>Artist Net Payout</Text>
+                <Text style={[styles.invoiceLabel, styles.invoiceTotalLabel]}>Artist Service Payout (Your Earnings)</Text>
                 <Text style={[styles.invoiceValue, styles.invoiceTotalVal]}>₹{artistNetPayout.toLocaleString('en-IN')}</Text>
               </View>
+              <Text style={{ fontSize: 11, color: '#666', marginTop: 6, fontStyle: 'italic' }}>
+                Note: Ensurance fee (+₹{insuranceFee.toLocaleString('en-IN')}) is allocated strictly for backup artist protection and payout.
+              </Text>
             </View>
 
             {/* STATUS TIMELINE */}
@@ -348,25 +393,56 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
               <ActivityIndicator size="small" color="#FF4F8F" style={{ paddingVertical: 12 }} />
             ) : (
               <>
-                {booking.rawStatus === 'pending' && (
+                {booking.isBackupBooking ? (
                   <View style={styles.doubleActions}>
-                    <TouchableOpacity 
-                      style={[styles.actionBtn, styles.acceptBtn]}
-                      onPress={() => handleAction(acceptArtistBooking, 'Booking accepted successfully. Waiting for client confirmation.')}
-                    >
-                      <Text style={styles.actionBtnText}>Accept Booking</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      style={[styles.actionBtn, styles.declineBtn]}
-                      onPress={() => {
-                        setDialogType('reject');
-                        setRejectionReasonText('');
-                        setRejectModalVisible(true);
-                      }}
-                    >
-                      <Text style={[styles.actionBtnText, styles.declineText]}>Decline</Text>
-                    </TouchableOpacity>
+                    {booking.backupStatus === 'pending' ? (
+                      <>
+                        <TouchableOpacity 
+                          style={[styles.actionBtn, styles.acceptBtn]}
+                          onPress={() => handleAction(acceptBackupBooking, 'Backup booking request accepted!')}
+                        >
+                          <Text style={styles.actionBtnText}>Accept Backup</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                          style={[styles.actionBtn, styles.declineBtn]}
+                          onPress={() => {
+                            setDialogType('backup_reject');
+                            setRejectionReasonText('');
+                            setRejectModalVisible(true);
+                          }}
+                        >
+                          <Text style={[styles.actionBtnText, styles.declineText]}>Decline Backup</Text>
+                        </TouchableOpacity>
+                      </>
+                    ) : (
+                      <View style={[styles.actionBtn, styles.disabledBtn]}>
+                        <Text style={styles.disabledBtnText}>
+                          Backup {booking.backupStatus === 'accepted' ? 'Accepted' : 'Declined'}
+                        </Text>
+                      </View>
+                    )}
                   </View>
+                ) : (
+                  booking.rawStatus === 'pending' && (
+                    <View style={styles.doubleActions}>
+                      <TouchableOpacity 
+                        style={[styles.actionBtn, styles.acceptBtn]}
+                        onPress={() => handleAction(acceptArtistBooking, 'Booking accepted successfully!')}
+                      >
+                        <Text style={styles.actionBtnText}>Accept Booking</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={[styles.actionBtn, styles.declineBtn]}
+                        onPress={() => {
+                          setDialogType('reject');
+                          setRejectionReasonText('');
+                          setRejectModalVisible(true);
+                        }}
+                      >
+                        <Text style={[styles.actionBtnText, styles.declineText]}>Decline</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )
                 )}
 
                 {booking.rawStatus === 'accepted' && (
@@ -487,6 +563,9 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
                     if (dialogType === 'cancel') {
                       await cancelArtistBooking(booking.id, rejectionReasonText.trim());
                       Alert.alert('Success', 'Booking cancelled.');
+                    } else if (dialogType === 'backup_reject') {
+                      await rejectBackupBooking(booking.id, rejectionReasonText.trim());
+                      Alert.alert('Success', 'Backup request declined.');
                     } else {
                       await rejectArtistBooking(booking.id, rejectionReasonText.trim());
                       Alert.alert('Success', 'Booking declined.');
@@ -945,8 +1024,50 @@ const styles = StyleSheet.create({
   rejectionText: {
     fontSize: 12,
     color: '#595959',
-    marginTop: 3,
+    marginTop: 2,
     fontFamily: 'serif',
+  },
+  backupCardBox: {
+    backgroundColor: '#FFF0F5',
+    borderColor: '#FFD6E5',
+    borderWidth: 1.5,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 15,
+  },
+  backupCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  backupCardTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FF4F87',
+  },
+  backupLabel: {
+    fontSize: 11,
+    color: '#666',
+    fontWeight: '600',
+  },
+  backupVal: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111',
+    marginTop: 2,
+  },
+  backupPhoneVal: {
+    fontSize: 13,
+    color: '#FF4F87',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  backupSubtext: {
+    fontSize: 12,
+    color: '#555',
+    lineHeight: 17,
+    marginTop: 4,
   },
 });
 
