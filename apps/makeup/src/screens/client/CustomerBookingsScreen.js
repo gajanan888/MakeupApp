@@ -67,6 +67,173 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
 
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
   const [selectedBookingForDetails, setSelectedBookingForDetails] = useState(null);
+  const [clientConsents, setClientConsents] = useState({});
+
+  const toggleConsent = (bookingId, key) => {
+    setClientConsents(prev => {
+      const current = prev[bookingId] || { c1: false, c2: false, c3: false, c4: false, c5: false };
+      return {
+        ...prev,
+        [bookingId]: {
+          ...current,
+          [key]: !current[key],
+        },
+      };
+    });
+  };
+
+  const isAllConsentChecked = (bookingId) => {
+    const bConsents = clientConsents[bookingId] || {};
+    return !!(bConsents.c1 && bConsents.c2 && bConsents.c3 && bConsents.c4 && bConsents.c5);
+  };
+
+  const renderClientConsentAndOtp = (booking, isModal = false) => {
+    if (!booking) return null;
+    const bId = booking.id;
+    const consents = clientConsents[bId] || { c1: false, c2: false, c3: false, c4: false, c5: false };
+    const allChecked = isAllConsentChecked(bId);
+    const otpAvailable = isOtpActive(booking);
+
+    if (booking.rawStatus === 'confirmed') {
+      return (
+        <View style={[styles.otpCardBox, isModal && { marginVertical: 10 }]}>
+          {otpAvailable ? (
+            <View style={styles.otpActiveContent}>
+              <View style={styles.otpHeaderRow}>
+                <Ionicons name="shield-checkmark" size={18} color="#D46B08" />
+                <Text style={styles.otpTitle}>Client Mandatory Consent & Start OTP</Text>
+              </View>
+
+              <Text style={{ fontSize: 12, fontWeight: '600', color: '#333', marginTop: 6, marginBottom: 6 }}>
+                Check all consent boxes below to reveal your Service Start OTP:
+              </Text>
+
+              <TouchableOpacity 
+                style={styles.consentRow} 
+                onPress={() => toggleConsent(bId, 'c1')} 
+                activeOpacity={0.7}
+              >
+                <Ionicons 
+                  name={consents.c1 ? "checkbox" : "square-outline"} 
+                  size={20} 
+                  color={consents.c1 ? "#FF4F8F" : "#888"} 
+                />
+                <Text style={styles.consentText}>
+                  1. The products are valid, non-expired, and checked.
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.consentRow} 
+                onPress={() => toggleConsent(bId, 'c2')} 
+                activeOpacity={0.7}
+              >
+                <Ionicons 
+                  name={consents.c2 ? "checkbox" : "square-outline"} 
+                  size={20} 
+                  color={consents.c2 ? "#FF4F8F" : "#888"} 
+                />
+                <Text style={styles.consentText}>
+                  2. Disclosed all skin issues & allergic problems to artist.
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.consentRow} 
+                onPress={() => toggleConsent(bId, 'c3')} 
+                activeOpacity={0.7}
+              >
+                <Ionicons 
+                  name={consents.c3 ? "checkbox" : "square-outline"} 
+                  size={20} 
+                  color={consents.c3 ? "#FF4F8F" : "#888"} 
+                />
+                <Text style={styles.consentText}>
+                  3. Consented to pre-application skin patch test.
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.consentRow} 
+                onPress={() => toggleConsent(bId, 'c4')} 
+                activeOpacity={0.7}
+              >
+                <Ionicons 
+                  name={consents.c4 ? "checkbox" : "square-outline"} 
+                  size={20} 
+                  color={consents.c4 ? "#FF4F8F" : "#888"} 
+                />
+                <Text style={styles.consentText}>
+                  4. Agreed to follow post-service skin care & hygiene guidelines.
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.consentRow} 
+                onPress={() => toggleConsent(bId, 'c5')} 
+                activeOpacity={0.7}
+              >
+                <Ionicons 
+                  name={consents.c5 ? "checkbox" : "square-outline"} 
+                  size={20} 
+                  color={consents.c5 ? "#FF4F8F" : "#888"} 
+                />
+                <Text style={styles.consentText}>
+                  5. Confirmed clean workspace setup, seating, and proper lighting.
+                </Text>
+              </TouchableOpacity>
+
+              <View style={[styles.otpRevealContainer, { marginTop: 10 }]}>
+                {allChecked ? (
+                  <>
+                    <Text style={styles.otpCode}>{booking.startOtp || '----'}</Text>
+                    <Text style={styles.otpSubtitle}>
+                      ✅ All consents acknowledged. Share this Start OTP with your artist upon arrival.
+                    </Text>
+                  </>
+                ) : (
+                  <View style={styles.otpLockedBox}>
+                    <Ionicons name="lock-closed" size={22} color="#92400E" />
+                    <Text style={styles.otpLockedText}>🔒 Service Start OTP Locked</Text>
+                    <Text style={styles.otpLockedSubtext}>
+                      Please check all 5 consent boxes above to reveal your OTP code.
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          ) : (
+            <View style={styles.otpPendingContent}>
+              <Ionicons name="time-outline" size={16} color="#0050B3" style={{ marginRight: 6 }} />
+              <Text style={styles.otpPendingText}>OTP will be available 1 hour before service start time.</Text>
+            </View>
+          )}
+        </View>
+      );
+    }
+
+    if (booking.rawStatus === 'in_progress') {
+      return (
+        <View style={[styles.otpCardBox, { backgroundColor: '#F0FDF4', borderColor: '#86EFAC' }, isModal && { marginVertical: 10 }]}>
+          <View style={styles.otpActiveContent}>
+            <View style={styles.otpHeaderRow}>
+              <Ionicons name="checkmark-circle" size={20} color="#166534" />
+              <Text style={[styles.otpTitle, { color: '#166534' }]}>Service In Progress & Completion OTP</Text>
+            </View>
+            <Text style={{ fontSize: 12, color: '#15803D', marginTop: 4, marginBottom: 8, fontWeight: '500' }}>
+              Your makeup service is in progress! Once completed to your satisfaction, share this Completion OTP with your artist:
+            </Text>
+            <Text style={[styles.otpCode, { color: '#15803D', letterSpacing: 6 }]}>{booking.endOtp || '----'}</Text>
+            <Text style={[styles.otpSubtitle, { color: '#166534' }]}>
+              Give this 4-digit OTP to your artist only when the makeup look is finished.
+            </Text>
+          </View>
+        </View>
+      );
+    }
+
+    return null;
+  };
 
   const openReviewModal = (booking) => {
     setSelectedBookingForReview(booking);
@@ -517,25 +684,7 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
                       )
                     )}
 
-                    {booking.rawStatus === 'confirmed' && (
-                      <View style={styles.otpCardBox}>
-                        {isOtpActive(booking) ? (
-                          <View style={styles.otpActiveContent}>
-                            <View style={styles.otpHeaderRow}>
-                              <Ionicons name="key" size={16} color="#D46B08" />
-                              <Text style={styles.otpTitle}>Service Start OTP</Text>
-                            </View>
-                            <Text style={styles.otpCode}>{booking.startOtp || '----'}</Text>
-                            <Text style={styles.otpSubtitle}>Share this OTP with your artist when they arrive to start the service.</Text>
-                          </View>
-                        ) : (
-                          <View style={styles.otpPendingContent}>
-                            <Ionicons name="time-outline" size={16} color="#0050B3" style={{ marginRight: 6 }} />
-                            <Text style={styles.otpPendingText}>OTP will be available 1 hour before service start time.</Text>
-                          </View>
-                        )}
-                      </View>
-                    )}
+                    {renderClientConsentAndOtp(booking)}
 
                     {booking.rawStatus === 'accepted' && (
                       <View style={styles.advanceRow}>
@@ -852,25 +1001,7 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
                   </View>
                 </View>
 
-                {selectedBookingForDetails.rawStatus === 'confirmed' && (
-                  <View style={[styles.otpCardBox, { marginVertical: 10 }]}>
-                    {isOtpActive(selectedBookingForDetails) ? (
-                      <View style={styles.otpActiveContent}>
-                        <View style={styles.otpHeaderRow}>
-                          <Ionicons name="key" size={16} color="#D46B08" />
-                          <Text style={styles.otpTitle}>Service Start OTP</Text>
-                        </View>
-                        <Text style={styles.otpCode}>{selectedBookingForDetails.startOtp || '----'}</Text>
-                        <Text style={styles.otpSubtitle}>Share this OTP with your artist when they arrive to start the service.</Text>
-                      </View>
-                    ) : (
-                      <View style={styles.otpPendingContent}>
-                        <Ionicons name="time-outline" size={16} color="#0050B3" style={{ marginRight: 6 }} />
-                        <Text style={styles.otpPendingText}>OTP will be available 1 hour before service start time.</Text>
-                      </View>
-                    )}
-                  </View>
-                )}
+                {renderClientConsentAndOtp(selectedBookingForDetails, true)}
 
                 {/* Rejection / Cancellation Info */}
                 {selectedBookingForDetails.rawStatus === 'rejected' && selectedBookingForDetails.rejectionReason && (
@@ -1502,6 +1633,48 @@ const styles = StyleSheet.create({
     color: '#003A8C',
     fontWeight: '600',
     flex: 1,
+  },
+  consentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 5,
+    paddingHorizontal: 2,
+  },
+  consentText: {
+    fontSize: 12,
+    color: '#374151',
+    fontWeight: '500',
+    marginLeft: 8,
+    flex: 1,
+  },
+  otpRevealContainer: {
+    alignItems: 'center',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#FFE7BA',
+    width: '100%',
+  },
+  otpLockedBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    width: '100%',
+    marginVertical: 4,
+  },
+  otpLockedText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#92400E',
+    marginTop: 4,
+  },
+  otpLockedSubtext: {
+    fontSize: 11,
+    color: '#B45309',
+    textAlign: 'center',
+    marginTop: 2,
   },
 });
 

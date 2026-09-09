@@ -14,11 +14,14 @@ import {
   TextInput,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
+import { uploadFile } from '../../api/files';
 import { useCall } from '../../context/CallContext';
 import {
   acceptArtistBooking,
   rejectArtistBooking,
   startArtistBooking,
+  requestEndArtistBookingOtp,
   completeArtistBooking,
   cancelArtistBooking,
   acceptBackupBooking,
@@ -42,9 +45,216 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
   const [otpModalVisible, setOtpModalVisible] = useState(false);
   const [otpInputText, setOtpInputText] = useState('');
   const [verifyingOtp, setVerifyingOtp] = useState(false);
+
+  // Before Photo & Artist Checklist State
+  const [beforePhotoUrl, setBeforePhotoUrl] = useState('');
+  const [uploadingBeforePhoto, setUploadingBeforePhoto] = useState(false);
+  const [artistChecklist, setArtistChecklist] = useState({
+    paymentCollected: false,
+    productsShown: false,
+    skinConsentsUnderstood: false,
+    identityVerified: false,
+    toolsSanitized: false,
+  });
+
+  // End Service Modal & Photo State
+  const [endServiceModalVisible, setEndServiceModalVisible] = useState(false);
+  const [afterPhotoUrl, setAfterPhotoUrl] = useState('');
+  const [uploadingAfterPhoto, setUploadingAfterPhoto] = useState(false);
+  const [endOtpInputText, setEndOtpInputText] = useState('');
+  const [requestingEndOtp, setRequestingEndOtp] = useState(false);
+  const [completingService, setCompletingService] = useState(false);
+
   const { initiateCall } = useCall();
 
   if (!booking) return null;
+
+  const toggleChecklist = (key) => {
+    setArtistChecklist(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const isStartChecklistComplete = () => {
+    return (
+      !!beforePhotoUrl &&
+      artistChecklist.paymentCollected &&
+      artistChecklist.productsShown &&
+      artistChecklist.skinConsentsUnderstood &&
+      artistChecklist.identityVerified &&
+      artistChecklist.toolsSanitized &&
+      otpInputText.trim().length === 4
+    );
+  };
+
+  const handlePickBeforePhoto = () => {
+    Alert.alert(
+      'Upload Before Look Photo',
+      'Choose image source for client before makeup look:',
+      [
+        {
+          text: 'Camera',
+          onPress: () => {
+            launchCamera({ mediaType: 'photo', maxWidth: 1024, maxHeight: 1024, quality: 0.8 }, async (response) => {
+              if (response.didCancel || response.errorCode) return;
+              if (response.assets && response.assets.length > 0) {
+                try {
+                  setUploadingBeforePhoto(true);
+                  const url = await uploadFile(response.assets[0]);
+                  setBeforePhotoUrl(url);
+                } catch (e) {
+                  Alert.alert('Upload Error', e.message || 'Failed to upload photo.');
+                } finally {
+                  setUploadingBeforePhoto(false);
+                }
+              }
+            });
+          },
+        },
+        {
+          text: 'Photo Gallery',
+          onPress: () => {
+            launchImageLibrary({ mediaType: 'photo', maxWidth: 1024, maxHeight: 1024, quality: 0.8 }, async (response) => {
+              if (response.didCancel || response.errorCode) return;
+              if (response.assets && response.assets.length > 0) {
+                try {
+                  setUploadingBeforePhoto(true);
+                  const url = await uploadFile(response.assets[0]);
+                  setBeforePhotoUrl(url);
+                } catch (e) {
+                  Alert.alert('Upload Error', e.message || 'Failed to upload photo.');
+                } finally {
+                  setUploadingBeforePhoto(false);
+                }
+              }
+            });
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
+  const handlePickAfterPhoto = () => {
+    Alert.alert(
+      'Upload After Look Photo',
+      'Choose image source for client after makeup look:',
+      [
+        {
+          text: 'Camera',
+          onPress: () => {
+            launchCamera({ mediaType: 'photo', maxWidth: 1024, maxHeight: 1024, quality: 0.8 }, async (response) => {
+              if (response.didCancel || response.errorCode) return;
+              if (response.assets && response.assets.length > 0) {
+                try {
+                  setUploadingAfterPhoto(true);
+                  const url = await uploadFile(response.assets[0]);
+                  setAfterPhotoUrl(url);
+                } catch (e) {
+                  Alert.alert('Upload Error', e.message || 'Failed to upload photo.');
+                } finally {
+                  setUploadingAfterPhoto(false);
+                }
+              }
+            });
+          },
+        },
+        {
+          text: 'Photo Gallery',
+          onPress: () => {
+            launchImageLibrary({ mediaType: 'photo', maxWidth: 1024, maxHeight: 1024, quality: 0.8 }, async (response) => {
+              if (response.didCancel || response.errorCode) return;
+              if (response.assets && response.assets.length > 0) {
+                try {
+                  setUploadingAfterPhoto(true);
+                  const url = await uploadFile(response.assets[0]);
+                  setAfterPhotoUrl(url);
+                } catch (e) {
+                  Alert.alert('Upload Error', e.message || 'Failed to upload photo.');
+                } finally {
+                  setUploadingAfterPhoto(false);
+                }
+              }
+            });
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
+  const handleVerifyAndStart = async () => {
+    if (!beforePhotoUrl) {
+      Alert.alert('Before Photo Required', 'Please upload a before makeup look photo of the client.');
+      return;
+    }
+    if (!isStartChecklistComplete()) {
+      Alert.alert('Checklist Incomplete', 'Please check all 5 pre-service checkboxes and enter the 4-digit OTP.');
+      return;
+    }
+    try {
+      setVerifyingOtp(true);
+      await startArtistBooking(booking.id, {
+        otp: otpInputText.trim(),
+        beforeMakeupImage: beforePhotoUrl,
+        artistChecklist,
+      });
+      setOtpModalVisible(false);
+      setOtpInputText('');
+      setBeforePhotoUrl('');
+      Alert.alert('Success', 'Service started successfully!');
+      if (onStatusUpdate) await onStatusUpdate();
+      onClose();
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Invalid OTP or failed to start service.';
+      Alert.alert('Error', msg);
+    } finally {
+      setVerifyingOtp(false);
+    }
+  };
+
+  const handleRequestEndOtp = async () => {
+    try {
+      setRequestingEndOtp(true);
+      await requestEndArtistBookingOtp(booking.id);
+      Alert.alert('Completion OTP Requested', 'The 4-digit Completion OTP is generated and visible on the client app. Ask the client for the code once finished.');
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.message || err.message || 'Failed to request completion OTP.');
+    } finally {
+      setRequestingEndOtp(false);
+    }
+  };
+
+  const isEndServiceReady = () => {
+    return !!afterPhotoUrl && endOtpInputText.trim().length === 4;
+  };
+
+  const handleVerifyAndComplete = async () => {
+    if (!afterPhotoUrl) {
+      Alert.alert('After Photo Required', 'Please upload an after makeup look photo of the client.');
+      return;
+    }
+    if (endOtpInputText.trim().length !== 4) {
+      Alert.alert('OTP Required', 'Please enter the 4-digit completion OTP provided by the client.');
+      return;
+    }
+    try {
+      setCompletingService(true);
+      await completeArtistBooking(booking.id, {
+        otp: endOtpInputText.trim(),
+        afterMakeupImage: afterPhotoUrl,
+      });
+      setEndServiceModalVisible(false);
+      setEndOtpInputText('');
+      setAfterPhotoUrl('');
+      Alert.alert('Success', 'Service marked as completed!');
+      if (onStatusUpdate) await onStatusUpdate();
+      onClose();
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Invalid OTP or failed to complete service.';
+      Alert.alert('Error', msg);
+    } finally {
+      setCompletingService(false);
+    }
+  };
 
   const checkTimeReached = () => {
     if (!booking) return false;
@@ -95,27 +305,6 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
       Alert.alert('Error', err.response?.data?.message || err.message || 'Failed to update booking status.');
     } finally {
       setUpdating(false);
-    }
-  };
-
-  const handleVerifyAndStart = async () => {
-    if (!otpInputText || otpInputText.trim().length === 0) {
-      Alert.alert('Required', 'Please enter the 4-digit OTP provided by the client.');
-      return;
-    }
-    try {
-      setVerifyingOtp(true);
-      await startArtistBooking(booking.id, otpInputText.trim());
-      setOtpModalVisible(false);
-      setOtpInputText('');
-      Alert.alert('Success', 'Service started successfully!');
-      if (onStatusUpdate) await onStatusUpdate();
-      onClose();
-    } catch (err) {
-      const msg = err.response?.data?.message || err.message || 'Invalid OTP or failed to start service.';
-      Alert.alert('Error', msg);
-    } finally {
-      setVerifyingOtp(false);
     }
   };
 
@@ -500,7 +689,7 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
                   <View style={styles.doubleActions}>
                     <TouchableOpacity 
                       style={[styles.actionBtn, styles.completeBtn]}
-                      onPress={() => handleAction(completeArtistBooking, 'Service marked as completed.')}
+                      onPress={() => setEndServiceModalVisible(true)}
                     >
                       <Text style={styles.actionBtnText}>Complete Service</Text>
                     </TouchableOpacity>
@@ -587,27 +776,85 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
         </View>
       </Modal>
 
-      {/* Start Service OTP Verification Modal */}
-      <Modal visible={otpModalVisible} transparent animationType="fade">
+      {/* Start Service Checklist & OTP Verification Modal */}
+      <Modal visible={otpModalVisible} transparent animationType="slide">
         <View style={styles.dialogOverlay}>
-          <View style={styles.dialogContainer}>
-            <View style={{ alignItems: 'center', marginBottom: 12 }}>
-              <Ionicons name="key-outline" size={36} color="#FF4F8F" />
-              <Text style={styles.dialogTitle}>Enter Service OTP</Text>
-              <Text style={[styles.dialogLabel, { textAlign: 'center', marginTop: 4 }]}>
-                Ask the client for their 4-digit Service Start OTP to begin the appointment.
-              </Text>
-            </View>
-            <TextInput
-              style={[styles.dialogInput, { textAlign: 'center', fontSize: 24, letterSpacing: 8, fontWeight: '700', color: '#333' }]}
-              placeholder="0000"
-              placeholderTextColor="#CCC"
-              value={otpInputText}
-              onChangeText={setOtpInputText}
-              keyboardType="number-pad"
-              maxLength={4}
-            />
-            <View style={styles.dialogButtons}>
+          <View style={[styles.dialogContainer, { maxHeight: '85%', padding: 18 }]}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={{ alignItems: 'center', marginBottom: 10 }}>
+                <Ionicons name="sparkles-outline" size={32} color="#FF4F8F" />
+                <Text style={styles.dialogTitle}>Start Service Verification</Text>
+                <Text style={[styles.dialogLabel, { textAlign: 'center', marginVertical: 2 }]}>
+                  Upload client before photo, complete pre-service checks & enter client OTP:
+                </Text>
+              </View>
+
+              {/* 1. BEFORE MAKEUP PHOTO UPLOAD */}
+              <Text style={styles.checklistSectionHeader}>1. Client Before Makeup Photo (Mandatory)</Text>
+              <TouchableOpacity
+                style={styles.photoUploadBox}
+                onPress={handlePickBeforePhoto}
+                activeOpacity={0.7}
+              >
+                {uploadingBeforePhoto ? (
+                  <ActivityIndicator color="#FF4F8F" size="small" />
+                ) : beforePhotoUrl ? (
+                  <View style={{ alignItems: 'center' }}>
+                    <Image source={{ uri: beforePhotoUrl }} style={styles.photoPreviewImage} />
+                    <Text style={{ fontSize: 11, color: '#166534', fontWeight: '700', marginTop: 4 }}>
+                      ✅ Before Look Photo Uploaded (Tap to Change)
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={{ alignItems: 'center' }}>
+                    <Ionicons name="camera" size={24} color="#FF4F8F" />
+                    <Text style={styles.photoUploadText}>Tap to Upload Before Makeup Photo</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              {/* 2. PRE-SERVICE MANDATORY CHECKLIST */}
+              <Text style={[styles.checklistSectionHeader, { marginTop: 12 }]}>2. Pre-Service Operations & Safety Checklist</Text>
+              
+              <TouchableOpacity style={styles.checklistRow} onPress={() => toggleChecklist('paymentCollected')} activeOpacity={0.7}>
+                <Ionicons name={artistChecklist.paymentCollected ? "checkbox" : "square-outline"} size={20} color={artistChecklist.paymentCollected ? "#FF4F8F" : "#888"} />
+                <Text style={styles.checklistText}>Took complete remaining payment from client</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.checklistRow} onPress={() => toggleChecklist('productsShown')} activeOpacity={0.7}>
+                <Ionicons name={artistChecklist.productsShown ? "checkbox" : "square-outline"} size={20} color={artistChecklist.productsShown ? "#FF4F8F" : "#888"} />
+                <Text style={styles.checklistText}>Showed valid products & expiry dates to client</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.checklistRow} onPress={() => toggleChecklist('skinConsentsUnderstood')} activeOpacity={0.7}>
+                <Ionicons name={artistChecklist.skinConsentsUnderstood ? "checkbox" : "square-outline"} size={20} color={artistChecklist.skinConsentsUnderstood ? "#FF4F8F" : "#888"} />
+                <Text style={styles.checklistText}>Understood all skin issues & allergy consents</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.checklistRow} onPress={() => toggleChecklist('identityVerified')} activeOpacity={0.7}>
+                <Ionicons name={artistChecklist.identityVerified ? "checkbox" : "square-outline"} size={20} color={artistChecklist.identityVerified ? "#FF4F8F" : "#888"} />
+                <Text style={styles.checklistText}>Verified appointment details & client identity</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.checklistRow} onPress={() => toggleChecklist('toolsSanitized')} activeOpacity={0.7}>
+                <Ionicons name={artistChecklist.toolsSanitized ? "checkbox" : "square-outline"} size={20} color={artistChecklist.toolsSanitized ? "#FF4F8F" : "#888"} />
+                <Text style={styles.checklistText}>Sanitized hands, brushes, and tools</Text>
+              </TouchableOpacity>
+
+              {/* 3. CLIENT START OTP INPUT */}
+              <Text style={[styles.checklistSectionHeader, { marginTop: 12 }]}>3. Enter Client Service Start OTP</Text>
+              <TextInput
+                style={[styles.dialogInput, { textAlign: 'center', fontSize: 24, letterSpacing: 8, fontWeight: '700', color: '#333', height: 48 }]}
+                placeholder="0000"
+                placeholderTextColor="#CCC"
+                value={otpInputText}
+                onChangeText={setOtpInputText}
+                keyboardType="number-pad"
+                maxLength={4}
+              />
+            </ScrollView>
+
+            <View style={[styles.dialogButtons, { marginTop: 10 }]}>
               <TouchableOpacity
                 style={[styles.dialogBtn, styles.dialogCancelBtn]}
                 onPress={() => {
@@ -619,14 +866,105 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
                 <Text style={styles.dialogCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.dialogBtn, styles.dialogSubmitBtn]}
+                style={[styles.dialogBtn, styles.dialogSubmitBtn, !isStartChecklistComplete() && { opacity: 0.5 }]}
                 onPress={handleVerifyAndStart}
-                disabled={verifyingOtp}
+                disabled={verifyingOtp || !isStartChecklistComplete()}
               >
                 {verifyingOtp ? (
                   <ActivityIndicator color="#FFF" size="small" />
                 ) : (
                   <Text style={styles.dialogSubmitText}>Start Service</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* End Service Checklist & Completion OTP Modal */}
+      <Modal visible={endServiceModalVisible} transparent animationType="slide">
+        <View style={styles.dialogOverlay}>
+          <View style={[styles.dialogContainer, { maxHeight: '85%', padding: 18 }]}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={{ alignItems: 'center', marginBottom: 10 }}>
+                <Ionicons name="checkmark-done-circle" size={36} color="#166534" />
+                <Text style={styles.dialogTitle}>Complete Service</Text>
+                <Text style={[styles.dialogLabel, { textAlign: 'center', marginVertical: 2 }]}>
+                  Trigger end OTP, upload client after look photo & enter completion OTP:
+                </Text>
+              </View>
+
+              {/* 1. REQUEST END OTP BUTTON */}
+              <Text style={styles.checklistSectionHeader}>1. Client Completion OTP Trigger</Text>
+              <TouchableOpacity
+                style={[styles.actionBtn, { backgroundColor: '#0284C7', marginBottom: 12, paddingVertical: 10 }]}
+                onPress={handleRequestEndOtp}
+                disabled={requestingEndOtp}
+              >
+                {requestingEndOtp ? (
+                  <ActivityIndicator color="#FFF" size="small" />
+                ) : (
+                  <Text style={[styles.actionBtnText, { fontSize: 13 }]}>📲 Request / Trigger End OTP to Client</Text>
+                )}
+              </TouchableOpacity>
+
+              {/* 2. AFTER MAKEUP PHOTO UPLOAD */}
+              <Text style={styles.checklistSectionHeader}>2. Client After Makeup Photo (Mandatory)</Text>
+              <TouchableOpacity
+                style={styles.photoUploadBox}
+                onPress={handlePickAfterPhoto}
+                activeOpacity={0.7}
+              >
+                {uploadingAfterPhoto ? (
+                  <ActivityIndicator color="#FF4F8F" size="small" />
+                ) : afterPhotoUrl ? (
+                  <View style={{ alignItems: 'center' }}>
+                    <Image source={{ uri: afterPhotoUrl }} style={styles.photoPreviewImage} />
+                    <Text style={{ fontSize: 11, color: '#166534', fontWeight: '700', marginTop: 4 }}>
+                      ✅ After Look Photo Uploaded (Tap to Change)
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={{ alignItems: 'center' }}>
+                    <Ionicons name="camera" size={24} color="#FF4F8F" />
+                    <Text style={styles.photoUploadText}>Tap to Upload After Makeup Photo</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              {/* 3. ENTER CLIENT END OTP */}
+              <Text style={[styles.checklistSectionHeader, { marginTop: 12 }]}>3. Enter Client Completion OTP</Text>
+              <TextInput
+                style={[styles.dialogInput, { textAlign: 'center', fontSize: 24, letterSpacing: 8, fontWeight: '700', color: '#333', height: 48 }]}
+                placeholder="0000"
+                placeholderTextColor="#CCC"
+                value={endOtpInputText}
+                onChangeText={setEndOtpInputText}
+                keyboardType="number-pad"
+                maxLength={4}
+              />
+            </ScrollView>
+
+            <View style={[styles.dialogButtons, { marginTop: 10 }]}>
+              <TouchableOpacity
+                style={[styles.dialogBtn, styles.dialogCancelBtn]}
+                onPress={() => {
+                  setEndServiceModalVisible(false);
+                  setEndOtpInputText('');
+                }}
+                disabled={completingService}
+              >
+                <Text style={styles.dialogCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.dialogBtn, { backgroundColor: '#166534' }, !isEndServiceReady() && { opacity: 0.5 }]}
+                onPress={handleVerifyAndComplete}
+                disabled={completingService || !isEndServiceReady()}
+              >
+                {completingService ? (
+                  <ActivityIndicator color="#FFF" size="small" />
+                ) : (
+                  <Text style={styles.dialogSubmitText}>Complete Service</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -1046,6 +1384,201 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FF4F87',
   },
+  actionBtn: {
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFF',
+    fontFamily: 'serif',
+  },
+  doubleActions: {
+    flexDirection: 'row',
+  },
+  acceptBtn: {
+    backgroundColor: '#389E0D',
+    flex: 1,
+    marginRight: 10,
+  },
+  declineBtn: {
+    backgroundColor: '#FFF',
+    borderWidth: 1.5,
+    borderColor: '#CF1322',
+    flex: 0.4,
+  },
+  declineText: {
+    color: '#CF1322',
+  },
+  startBtn: {
+    backgroundColor: '#FF4F8F',
+    flex: 1,
+    marginRight: 10,
+  },
+  completeBtn: {
+    backgroundColor: '#389E0D',
+    flex: 1,
+    marginRight: 10,
+  },
+  disabledBtn: {
+    backgroundColor: '#E0D8DB',
+    flex: 1,
+    marginRight: 10,
+  },
+  disabledBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#8A7D77',
+    fontFamily: 'serif',
+  },
+  dialogOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  dialogContainer: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 340,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  dialogTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111',
+    marginBottom: 8,
+    fontFamily: 'serif',
+  },
+  dialogLabel: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 12,
+    lineHeight: 18,
+    fontFamily: 'serif',
+  },
+  dialogInput: {
+    borderWidth: 1,
+    borderColor: '#E6E6E6',
+    borderRadius: 8,
+    padding: 10,
+    height: 80,
+    textAlignVertical: 'top',
+    fontSize: 14,
+    color: '#222',
+    backgroundColor: '#FAFAFA',
+    marginBottom: 16,
+  },
+  dialogButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  dialogBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  dialogCancelBtn: {
+    backgroundColor: '#F5F5F5',
+  },
+  dialogCancelText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#666',
+    fontFamily: 'serif',
+  },
+  dialogSubmitBtn: {
+    backgroundColor: '#CF1322',
+  },
+  dialogSubmitText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFF',
+    fontFamily: 'serif',
+  },
+  addOnsCard: {
+    backgroundColor: '#FFF0F4',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#FFE4ED',
+  },
+  addOnRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  addOnName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#5E1735',
+    fontFamily: 'serif',
+  },
+  addOnNotes: {
+    fontSize: 11,
+    color: '#8A7D77',
+    fontFamily: 'serif',
+    marginTop: 2,
+  },
+  addOnPrice: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FF4F8F',
+    fontFamily: 'serif',
+  },
+  rejectionBox: {
+    backgroundColor: '#FFF1F0',
+    borderColor: '#FFA39E',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 10,
+    marginBottom: 5,
+  },
+  rejectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#CF1322',
+    fontFamily: 'serif',
+  },
+  rejectionText: {
+    fontSize: 12,
+    color: '#595959',
+    marginTop: 2,
+    fontFamily: 'serif',
+  },
+  backupCardBox: {
+    backgroundColor: '#FFF0F5',
+    borderColor: '#FFD6E5',
+    borderWidth: 1.5,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 15,
+  },
+  backupCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  backupCardTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FF4F87',
+  },
   backupLabel: {
     fontSize: 11,
     color: '#666',
@@ -1068,6 +1601,50 @@ const styles = StyleSheet.create({
     color: '#555',
     lineHeight: 17,
     marginTop: 4,
+  },
+  checklistSectionHeader: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#111',
+    marginBottom: 6,
+    fontFamily: 'serif',
+  },
+  photoUploadBox: {
+    borderWidth: 1,
+    borderColor: '#FFC0D3',
+    borderStyle: 'dashed',
+    borderRadius: 10,
+    backgroundColor: '#FFF0F5',
+    padding: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  photoUploadText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FF4F8F',
+    marginTop: 4,
+  },
+  photoPreviewImage: {
+    width: 90,
+    height: 90,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  checklistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 5,
+    paddingHorizontal: 2,
+  },
+  checklistText: {
+    fontSize: 12,
+    color: '#374151',
+    fontWeight: '500',
+    marginLeft: 8,
+    flex: 1,
   },
 });
 

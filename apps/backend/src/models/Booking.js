@@ -150,6 +150,26 @@ const Booking = sequelize.define("Booking", {
     type: DataTypes.STRING,
     allowNull: true,
   },
+  endOtp: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  beforeMakeupImage: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  afterMakeupImage: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  clientConsentDetails: {
+    type: DataTypes.JSON,
+    allowNull: true,
+  },
+  artistStartChecklist: {
+    type: DataTypes.JSON,
+    allowNull: true,
+  },
 }, {
   timestamps: true,
   paranoid: true,

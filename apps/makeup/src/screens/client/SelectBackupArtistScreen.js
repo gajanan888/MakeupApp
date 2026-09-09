@@ -118,6 +118,7 @@ const SelectBackupArtistScreen = ({ navigation, route }) => {
         const slotStartTime = new Date(selectedDate);
         if (selectedTime?.includes('Afternoon')) slotStartTime.setHours(11, 0, 0, 0);
         else if (selectedTime?.includes('Evening')) slotStartTime.setHours(15, 0, 0, 0);
+        else if (selectedTime?.includes('Night')) slotStartTime.setHours(20, 0, 0, 0);
         else slotStartTime.setHours(7, 0, 0, 0);
 
         if (slotStartTime < minTime) {

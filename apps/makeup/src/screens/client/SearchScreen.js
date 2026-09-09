@@ -168,6 +168,7 @@ const SearchScreen = ({ navigation, route, isTab = false }) => {
     'Morning Slot (7:00 AM - 11:00 AM)',
     'Afternoon Slot (11:00 AM - 3:00 PM)',
     'Evening Slot (3:00 PM - 8:00 PM)',
+    'Night Slot (8:00 PM - 7:00 AM)',
   ];
 
   const categories = [

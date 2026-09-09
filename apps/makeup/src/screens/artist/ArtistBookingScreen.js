@@ -563,7 +563,7 @@ const ArtistBookingScreen = ({ onBack }) => {
                             isBookingTimeReached(booking) ? (
                               <TouchableOpacity
                                 style={[styles.actionBtn, styles.startBtn]}
-                                onPress={() => handleStart(booking.id)}
+                                onPress={() => setSelectedBooking(booking)}
                               >
                                 <Text style={styles.actionBtnText}>Start Service</Text>
                               </TouchableOpacity>
@@ -576,7 +576,7 @@ const ArtistBookingScreen = ({ onBack }) => {
                           {booking.rawStatus === 'in_progress' && (
                             <TouchableOpacity
                               style={[styles.actionBtn, styles.completeBtn]}
-                              onPress={() => handleComplete(booking.id)}
+                              onPress={() => setSelectedBooking(booking)}
                             >
                               <Text style={styles.actionBtnText}>Complete Service</Text>
                             </TouchableOpacity>

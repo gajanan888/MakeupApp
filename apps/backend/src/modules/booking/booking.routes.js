@@ -7,6 +7,7 @@ import {
   listArtistBookingsController,
   rejectBookingController,
   startBookingController,
+  requestEndOtpController,
   completeBookingController,
   payAdvanceController,
   declineAdvancePaymentController,
@@ -47,6 +48,8 @@ router.post("/:id/backup-accept", protectArtist, acceptBackupBookingController);
 router.post("/:id/backup-reject", protectArtist, rejectBackupBookingController);
 router.patch("/:id/cancel-by-artist", protectArtist, cancelBookingController);
 router.patch("/:id/start", protectArtist, startBookingController);
+router.post("/:id/request-end-otp", protectArtist, requestEndOtpController);
+router.patch("/:id/request-end-otp", protectArtist, requestEndOtpController);
 router.patch("/:id/complete", protectArtist, completeBookingController);
 router.patch("/:id/add-clients", protectArtist, addExtraClientsController);
 router.post("/artist-direct", protectArtist, createArtistDirectBookingController);

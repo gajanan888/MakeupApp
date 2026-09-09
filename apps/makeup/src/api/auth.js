@@ -125,8 +125,9 @@ export const getTrendingArtists = async () => {
 export const getArtistBookings    = async ()           => (await api.get('/api/booking/artist'))?.data?.data?.items || (await api.get('/api/booking/artist'))?.data?.data || [];
 export const acceptArtistBooking  = async (id)         => (await api.patch(`/api/booking/${id}/accept`))?.data;
 export const rejectArtistBooking  = async (id, reason) => (await api.patch(`/api/booking/${id}/reject`, { reason }))?.data;
-export const startArtistBooking   = async (id, otp)    => (await api.patch(`/api/booking/${id}/start`, { otp }))?.data;
-export const completeArtistBooking = async (id)        => (await api.patch(`/api/booking/${id}/complete`))?.data;
+export const startArtistBooking   = async (id, data)   => (await api.patch(`/api/booking/${id}/start`, typeof data === 'object' ? data : { otp: data }))?.data;
+export const requestEndArtistBookingOtp = async (id)  => (await api.post(`/api/booking/${id}/request-end-otp`))?.data;
+export const completeArtistBooking = async (id, data)  => (await api.patch(`/api/booking/${id}/complete`, typeof data === 'object' ? data : { otp: data }))?.data;
 export const cancelArtistBooking  = async (id, reason) => (await api.patch(`/api/booking/${id}/cancel-by-artist`, { reason }))?.data;
 export const acceptBackupBooking = async (id) => (await api.post(`/api/booking/${id}/backup-accept`))?.data;
 export const rejectBackupBooking = async (id, reason) => (await api.post(`/api/booking/${id}/backup-reject`, { reason }))?.data;

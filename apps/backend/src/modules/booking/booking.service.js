@@ -179,6 +179,10 @@ export const listCustomerBookings = async ({ customerId, offset, limit }) => {
       b.startOtp = Math.floor(1000 + Math.random() * 9000).toString();
       await b.save();
     }
+    if (b.status === 'in_progress' && !b.endOtp) {
+      b.endOtp = Math.floor(1000 + Math.random() * 9000).toString();
+      await b.save();
+    }
     const json = b.toJSON ? b.toJSON() : b;
     if (json.artist) {
       json.artist.profileImage = json.artist.profile?.profileImage || null;
@@ -614,7 +618,7 @@ export const cancelBooking = async ({ bookingId, customerId, artistId, reason })
   throw new Error("Booking cannot be cancelled in its current state.");
 };
 
-export const startBooking = async ({ bookingId, artistId, otp }) => {
+export const startBooking = async ({ bookingId, artistId, otp, beforeMakeupImage, artistChecklist }) => {
   const parsedId = Number(artistId);
   const booking = await Booking.findOne({
     where: {
@@ -632,6 +636,10 @@ export const startBooking = async ({ bookingId, artistId, otp }) => {
 
   if (booking.status !== "confirmed") {
     throw new Error("Only confirmed bookings can be started");
+  }
+
+  if (!beforeMakeupImage) {
+    throw new Error("Please upload a before makeup look photo of the client to start service.");
   }
 
   // 1. Verify 1-hour window prior to service start time
@@ -667,15 +675,61 @@ export const startBooking = async ({ bookingId, artistId, otp }) => {
     throw new Error("Invalid OTP. Please ask the client for the 4-digit service start OTP.");
   }
 
+  const endOtp = Math.floor(1000 + Math.random() * 9000).toString();
+
   booking.status = "in_progress";
+  booking.beforeMakeupImage = beforeMakeupImage;
+  booking.endOtp = endOtp;
+  if (artistChecklist) {
+    booking.artistStartChecklist = typeof artistChecklist === 'string' ? artistChecklist : JSON.stringify(artistChecklist);
+  }
   await booking.save();
 
   return booking;
 };
 
-export const completeBooking = async ({ bookingId, artistId }) => {
+export const requestEndBookingOtp = async ({ bookingId, artistId }) => {
+  const parsedId = Number(artistId);
   const booking = await Booking.findOne({
-    where: { id: bookingId, artistId },
+    where: {
+      id: bookingId,
+      [Op.or]: [
+        { artistId: parsedId },
+        { backupArtistId: parsedId },
+      ],
+    },
+  });
+
+  if (!booking) {
+    throw new Error("Booking not found");
+  }
+
+  if (booking.status !== "in_progress") {
+    throw new Error("Only in-progress bookings can request service completion OTP");
+  }
+
+  if (!booking.endOtp) {
+    booking.endOtp = Math.floor(1000 + Math.random() * 9000).toString();
+    await booking.save();
+  }
+
+  return {
+    bookingId: booking.id,
+    endOtp: booking.endOtp,
+    message: "Service completion OTP generated. Client can now view the OTP on their app."
+  };
+};
+
+export const completeBooking = async ({ bookingId, artistId, otp, afterMakeupImage }) => {
+  const parsedId = Number(artistId);
+  const booking = await Booking.findOne({
+    where: {
+      id: bookingId,
+      [Op.or]: [
+        { artistId: parsedId },
+        { backupArtistId: parsedId },
+      ],
+    },
   });
 
   if (!booking) {
@@ -686,8 +740,21 @@ export const completeBooking = async ({ bookingId, artistId }) => {
     throw new Error("Only in-progress bookings can be completed");
   }
 
+  if (!afterMakeupImage) {
+    throw new Error("Please upload an after makeup look photo of the client to end service.");
+  }
+
+  if (!booking.endOtp) {
+    booking.endOtp = Math.floor(1000 + Math.random() * 9000).toString();
+    await booking.save();
+  }
+
+  if (!otp || String(otp).trim() !== String(booking.endOtp).trim()) {
+    throw new Error("Invalid End OTP. Please enter the 4-digit service completion OTP from the client.");
+  }
+
   booking.status = "completed";
-  // When completed, they pay the rest. Let's set totalPaid to full price.
+  booking.afterMakeupImage = afterMakeupImage;
   booking.totalPaid = booking.price;
   await booking.save();
 

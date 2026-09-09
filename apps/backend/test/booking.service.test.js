@@ -111,11 +111,55 @@ describe("Booking Service - Razorpay", () => {
 
     await checkAndExpireBookings();
 
-    assert.strictEqual(updateCalls.length, 2);
+    assert.strictEqual(updateCalls.length, 3);
     // First call should be for pending bookings older than 15 minutes
     assert.strictEqual(updateCalls[0].values.status, "rejected");
     assert.strictEqual(updateCalls[0].values.cancelledBy, "system");
     assert.strictEqual(updateCalls[0].values.rejectionReason, "Auto-rejected: Artist did not respond within 15 minutes");
     assert.strictEqual(updateCalls[0].options.where.status, "pending");
+  });
+
+  it("should fail to start service if before makeup photo is missing", async () => {
+    const { startBooking } = await import("../src/modules/booking/booking.service.js");
+    mock.method(Booking, "findOne", async () => ({
+      id: 1,
+      artistId: 1,
+      status: "confirmed",
+      startOtp: "1234",
+    }));
+
+    await assert.rejects(
+      startBooking({ bookingId: 1, artistId: 1, otp: "1234" }),
+      /Please upload a before makeup look photo/
+    );
+  });
+
+  it("should successfully generate end OTP and complete service with after photo", async () => {
+    const { requestEndBookingOtp, completeBooking } = await import("../src/modules/booking/booking.service.js");
+    
+    let savedBooking = {
+      id: 1,
+      artistId: 1,
+      status: "in_progress",
+      endOtp: "9999",
+      price: 2500,
+      save: async () => {},
+    };
+
+    mock.method(Booking, "findOne", async () => savedBooking);
+
+    const endOtpRes = await requestEndBookingOtp({ bookingId: 1, artistId: 1 });
+    assert.strictEqual(endOtpRes.endOtp, "9999");
+
+    const completed = await completeBooking({
+      bookingId: 1,
+      artistId: 1,
+      otp: "9999",
+      afterMakeupImage: "https://example.com/after.jpg",
+    });
+
+    assert.strictEqual(completed.status, "completed");
+    assert.strictEqual(completed.afterMakeupImage, "https://example.com/after.jpg");
+    assert.strictEqual(completed.totalPaid, 2500);
   });
 });

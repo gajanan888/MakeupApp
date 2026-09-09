@@ -106,6 +106,11 @@ async function bootstrapDatabase() {
     try { await qi.addColumn("Bookings", "backupDeadline", { type: "TIMESTAMP WITH TIME ZONE", allowNull: true }); } catch (e) {}
     try { await qi.addColumn("Bookings", "backupRejectionReason", { type: "VARCHAR(255)", allowNull: true }); } catch (e) {}
     try { await qi.addColumn("Bookings", "startOtp", { type: "VARCHAR(255)", allowNull: true }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "endOtp", { type: "VARCHAR(255)", allowNull: true }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "beforeMakeupImage", { type: "TEXT", allowNull: true }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "afterMakeupImage", { type: "TEXT", allowNull: true }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "clientConsentDetails", { type: "TEXT", allowNull: true }); } catch (e) {}
+    try { await qi.addColumn("Bookings", "artistStartChecklist", { type: "TEXT", allowNull: true }); } catch (e) {}
     console.log("Missing Razorpay & Bookings columns synced successfully.");
 
     // Inject missing ArtistProfiles columns

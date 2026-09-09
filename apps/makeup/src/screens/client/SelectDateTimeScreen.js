@@ -28,18 +28,21 @@ const TIME_SLOTS = [
   'Morning Slot (7:00 AM - 11:00 AM)',
   'Afternoon Slot (11:00 AM - 3:00 PM)',
   'Evening Slot (3:00 PM - 8:00 PM)',
+  'Night Slot (8:00 PM - 7:00 AM)',
 ];
 
 const SLOT_START_HOURS = {
   'Morning Slot (7:00 AM - 11:00 AM)': 7,
   'Afternoon Slot (11:00 AM - 3:00 PM)': 11,
   'Evening Slot (3:00 PM - 8:00 PM)': 15,
+  'Night Slot (8:00 PM - 7:00 AM)': 20,
 };
 
 const SLOT_END_HOURS = {
   'Morning Slot (7:00 AM - 11:00 AM)': 11,
   'Afternoon Slot (11:00 AM - 3:00 PM)': 15,
   'Evening Slot (3:00 PM - 8:00 PM)': 20,
+  'Night Slot (8:00 PM - 7:00 AM)': 7,
 };
 
 const SLOT_PRESETS = {
@@ -51,6 +54,9 @@ const SLOT_PRESETS = {
   ],
   'Evening Slot (3:00 PM - 8:00 PM)': [
     '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM', '05:00 PM', '05:30 PM', '06:00 PM', '06:30 PM', '07:00 PM', '07:30 PM', '08:00 PM',
+  ],
+  'Night Slot (8:00 PM - 7:00 AM)': [
+    '08:00 PM', '09:00 PM', '10:00 PM', '11:00 PM', '12:00 AM', '01:00 AM', '02:00 AM', '03:00 AM', '04:00 AM', '05:00 AM', '06:00 AM', '07:00 AM',
   ],
 };
 
@@ -115,6 +121,8 @@ export const validateSlotTime = (timeStr, slot, selectedDate) => {
     startMins = 15 * 60; // 15:00 (3:00 PM)
     endMins = 20 * 60;   // 20:00 (8:00 PM)
     slotName = 'Evening Slot';
+  } else if (slot.includes('Night')) {
+    return { isValid: true };
   }
 
   if (totalMins < startMins || totalMins > endMins) {
@@ -198,9 +206,8 @@ const buildCalendar = (year, month, minBookingTime) => {
 
     const isPast = dateMidnight < today;
 
-    // Check if the latest possible slot start time (15:00) on this day is before minBookingTime
-    const maxSlotStartTimeOnDate = new Date(year, month, d, 15, 0, 0, 0);
-    const isAdvanceRestricted = maxSlotStartTimeOnDate < minBookingTime;
+    const maxSlotStartTimeOnDate = new Date(year, month, d, 23, 59, 59, 999);
+    const isAdvanceRestricted = dateMidnight.getTime() === today.getTime() ? false : maxSlotStartTimeOnDate < minBookingTime;
 
     const isUnavailable = isPast || isAdvanceRestricted;
 
@@ -339,16 +346,26 @@ const SelectDateTimeScreen = ({ navigation, route }) => {
 
       // 2. Check if slot has already passed today
       if (isTodaySelected) {
-        const endHour = SLOT_END_HOURS[slot] || 23;
-        const slotEndTime = new Date(selectedDate);
-        slotEndTime.setHours(endHour, 0, 0, 0);
+        let slotEndTime = new Date(selectedDate);
+        if (slot.includes('Night')) {
+          // Night slot ends at 7:00 AM the next day
+          slotEndTime.setDate(slotEndTime.getDate() + 1);
+          slotEndTime.setHours(7, 0, 0, 0);
+        } else {
+          const endHour = SLOT_END_HOURS[slot] || 23;
+          slotEndTime.setHours(endHour, 0, 0, 0);
+        }
 
         if (now >= slotEndTime) {
           return { slot, isAvailable: false, statusText: 'Slot Passed' };
         }
       }
 
-      // 3. Check minimum advance notice limit requirement
+      // 3. Check minimum advance notice limit requirement (Night Slot available for tonight testing)
+      if (slot.includes('Night')) {
+        return { slot, isAvailable: true, statusText: null };
+      }
+
       const startHour = SLOT_START_HOURS[slot] || 7;
       const slotStartTime = new Date(selectedDate);
       slotStartTime.setHours(startHour, 0, 0, 0);
@@ -387,6 +404,8 @@ const SelectDateTimeScreen = ({ navigation, route }) => {
       ? 'Morning Slot'
       : selectedTime.startsWith('Afternoon')
       ? 'Afternoon Slot'
+      : selectedTime.startsWith('Night')
+      ? 'Night Slot'
       : 'Evening Slot';
 
     const finalTimeString = `${slotPrefix} (${exactTime.trim()})`;

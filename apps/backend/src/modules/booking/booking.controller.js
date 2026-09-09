@@ -6,6 +6,7 @@ import {
   listCustomerBookings,
   rejectBooking,
   startBooking,
+  requestEndBookingOtp,
   completeBooking,
   payAdvance,
   declineAdvancePayment,
@@ -456,12 +457,14 @@ export const startBookingController = async (req, res) => {
       });
     }
 
-    const { otp } = req.body || {};
+    const { otp, beforeMakeupImage, artistChecklist } = req.body || {};
 
     const booking = await startBooking({
       bookingId,
       artistId: req.artist.id,
       otp,
+      beforeMakeupImage,
+      artistChecklist,
     });
 
     await logActivity({
@@ -488,6 +491,36 @@ export const startBookingController = async (req, res) => {
   }
 };
 
+export const requestEndOtpController = async (req, res) => {
+  try {
+    const bookingId = Number(req.params.id);
+    if (!Number.isInteger(bookingId) || bookingId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid booking id",
+        data: null,
+      });
+    }
+
+    const result = await requestEndBookingOtp({
+      bookingId,
+      artistId: req.artist.id,
+    });
+
+    res.json({
+      success: true,
+      message: result.message,
+      data: result,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message || "Failed to request end OTP",
+      data: null,
+    });
+  }
+};
+
 export const completeBookingController = async (req, res) => {
   try {
     const bookingId = Number(req.params.id);
@@ -499,9 +532,13 @@ export const completeBookingController = async (req, res) => {
       });
     }
 
+    const { otp, afterMakeupImage } = req.body || {};
+
     const booking = await completeBooking({
       bookingId,
       artistId: req.artist.id,
+      otp,
+      afterMakeupImage,
     });
 
     await logActivity({
