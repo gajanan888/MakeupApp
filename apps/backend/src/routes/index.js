@@ -14,6 +14,8 @@ import wishlistRoutes from "../modules/customer/wishlist.routes.js";
 import reviewRoutes from "../modules/review/review.routes.js";
 import passwordResetRoutes from "../modules/auth/passwordReset.routes.js";
 
+import packageRoutes from "../modules/package/package.routes.js";
+
 const router = express.Router();
 
 router.use("/auth", passwordResetRoutes);
@@ -31,5 +33,6 @@ router.use("/otp", otpRoutes);
 router.use("/upload", uploadRoutes);
 router.use("/messages", messageRoutes);
 router.use("/wishlist", wishlistRoutes);
+router.use("/packages", packageRoutes);
 
 export default router;

@@ -466,11 +466,11 @@ const ArtistDashboardScreen = ({ onNavigate }) => {
         </TouchableOpacity>
 
         {/* Action 4 */}
-        <TouchableOpacity style={styles.actionItem}>
+        <TouchableOpacity style={styles.actionItem} onPress={() => navigation.navigate('PackagesList')}>
           <View style={styles.actionCircle}>
-            <Ionicons name="megaphone-outline" size={22} color="#FF4F8F" />
+            <Ionicons name="cube-outline" size={22} color="#FF4F8F" />
           </View>
-          <Text style={styles.actionLabel}>Promote</Text>
+          <Text style={styles.actionLabel}>Packages</Text>
         </TouchableOpacity>
       </View>
 

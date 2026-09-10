@@ -63,6 +63,9 @@ import ReferenceImageSearchScreen from '../screens/client/ReferenceImageSearchSc
 import ReferenceAnalyzingScreen from '../screens/client/ReferenceAnalyzingScreen';
 import ReferenceSearchResultsScreen from '../screens/client/ReferenceSearchResultsScreen';
 import ArtistAddExtraClientsScreen from '../screens/artist/ArtistAddExtraClientsScreen';
+import PackagesListScreen from '../screens/artist/PackagesListScreen';
+import PackageCreateEditScreen from '../screens/artist/PackageCreateEditScreen';
+import PackageDetailsScreen from '../screens/client/PackageDetailsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -282,6 +285,10 @@ const AppNavigator = () => {
         <Stack.Screen name="ReferenceAnalyzing" component={ReferenceAnalyzingScreen} />
         <Stack.Screen name="ReferenceSearchResults" component={ReferenceSearchResultsScreen} />
         <Stack.Screen name="ArtistAddExtraClients" component={ArtistAddExtraClientsScreen} />
+        
+        <Stack.Screen name="PackagesList" component={PackagesListScreen} />
+        <Stack.Screen name="PackageCreateEdit" component={PackageCreateEditScreen} />
+        <Stack.Screen name="PackageDetails" component={PackageDetailsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

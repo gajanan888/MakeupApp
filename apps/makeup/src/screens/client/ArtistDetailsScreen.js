@@ -18,6 +18,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
+import api from '../../api/client';
 
 const getParsedImagesList = (rawImages) => {
   if (!rawImages) return [];
@@ -126,6 +127,24 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
   const [activeTab, setActiveTab] = useState('Portfolio');
   const [reviews, setReviews] = useState([]);
   const [loadingReviews, setLoadingReviews] = useState(false);
+  const [packages, setPackages] = useState([]);
+  const [loadingPackages, setLoadingPackages] = useState(false);
+
+  // New Booking Flow States
+  const [selectedOccasion, setSelectedOccasion] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedTime, setSelectedTime] = useState(null);
+
+  const OCCASIONS = ['Party', 'Wedding Guest', 'Bridal', 'Engagement', 'Reception', 'Photoshoot', 'Festival', 'Other'];
+  
+  // Generate next 14 days for quick selection
+  const upcomingDates = Array.from({ length: 14 }).map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+
+  const TIME_SLOTS = ['10:00 AM', '12:00 PM', '2:00 PM', '4:00 PM', '6:00 PM'];
 
   // Instagram Post Detail States
   const [selectedPost, setSelectedPost] = useState(null);
@@ -164,6 +183,19 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
         }
       };
       fetchReviews();
+    } else if (activeTab === 'Packages') {
+      const fetchPackages = async () => {
+        try {
+          setLoadingPackages(true);
+          const response = await api.get(`/api/packages/artist/${artist.id}`);
+          setPackages(response.data);
+        } catch (err) {
+          console.warn('Failed to fetch packages:', err);
+        } finally {
+          setLoadingPackages(false);
+        }
+      };
+      fetchPackages();
     }
   }, [activeTab, artist.id]);
 
@@ -313,7 +345,7 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
 
         {/* Tabs */}
         <View style={styles.tabsContainer}>
-          {['Portfolio', 'About', 'Services', 'Reviews'].map(tab => (
+          {['Portfolio', 'Packages', 'About', 'Services', 'Reviews'].map(tab => (
             <TouchableOpacity
               key={tab}
               onPress={() => setActiveTab(tab)}
@@ -458,6 +490,73 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
                     </Text>
                   </View>
                 ))}
+          </View>
+        )}
+
+        {activeTab === 'Packages' && (
+          <View style={{ paddingBottom: 20 }}>
+            
+            {/* 1. SELECT OCCASION */}
+            <Text style={[styles.sectionTitle, { marginTop: 0 }]}>
+              Packages
+            </Text>
+            <Text style={styles.sectionSubtitle}>Select a package to view details and book</Text>
+
+            {loadingPackages ? (
+              <ActivityIndicator size="large" color="#FF4F87" style={{ marginTop: 30 }} />
+            ) : packages.length > 0 ? (
+              packages.map(pkg => {
+                let brands = [];
+                if (pkg.products) {
+                  pkg.products.forEach(p => {
+                    if (p.brand && !brands.includes(p.brand.name)) brands.push(p.brand.name);
+                  });
+                }
+                return (
+                  <View key={pkg.id} style={styles.newPackageCard}>
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                      <Image 
+                        source={{ uri: 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?auto=format&fit=crop&w=150&q=80' }} 
+                        style={styles.newPackageImage} 
+                      />
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={styles.newPackageName}>{pkg.name}</Text>
+                        <Text style={styles.newPackagePrice}>₹{pkg.price} / person</Text>
+                        
+                        <Text style={styles.newPackageSubtext} numberOfLines={2}>
+                          {pkg.description || `${pkg.makeupLook || 'Custom Look'} with premium products.`}
+                        </Text>
+
+                        <View style={styles.newPackageBrandsRow}>
+                          {brands.slice(0, 3).map(b => (
+                            <Text key={b} style={styles.newPackageBrandChip}>{b}</Text>
+                          ))}
+                        </View>
+                      </View>
+                    </View>
+                    <TouchableOpacity 
+                      style={styles.newPackageSelectBtn}
+                      onPress={() => {
+                        navigation.navigate('PackageDetails', { 
+                          packageId: pkg.id, 
+                          artist: currentArtist,
+                        });
+                      }}
+                    >
+                      <Text style={styles.newPackageSelectBtnText}>View Details & Select</Text>
+                      <Ionicons name="chevron-forward" size={16} color="#FFF" />
+                    </TouchableOpacity>
+                  </View>
+                );
+              })
+            ) : (
+              <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                <Ionicons name="cube-outline" size={48} color="#FFD1E1" />
+                <Text style={{ fontSize: 14, color: '#888', marginTop: 10 }}>
+                  No packages created yet.
+                </Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -823,6 +922,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111',
+    marginBottom: 12,
+  },
+
+  aboutText: {
+    fontSize: 15,
+    color: '#666',
+    lineHeight: 24,
+  },
+
   tabsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -882,21 +994,6 @@ const styles = StyleSheet.create({
   },
 
   infoValue: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#111',
-  },
-
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#111',
-    marginBottom: 12,
-  },
-
-  aboutText: {
-    fontSize: 15,
-    color: '#666',
     lineHeight: 24,
   },
 
@@ -1387,5 +1484,159 @@ const styles = StyleSheet.create({
     right: 20,
     zIndex: 10,
     padding: 10,
+  },
+
+  // Package Tab Styles
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+  },
+  occasionChip: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF0F5',
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#FFD6E5',
+    minWidth: 90,
+  },
+  occasionChipActive: {
+    backgroundColor: '#FF4F87',
+    borderColor: '#FF4F87',
+  },
+  occasionText: {
+    fontSize: 13,
+    color: '#FF4F87',
+    fontWeight: '600',
+  },
+  occasionTextActive: {
+    color: '#FFF',
+    fontWeight: 'bold',
+  },
+  dateChip: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FAFAFA',
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#EEEEEE',
+    minWidth: 70,
+  },
+  dateChipActive: {
+    backgroundColor: '#FF4F87',
+    borderColor: '#FF4F87',
+  },
+  dateDayText: {
+    fontSize: 12,
+    color: '#888',
+    marginBottom: 2,
+  },
+  dateNumText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111',
+    marginBottom: 2,
+  },
+  dateMonthText: {
+    fontSize: 12,
+    color: '#888',
+  },
+  dateTextActive: {
+    color: '#FFF',
+  },
+  timeChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#FAFAFA',
+    borderRadius: 20,
+    marginRight: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#EEEEEE',
+  },
+  timeChipActive: {
+    backgroundColor: '#FF4F87',
+    borderColor: '#FF4F87',
+  },
+  timeText: {
+    fontSize: 14,
+    color: '#333',
+  },
+  timeTextActive: {
+    color: '#FFF',
+    fontWeight: 'bold',
+  },
+  newPackageCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#F1F1F1',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  newPackageImage: {
+    width: 70,
+    height: 70,
+    borderRadius: 12,
+  },
+  newPackageName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#111',
+    marginBottom: 4,
+  },
+  newPackagePrice: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FF4F87',
+    marginBottom: 6,
+  },
+  newPackageSubtext: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 10,
+    lineHeight: 18,
+  },
+  newPackageBrandsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  newPackageBrandChip: {
+    fontSize: 11,
+    color: '#555',
+    backgroundColor: '#F5F5F5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginRight: 6,
+    marginBottom: 6,
+    overflow: 'hidden',
+  },
+  newPackageSelectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FF4F87',
+    borderRadius: 12,
+    paddingVertical: 12,
+    marginTop: 16,
+  },
+  newPackageSelectBtnText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginRight: 6,
   },
 });

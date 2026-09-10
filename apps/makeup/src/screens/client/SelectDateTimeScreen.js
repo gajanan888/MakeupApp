@@ -234,7 +234,7 @@ const buildCalendar = (year, month, minBookingTime) => {
 };
 
 const SelectDateTimeScreen = ({ navigation, route }) => {
-  const { artist, selectedService, selectedLocation } = route?.params || {};
+  const { artist, selectedService, selectedPackage, selectedLocation } = route?.params || {};
 
   const [artistData, setArtistData] = useState(artist);
   const today = new Date();
@@ -414,14 +414,24 @@ const SelectDateTimeScreen = ({ navigation, route }) => {
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
     });
 
-    navigation.navigate('AddOns', {
-      artist: artistData || artist,
-      selectedService,
-      selectedLocation,
-      selectedDate: selectedDate.toISOString(),
-      selectedTime: finalTimeString,
-      dateStr,
-    });
+    if (selectedPackage) {
+      navigation.navigate('BookAppointment', {
+        artist: artistData || artist,
+        selectedPackage,
+        selectedDate: selectedDate.toISOString(),
+        selectedTime: finalTimeString,
+        dateStr,
+      });
+    } else {
+      navigation.navigate('AddOns', {
+        artist: artistData || artist,
+        selectedService,
+        selectedLocation,
+        selectedDate: selectedDate.toISOString(),
+        selectedTime: finalTimeString,
+        dateStr,
+      });
+    }
   };
 
   // Format selected date label e.g. "Thu, 16 May 2024"

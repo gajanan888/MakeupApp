@@ -8,6 +8,15 @@ import initSocketServer from "./src/socket/index.js";
 import EmailOtp from "./src/models/EmailOtp.js";
 import { checkAndExpireBookings } from "./src/modules/booking/booking.service.js";
 
+// Package feature models
+import "./src/models/Brand.js";
+import "./src/models/Product.js";
+import "./src/models/Service.js";
+import "./src/models/Package.js";
+import "./src/models/PackageProduct.js";
+import "./src/models/PackageService.js";
+import "./src/models/PackageAddon.js";
+
 dotenv.config();
 
 const app = express();
@@ -140,7 +149,19 @@ async function bootstrapDatabase() {
     // Sync new models explicitly just in case
     await (await import("./src/models/BookingPolicy.js")).default.sync();
     await (await import("./src/models/ArtistSocialLinks.js")).default.sync();
- 
+    
+    // Package feature models explicitly sync
+    await (await import("./src/models/Brand.js")).default.sync();
+    await (await import("./src/models/Product.js")).default.sync();
+    await (await import("./src/models/Service.js")).default.sync();
+    await (await import("./src/models/Package.js")).default.sync();
+    try { await qi.addColumn("Packages", "occasion", { type: "VARCHAR(255)", allowNull: true }); } catch (e) {}
+    try { await qi.addColumn("Packages", "packageLevel", { type: "VARCHAR(255)", allowNull: true }); } catch (e) {}
+    try { await qi.addColumn("Packages", "makeupLook", { type: "VARCHAR(255)", allowNull: true }); } catch (e) {}
+    await (await import("./src/models/PackageProduct.js")).default.sync();
+    await (await import("./src/models/PackageService.js")).default.sync();
+    await (await import("./src/models/PackageAddon.js")).default.sync();
+
     // Inject missing ArtistPortfolios columns
     try {
       const { DataTypes } = await import("sequelize");

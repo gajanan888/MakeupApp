@@ -14,12 +14,13 @@ import ScreenHeader from '../../components/ScreenHeader';
 
 // ─── Default add-ons (can be overridden via route params) ────────────────────
 const DEFAULT_ADDONS = [
-  { id: '1', name: 'Hairstyling', price: 50 },
-  { id: '2', name: 'False Lashes', price: 20 },
-  { id: '3', name: 'HD Makeup', price: 30 },
-  { id: '4', name: 'Saree Draping', price: 25 },
-  { id: '5', name: 'Touch-up (Extra)', price: 40 },
-  { id: '6', name: 'Products (Premium)', price: 35 },
+  { id: '1', name: 'Curly Hairstyling', price: 100 },
+  { id: '2', name: 'Straight Hairstyling', price: 60 },
+  { id: '3', name: 'False Lashes', price: 20 },
+  { id: '4', name: 'HD Makeup', price: 30 },
+  { id: '5', name: 'Saree Draping', price: 25 },
+  { id: '6', name: 'Touch-up (Extra)', price: 40 },
+  { id: '7', name: 'Products (Premium)', price: 35 },
 ];
 
 const AddOnsScreen = ({ navigation, route }) => {

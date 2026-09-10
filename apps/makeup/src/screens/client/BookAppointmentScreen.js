@@ -7,92 +7,65 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
-  TextInput,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import api from '../../api/client';
 import { getSavedAddresses } from '../../utils/addressStorage';
 import { isLocationMatch, getCleanCityName } from '../../utils/locationHelper';
 import ScreenHeader from '../../components/ScreenHeader';
 import { getUniqueProfileImage } from '../../utils/artistImageHelper';
 
 const BookAppointmentScreen = ({ navigation, route }) => {
-  const { artist } = route.params;
-
-  // Map backend services or specializations to screen items
-  const services = (artist.services && artist.services.length > 0)
-    ? artist.services.map(s => ({
-        name: s.name || s.specialization || 'Makeup Service',
-        price: s.price ? `₹${s.price}` : s.priceRange || '₹2,000',
-      }))
-    : (artist.specializations && artist.specializations.length > 0)
-      ? artist.specializations.map(spec => ({
-          name: typeof spec === 'object' ? (spec.name || 'Makeup Service') : String(spec),
-          price: '₹2,000',
-        }))
-      : [{ name: 'Makeup Service', price: '₹1,500' }];
-
-  // Pre-select service based on search category parameter
-  const initialCategory = route.params?.selectedCategory || '';
-  const matchingService = services.find(s =>
-    s.name.toLowerCase().includes(initialCategory.toLowerCase())
-  );
-
-  // Per-service count of persons: { [serviceName]: count }
-  const [serviceCounts, setServiceCounts] = useState(() => {
-    const init = {};
-    if (matchingService) {
-      init[matchingService.name] = 1;
-    } else if (services.length > 0) {
-      init[services[0].name] = 1;
-    }
-    return init;
-  });
-
-  const updateServiceCount = (serviceName, delta) => {
-    setServiceCounts(prev => {
-      const current = prev[serviceName] || 0;
-      const next = Math.max(0, current + delta);
-      return { ...prev, [serviceName]: next };
-    });
+  const { artist, selectedDate, selectedTime } = route.params;
+  
+  // Provide a graceful fallback if someone navigated here without a selectedPackage
+  const fallbackPackage = {
+    id: 'custom_booking',
+    name: route.params.selectedCategory || route.params.selectedService?.name || 'Custom Booking',
+    price: route.params.selectedService?.price || artist?.services?.[0]?.price || 3000,
+    duration: '2 - 3 hrs',
+    packageLevel: 'Service',
   };
 
+  const [activePackage, setActivePackage] = useState(route.params.selectedPackage || fallbackPackage);
+  const [packages, setPackages] = useState(route.params.selectedPackage ? [route.params.selectedPackage] : []);
+  const [loadingPackages, setLoadingPackages] = useState(false);
+
+  const [peopleCount, setPeopleCount] = useState(1);
   const [selectedLocation, setSelectedLocation] = useState(route.params?.prefilledAddress ? 'home' : '');
   const [clientAddress, setClientAddress] = useState(route.params?.prefilledAddress || '');
   const [savedAddresses, setSavedAddresses] = useState([]);
 
   const artistCity = getCleanCityName(artist.profile?.location) || artist.profile?.location || 'Pune';
 
-  const parseAmount = (val) => {
-    if (typeof val === 'number') return val;
-    if (!val) return 0;
-    return parseFloat(String(val).replace(/[^0-9]/g, '')) || 0;
-  };
-
-  const selectedServiceItems = services
-    .map(s => {
-      const count = serviceCounts[s.name] || 0;
-      const unitPrice = parseAmount(s.price);
-      return {
-        ...s,
-        count,
-        unitPrice,
-        totalPrice: unitPrice * count,
-      };
-    })
-    .filter(s => s.count > 0);
-
-  const totalPeopleCount = selectedServiceItems.reduce((sum, item) => sum + item.count, 0);
-  const totalServiceAmount = selectedServiceItems.reduce((sum, item) => sum + item.totalPrice, 0);
-
   useEffect(() => {
     getSavedAddresses()
       .then(addresses => setSavedAddresses(addresses))
       .catch(err => console.warn('Failed to load saved addresses:', err));
   }, []);
+
+  useEffect(() => {
+    if (!route.params.selectedPackage) {
+      const fetchPackages = async () => {
+        try {
+          setLoadingPackages(true);
+          const response = await api.get(`/api/packages/artist/${artist.id}`);
+          if (response.data && response.data.length > 0) {
+            setPackages(response.data);
+            setActivePackage(response.data[0]); // Auto-select first package
+          }
+        } catch (err) {
+          console.warn('Failed to fetch packages:', err);
+        } finally {
+          setLoadingPackages(false);
+        }
+      };
+      fetchPackages();
+    }
+  }, [artist.id, route.params.selectedPackage]);
 
   const validateAddressCity = (addressText, originalAddressObj = null) => {
     let city = originalAddressObj?.city;
@@ -125,8 +98,8 @@ const BookAppointmentScreen = ({ navigation, route }) => {
   };
 
   const handleNext = () => {
-    if (selectedServiceItems.length === 0) {
-      Alert.alert('Required', 'Please select at least one service and specify the number of persons.');
+    if (peopleCount < 1) {
+      Alert.alert('Required', 'Please select at least 1 person.');
       return;
     }
 
@@ -153,15 +126,22 @@ const BookAppointmentScreen = ({ navigation, route }) => {
       }
     }
 
-    const serviceNames = selectedServiceItems
-      .map(s => `${s.name}${s.count > 1 ? ` (x${s.count})` : ''}`)
-      .join(', ');
+    const unitPrice = activePackage.price;
+    const totalAmount = unitPrice * peopleCount;
 
     const serviceObj = {
-      name: serviceNames,
-      price: totalServiceAmount,
-      peopleCount: totalPeopleCount,
-      items: selectedServiceItems,
+      name: `${activePackage.name}${peopleCount > 1 ? ` (x${peopleCount})` : ''}`,
+      price: totalAmount,
+      peopleCount: peopleCount,
+      items: [{
+        name: activePackage.name,
+        price: `₹${unitPrice}`,
+        count: peopleCount,
+        unitPrice: unitPrice,
+        totalPrice: totalAmount,
+        type: 'package',
+        packageId: activePackage.id !== 'custom_booking' ? activePackage.id : undefined
+      }],
     };
 
     const locationData = {
@@ -171,61 +151,34 @@ const BookAppointmentScreen = ({ navigation, route }) => {
         : (artist.profile?.parlourAddress || 'At Artist Studio'),
     };
 
-    if (route.params?.selectedDate && route.params?.selectedTime) {
-      const parsedDate = new Date(route.params.selectedDate);
-      const dateStr = parsedDate.toLocaleDateString('en-IN', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      });
+    const parsedDate = new Date(selectedDate);
+    const dateStr = parsedDate.toLocaleDateString('en-IN', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
 
-      navigation.navigate('AddOns', {
-        artist,
-        selectedService: serviceObj,
-        selectedLocation: locationData,
-        selectedDate: route.params.selectedDate,
-        selectedTime: route.params.selectedTime,
-        dateStr,
-      });
-      return;
-    }
-
-    navigation.navigate('SelectDateTime', {
+    navigation.navigate('AddOns', {
       artist,
       selectedService: serviceObj,
       selectedLocation: locationData,
+      selectedDate: selectedDate,
+      selectedTime: selectedTime,
+      dateStr,
     });
-  };
-
-  const getPriceRange = () => {
-    if (artist.services && artist.services.length > 0) {
-      const prices = artist.services
-        .map(s => {
-          const val = s.price || s.priceRange || '';
-          return parseFloat(String(val).replace(/[^0-9]/g, '')) || 0;
-        })
-        .filter(p => p > 0);
-      if (prices.length > 0) {
-        const min = Math.min(...prices);
-        const max = Math.max(...prices);
-        return min === max ? `₹${min.toLocaleString('en-IN')}` : `₹${min.toLocaleString('en-IN')} - ₹${max.toLocaleString('en-IN')}`;
-      }
-    }
-    return '₹1,500';
   };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScreenHeader
-        title="Book Your Appointment"
+        title="Complete Booking"
         onBack={() => navigation.goBack()}
       />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <ScrollView
           style={styles.container}
@@ -233,6 +186,14 @@ const BookAppointmentScreen = ({ navigation, route }) => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+        {/* Booking Info Banner */}
+        <View style={styles.infoBanner}>
+          <Ionicons name="calendar-outline" size={20} color="#FF4F87" style={{ marginRight: 10 }} />
+          <Text style={styles.infoBannerText}>
+            Booking for <Text style={{ fontWeight: 'bold' }}>{new Date(selectedDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</Text> at <Text style={{ fontWeight: 'bold' }}>{selectedTime}</Text>
+          </Text>
+        </View>
+
         {/* Artist Profile Info Segment */}
         <View style={styles.artistRow}>
           <Image
@@ -244,106 +205,84 @@ const BookAppointmentScreen = ({ navigation, route }) => {
             <Text style={styles.artistSpeciality}>
               {artist.speciality ||
                 artist.specializations?.[0]?.name ||
-                'Bridal Specialist'}
+                'Makeup Artist'}
             </Text>
-            <Text style={styles.artistPrice}>{getPriceRange()}</Text>
           </View>
         </View>
 
-        {/* Services Segment */}
-        <Text style={styles.sectionTitle}>Select Service & Number of Persons</Text>
-        <View style={styles.optionsList}>
-          {services.map(service => {
-            const count = serviceCounts[service.name] || 0;
-            const isSelected = count > 0;
-            const unitPrice = parseAmount(service.price);
-
-            return (
-              <View
-                key={service.name}
-                style={[styles.serviceOptionCard, isSelected && styles.serviceOptionCardActive]}
-              >
-                <View style={styles.serviceMainRow}>
-                  <View style={{ flex: 1, paddingRight: 8 }}>
-                    <Text style={[styles.optionText, isSelected && styles.optionTextActive]}>
-                      {service.name}
-                    </Text>
-                    <Text style={styles.unitPriceText}>
-                      ₹{unitPrice.toLocaleString('en-IN')} / person
-                    </Text>
-                  </View>
-
-                  {/* Per-service Stepper Counter */}
-                  <View style={styles.stepperWrapper}>
-                    <TouchableOpacity
-                      style={[styles.stepperButton, count === 0 && styles.stepperButtonDisabled]}
-                      onPress={() => updateServiceCount(service.name, -1)}
-                      disabled={count === 0}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="remove" size={16} color={count === 0 ? '#CCC' : '#FF4F87'} />
-                    </TouchableOpacity>
-
-                    <View style={styles.stepperCountBadge}>
-                      <Text style={[styles.stepperCountText, count > 0 && { color: '#FF4F87' }]}>
-                        {count}
-                      </Text>
-                    </View>
-
-                    <TouchableOpacity
-                      style={styles.stepperButton}
-                      onPress={() => updateServiceCount(service.name, 1)}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="add" size={16} color="#FF4F87" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                {/* Individual Service Subtotal */}
-                {count > 0 && (
-                  <View style={styles.serviceSubtotalRow}>
-                    <Text style={styles.serviceSubtotalLabel}>
-                      {count} {count === 1 ? 'person' : 'people'} selected
-                    </Text>
-                    <Text style={styles.serviceSubtotalPrice}>
-                      Subtotal: ₹{(unitPrice * count).toLocaleString('en-IN')}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            );
-          })}
-        </View>
-
-        {/* Selected Services Summary Card */}
-        {selectedServiceItems.length > 0 && (
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryCardHeader}>
-              <Ionicons name="cart-outline" size={18} color="#FF4F87" style={{ marginRight: 6 }} />
-              <Text style={styles.summaryCardTitle}>Selected Services Summary</Text>
-            </View>
-            {selectedServiceItems.map((item, idx) => (
-              <View key={idx} style={styles.summaryItemRow}>
-                <Text style={styles.summaryItemName} numberOfLines={1}>
-                  {item.name} <Text style={{ color: '#FF4F87', fontWeight: '700' }}>(×{item.count})</Text>
-                </Text>
-                <Text style={styles.summaryItemPrice}>
-                  ₹{item.totalPrice.toLocaleString('en-IN')}
-                </Text>
-              </View>
-            ))}
-            <View style={styles.summaryTotalDivider} />
-            <View style={styles.summaryTotalRow}>
-              <Text style={styles.summaryTotalLabel}>
-                Total Amount ({totalPeopleCount} {totalPeopleCount === 1 ? 'person' : 'people'})
-              </Text>
-              <Text style={styles.summaryTotalPrice}>
-                ₹{totalServiceAmount.toLocaleString('en-IN')}
-              </Text>
-            </View>
-          </View>
+        {/* Selected Package Segment */}
+        {!route.params.selectedPackage && packages.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Select a Package</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+              {packages.map((pkg) => (
+                <TouchableOpacity
+                  key={pkg.id}
+                  style={[styles.packageCard, activePackage.id === pkg.id && styles.packageCardActive]}
+                  onPress={() => setActivePackage(pkg)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.packageName, activePackage.id === pkg.id && { color: '#FF4F87' }]}>{pkg.name}</Text>
+                  <Text style={[styles.packagePrice, activePackage.id === pkg.id && { color: '#FF4F87' }]}>₹{pkg.price.toLocaleString('en-IN')}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </>
         )}
+        
+        <Text style={styles.sectionTitle}>Selected Package</Text>
+        <View style={styles.serviceOptionCardActive}>
+          <View style={styles.serviceMainRow}>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                <View style={{ backgroundColor: '#F3E8FF', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, marginRight: 8 }}>
+                  <Text style={{ fontSize: 10, color: '#9333EA', fontWeight: 'bold' }}>{activePackage.packageLevel || 'Package'}</Text>
+                </View>
+                <Text style={styles.optionTextActive} numberOfLines={1}>
+                  {activePackage.name}
+                </Text>
+              </View>
+              <Text style={styles.unitPriceText}>
+                ₹{activePackage.price.toLocaleString('en-IN')} / person
+              </Text>
+              <Text style={{ fontSize: 11, color: '#999', marginTop: 4 }}>⏱ {activePackage.duration}</Text>
+            </View>
+
+            <View style={styles.stepperWrapper}>
+              <TouchableOpacity
+                style={[styles.stepperButton, peopleCount === 1 && styles.stepperButtonDisabled]}
+                onPress={() => setPeopleCount(Math.max(1, peopleCount - 1))}
+                disabled={peopleCount === 1}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="remove" size={16} color={peopleCount === 1 ? '#CCC' : '#FF4F87'} />
+              </TouchableOpacity>
+
+              <View style={styles.stepperCountBadge}>
+                <Text style={[styles.stepperCountText, { color: '#FF4F87' }]}>
+                  {peopleCount}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.stepperButton}
+                onPress={() => setPeopleCount(peopleCount + 1)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="add" size={16} color="#FF4F87" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.serviceSubtotalRow}>
+            <Text style={styles.serviceSubtotalLabel}>
+              {peopleCount} {peopleCount === 1 ? 'person' : 'people'} selected
+            </Text>
+            <Text style={styles.serviceSubtotalPrice}>
+              Subtotal: ₹{(activePackage.price * peopleCount).toLocaleString('en-IN')}
+            </Text>
+          </View>
+        </View>
 
         {/* Locations Segment */}
         <Text style={styles.sectionTitle}>Location</Text>
@@ -528,8 +467,6 @@ const BookAppointmentScreen = ({ navigation, route }) => {
   );
 };
 
-export default BookAppointmentScreen;
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -542,22 +479,38 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 40,
   },
-  serviceOptionCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+  infoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF0F5',
     padding: 14,
-    marginBottom: 12,
+    borderRadius: 12,
+    marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#EFEFEF',
+    borderColor: '#FFD6E5',
+  },
+  infoBannerText: {
+    fontSize: 14,
+    color: '#333',
   },
   serviceOptionCardActive: {
-    borderColor: '#FF4F87',
     backgroundColor: '#FFF9FB',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#FF4F87',
   },
   serviceMainRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  optionTextActive: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FF4F87',
   },
   unitPriceText: {
     fontSize: 13,
@@ -582,66 +535,6 @@ const styles = StyleSheet.create({
   serviceSubtotalPrice: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#FF4F87',
-  },
-  summaryCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: '#F0E4EB',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-  },
-  summaryCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  summaryCardTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#111',
-  },
-  summaryItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-  },
-  summaryItemName: {
-    fontSize: 13,
-    color: '#444',
-    flex: 1,
-    marginRight: 8,
-  },
-  summaryItemPrice: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#222',
-  },
-  summaryTotalDivider: {
-    height: 1,
-    backgroundColor: '#F3ECF0',
-    marginVertical: 10,
-  },
-  summaryTotalRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  summaryTotalLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#111',
-  },
-  summaryTotalPrice: {
-    fontSize: 16,
-    fontWeight: '800',
     color: '#FF4F87',
   },
   stepperWrapper: {
@@ -688,211 +581,140 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: '#FFE6EF',
   },
-  artistImagePlaceholder: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   artistMeta: {
-    marginLeft: 16,
+    marginLeft: 14,
     flex: 1,
   },
   artistName: {
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
     color: '#111',
+    letterSpacing: 0.2,
   },
   artistSpeciality: {
     fontSize: 13,
-    color: '#777',
+    color: '#666',
     marginTop: 4,
-  },
-  artistPrice: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#111',
-    marginTop: 6,
+    fontWeight: '500',
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '800',
     color: '#111',
-    marginTop: 10,
-    marginBottom: 16,
+    marginBottom: 14,
+    letterSpacing: 0.2,
   },
-  optionsList: {
-    marginBottom: 20,
-  },
-  optionRow: {
+  locationCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F1F1',
+    alignItems: 'flex-start',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#EFEFEF',
   },
-  leftOptionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
+  locationCardActive: {
+    borderColor: '#FF4F87',
+    backgroundColor: '#FFF9FB',
+  },
+  locationCardDisabled: {
+    backgroundColor: '#F9F9F9',
+    borderColor: '#EFEFEF',
   },
   customRadio: {
     width: 22,
     height: 22,
     borderRadius: 11,
-    borderWidth: 1.5,
-    borderColor: '#E2E2E2',
+    borderWidth: 2,
+    borderColor: '#CCC',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 14,
+    marginTop: 2,
   },
   customRadioActive: {
     borderColor: '#FF4F87',
   },
+  customRadioDisabled: {
+    borderColor: '#E2E2E2',
+    backgroundColor: '#F0F0F0',
+  },
   customRadioInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: '#FF4F87',
-  },
-  optionText: {
-    fontSize: 14,
-    color: '#333',
-    fontWeight: '500',
-  },
-  optionTextActive: {
-    color: '#111',
-    fontWeight: '600',
-  },
-  priceText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#333',
-  },
-  priceTextActive: {
-    color: '#FF4F87',
-  },
-  locationCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#EAEAEA',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.02,
-    shadowRadius: 6,
-    elevation: 1,
-  },
-  locationCardActive: {
-    borderColor: '#FF4F87',
-    shadowOpacity: 0.04,
   },
   locationTextCol: {
     flex: 1,
-    marginLeft: 4,
+  },
+  locationLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   locationHeading: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: '#333',
   },
   locationHeadingActive: {
     color: '#FF4F87',
   },
-  addressText: {
-    fontSize: 12,
-    color: '#888',
-    marginTop: 4,
-  },
-  locationLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  parlourNameText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#333',
-    marginTop: 2,
-  },
-  locationCardDisabled: {
-    backgroundColor: '#F9F9F9',
-    borderColor: '#E8E8E8',
-    opacity: 0.75,
-  },
-  customRadioDisabled: {
-    borderColor: '#DDD',
-    backgroundColor: '#F2F2F2',
-  },
   locationHeadingDisabled: {
     color: '#AAA',
   },
   noParlourBadge: {
-    marginLeft: 8,
-    backgroundColor: '#FFF0F0',
-    borderRadius: 8,
-    paddingHorizontal: 8,
+    backgroundColor: '#F2F2F2',
+    paddingHorizontal: 6,
     paddingVertical: 2,
-    borderWidth: 1,
-    borderColor: '#FFCCD5',
+    borderRadius: 4,
+    marginLeft: 8,
   },
   noParlourBadgeText: {
     fontSize: 10,
-    fontWeight: '700',
-    color: '#E05070',
+    color: '#888',
+    fontWeight: '600',
+  },
+  parlourNameText: {
+    fontSize: 13,
+    color: '#555',
+    fontWeight: '600',
+    marginTop: 6,
+  },
+  addressText: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 2,
+    lineHeight: 18,
   },
   noParlourSubtext: {
     fontSize: 12,
-    color: '#BBB',
-    marginTop: 4,
-    fontStyle: 'italic',
-  },
-  nextButton: {
-    backgroundColor: '#FF4F87',
-    height: 52,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 26,
-    shadowColor: '#FF4F87',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  nextButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '700',
+    color: '#AAA',
+    marginTop: 6,
   },
   addressInputContainer: {
-    marginTop: 4,
-    marginBottom: 14,
-    backgroundColor: '#FFF',
-    borderWidth: 1.5,
-    borderColor: '#FFD1E1',
-    borderRadius: 18,
-    padding: 12,
+    marginTop: 8,
+    marginBottom: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#FFD6E5',
   },
   addressInputLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#FF4F87',
-    marginBottom: 6,
+    color: '#333',
+    marginBottom: 12,
   },
   selectedAddressDetailCard: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF5F8',
-    borderColor: '#FFE0EC',
-    borderWidth: 1.5,
-    borderRadius: 12,
+    alignItems: 'flex-start',
+    backgroundColor: '#FFF0F5',
     padding: 12,
-    marginTop: 8,
-    marginBottom: 12,
+    borderRadius: 8,
+    marginBottom: 16,
   },
   selectedAddressDetailText: {
     fontSize: 13,
@@ -900,40 +722,21 @@ const styles = StyleSheet.create({
     flex: 1,
     lineHeight: 18,
   },
-  addNewAddressBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFF',
-    borderWidth: 1.5,
-    borderColor: '#FF4F87',
-    borderStyle: 'dashed',
-    borderRadius: 12,
-    paddingVertical: 12,
-    marginTop: 8,
-  },
-  addNewAddressBtnText: {
-    fontSize: 13,
-    color: '#FF4F87',
-    fontWeight: '700',
-    marginLeft: 6,
-  },
   quickSelectLabel: {
     fontSize: 12,
+    color: '#777',
     fontWeight: '600',
-    color: '#666',
-    marginTop: 6,
   },
   quickAddressChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF0F5',
-    borderWidth: 1,
-    borderColor: '#FFCCD9',
-    borderRadius: 20,
+    backgroundColor: '#F7F7F7',
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginRight: 8,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#EFEFEF',
   },
   quickAddressChipActive: {
     backgroundColor: '#FF4F87',
@@ -941,10 +744,49 @@ const styles = StyleSheet.create({
   },
   quickAddressChipText: {
     fontSize: 12,
-    color: '#FF4F87',
+    color: '#555',
     fontWeight: '600',
   },
   quickAddressChipTextActive: {
     color: '#FFF',
   },
+  addNewAddressBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FF4F87',
+    borderStyle: 'dashed',
+    backgroundColor: '#FFF9FB',
+  },
+  addNewAddressBtnText: {
+    fontSize: 13,
+    color: '#FF4F87',
+    fontWeight: '700',
+    marginLeft: 6,
+  },
+  nextButton: {
+    backgroundColor: '#FF4F87',
+    borderRadius: 14,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 20,
+    shadowColor: '#FF4F87',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  nextButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
 });
+
+export default BookAppointmentScreen;
