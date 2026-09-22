@@ -3,8 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Base URLs in order of priority (Active Wi-Fi, ADB reverse USB, Android Emulator)
 export const API_BASE_URLS = [
-  'http://10.79.185.172:5000',  // Active Wi-Fi IP (Laptop on local network)
-  'http://192.168.29.53:5000', // Active Wi-Fi IP
+  'http://10.85.57.172:5000',   // Active Wi-Fi IP (Laptop on local network)
   'http://127.0.0.1:5000',     // adb reverse loopback fallback
   'http://localhost:5000',     // localhost fallback
   'http://10.0.2.2:5000',      // Android Emulator loopback

@@ -414,24 +414,13 @@ const SelectDateTimeScreen = ({ navigation, route }) => {
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
     });
 
-    if (selectedPackage) {
-      navigation.navigate('BookAppointment', {
-        artist: artistData || artist,
-        selectedPackage,
-        selectedDate: selectedDate.toISOString(),
-        selectedTime: finalTimeString,
-        dateStr,
-      });
-    } else {
-      navigation.navigate('AddOns', {
-        artist: artistData || artist,
-        selectedService,
-        selectedLocation,
-        selectedDate: selectedDate.toISOString(),
-        selectedTime: finalTimeString,
-        dateStr,
-      });
-    }
+    navigation.navigate('BookAppointment', {
+      artist: artistData || artist,
+      selectedPackage: selectedPackage,
+      selectedDate: selectedDate.toISOString(),
+      selectedTime: finalTimeString,
+      dateStr,
+    });
   };
 
   // Format selected date label e.g. "Thu, 16 May 2024"

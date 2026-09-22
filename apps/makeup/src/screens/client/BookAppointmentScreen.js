@@ -9,6 +9,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -18,23 +19,25 @@ import { isLocationMatch, getCleanCityName } from '../../utils/locationHelper';
 import ScreenHeader from '../../components/ScreenHeader';
 import { getUniqueProfileImage } from '../../utils/artistImageHelper';
 
+const parsePrice = (priceStr) => {
+  if (!priceStr) return 0;
+  if (typeof priceStr === 'number') return priceStr;
+  const num = parseInt(priceStr.toString().replace(/[^0-9]/g, ''), 10);
+  return isNaN(num) ? 0 : num;
+};
+
 const BookAppointmentScreen = ({ navigation, route }) => {
   const { artist, selectedDate, selectedTime } = route.params;
-  
-  // Provide a graceful fallback if someone navigated here without a selectedPackage
-  const fallbackPackage = {
-    id: 'custom_booking',
-    name: route.params.selectedCategory || route.params.selectedService?.name || 'Custom Booking',
-    price: route.params.selectedService?.price || artist?.services?.[0]?.price || 3000,
-    duration: '2 - 3 hrs',
-    packageLevel: 'Service',
-  };
 
-  const [activePackage, setActivePackage] = useState(route.params.selectedPackage || fallbackPackage);
   const [packages, setPackages] = useState(route.params.selectedPackage ? [route.params.selectedPackage] : []);
-  const [loadingPackages, setLoadingPackages] = useState(false);
+  const [services, setServices] = useState(artist.services || artist.specializations || []);
+  const [loadingPackages, setLoadingPackages] = useState(!route.params.selectedPackage);
 
-  const [peopleCount, setPeopleCount] = useState(1);
+  const [bookingMode, setBookingMode] = useState('packages'); // 'packages' | 'services'
+  const [activePackage, setActivePackage] = useState(route.params.selectedPackage || null);
+  const [packagePeopleCount, setPackagePeopleCount] = useState(1);
+  const [selectedServicesMap, setSelectedServicesMap] = useState({});
+
   const [selectedLocation, setSelectedLocation] = useState(route.params?.prefilledAddress ? 'home' : '');
   const [clientAddress, setClientAddress] = useState(route.params?.prefilledAddress || '');
   const [savedAddresses, setSavedAddresses] = useState([]);
@@ -55,15 +58,21 @@ const BookAppointmentScreen = ({ navigation, route }) => {
           const response = await api.get(`/api/packages/artist/${artist.id}`);
           if (response.data && response.data.length > 0) {
             setPackages(response.data);
-            setActivePackage(response.data[0]); // Auto-select first package
+            setActivePackage(response.data[0]);
+            setBookingMode('packages');
+          } else if (services.length > 0) {
+            setBookingMode('services');
           }
         } catch (err) {
           console.warn('Failed to fetch packages:', err);
+          if (services.length > 0) setBookingMode('services');
         } finally {
           setLoadingPackages(false);
         }
       };
       fetchPackages();
+    } else {
+      setBookingMode('packages');
     }
   }, [artist.id, route.params.selectedPackage]);
 
@@ -97,9 +106,92 @@ const BookAppointmentScreen = ({ navigation, route }) => {
     setClientAddress(addr.addressLine);
   };
 
+  const incrementService = (serviceId) => {
+    setSelectedServicesMap(prev => ({
+      ...prev,
+      [serviceId]: (prev[serviceId] || 0) + 1
+    }));
+  };
+
+  const decrementService = (serviceId) => {
+    setSelectedServicesMap(prev => {
+      const val = prev[serviceId] || 0;
+      if (val <= 1) {
+        const next = { ...prev };
+        delete next[serviceId];
+        return next;
+      }
+      return {
+        ...prev,
+        [serviceId]: val - 1
+      };
+    });
+  };
+
   const handleNext = () => {
-    if (peopleCount < 1) {
-      Alert.alert('Required', 'Please select at least 1 person.');
+    let finalServiceObj = null;
+
+    if (bookingMode === 'packages') {
+      if (!activePackage) {
+        Alert.alert('Required', 'Please select a package.');
+        return;
+      }
+      if (packagePeopleCount < 1) {
+        Alert.alert('Required', 'Please select at least 1 person.');
+        return;
+      }
+      const unitPrice = parsePrice(activePackage.price);
+      const totalAmount = unitPrice * packagePeopleCount;
+      finalServiceObj = {
+        name: `${activePackage.name}${packagePeopleCount > 1 ? ` (x${packagePeopleCount})` : ''}`,
+        price: totalAmount,
+        peopleCount: packagePeopleCount,
+        items: [{
+          name: activePackage.name,
+          price: `₹${unitPrice}`,
+          count: packagePeopleCount,
+          unitPrice: unitPrice,
+          totalPrice: totalAmount,
+          type: 'package',
+          packageId: activePackage.id !== 'custom_booking' ? activePackage.id : undefined
+        }],
+      };
+    } else if (bookingMode === 'services') {
+      let subtotal = 0;
+      let totalPeopleCount = 0;
+      const items = [];
+      services.forEach(s => {
+        const c = selectedServicesMap[s.id || s.specialization] || 0;
+        if (c > 0) {
+          const unitP = parsePrice(s.priceRange || s.price || 0);
+          const totP = unitP * c;
+          subtotal += totP;
+          totalPeopleCount += c;
+          items.push({
+            name: s.specialization || s.name || 'Service',
+            price: `₹${unitP}`,
+            count: c,
+            unitPrice: unitP,
+            totalPrice: totP,
+            type: 'service',
+            serviceId: s.id
+          });
+        }
+      });
+
+      if (items.length === 0) {
+        Alert.alert('Required', 'Please select at least one service.');
+        return;
+      }
+
+      finalServiceObj = {
+        name: items.map(i => `${i.name}${i.count > 1 ? ` (x${i.count})` : ''}`).join(' + '),
+        price: subtotal,
+        peopleCount: totalPeopleCount || 1,
+        items: items,
+      };
+    } else {
+      Alert.alert('Error', 'Please select a valid booking configuration.');
       return;
     }
 
@@ -126,24 +218,6 @@ const BookAppointmentScreen = ({ navigation, route }) => {
       }
     }
 
-    const unitPrice = activePackage.price;
-    const totalAmount = unitPrice * peopleCount;
-
-    const serviceObj = {
-      name: `${activePackage.name}${peopleCount > 1 ? ` (x${peopleCount})` : ''}`,
-      price: totalAmount,
-      peopleCount: peopleCount,
-      items: [{
-        name: activePackage.name,
-        price: `₹${unitPrice}`,
-        count: peopleCount,
-        unitPrice: unitPrice,
-        totalPrice: totalAmount,
-        type: 'package',
-        packageId: activePackage.id !== 'custom_booking' ? activePackage.id : undefined
-      }],
-    };
-
     const locationData = {
       type: selectedLocation,
       address: selectedLocation === 'home' 
@@ -161,13 +235,19 @@ const BookAppointmentScreen = ({ navigation, route }) => {
 
     navigation.navigate('AddOns', {
       artist,
-      selectedService: serviceObj,
+      selectedService: finalServiceObj,
       selectedLocation: locationData,
       selectedDate: selectedDate,
       selectedTime: selectedTime,
       dateStr,
     });
   };
+
+  const hasPackages = packages.length > 0;
+  const hasServices = services.length > 0;
+  
+  const dateObj = new Date(selectedDate);
+  const isValidDate = selectedDate && !isNaN(dateObj.getTime());
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -190,7 +270,11 @@ const BookAppointmentScreen = ({ navigation, route }) => {
         <View style={styles.infoBanner}>
           <Ionicons name="calendar-outline" size={20} color="#FF4F87" style={{ marginRight: 10 }} />
           <Text style={styles.infoBannerText}>
-            Booking for <Text style={{ fontWeight: 'bold' }}>{new Date(selectedDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</Text> at <Text style={{ fontWeight: 'bold' }}>{selectedTime}</Text>
+            {isValidDate ? (
+              <>Booking for <Text style={{ fontWeight: 'bold' }}>{dateObj.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</Text> at <Text style={{ fontWeight: 'bold' }}>{selectedTime}</Text></>
+            ) : (
+              <Text style={{ fontStyle: 'italic', color: '#666' }}>Please select a date and time.</Text>
+            )}
           </Text>
         </View>
 
@@ -210,82 +294,207 @@ const BookAppointmentScreen = ({ navigation, route }) => {
           </View>
         </View>
 
-        {/* Selected Package Segment */}
-        {!route.params.selectedPackage && packages.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>Select a Package</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
-              {packages.map((pkg) => (
-                <TouchableOpacity
-                  key={pkg.id}
-                  style={[styles.packageCard, activePackage.id === pkg.id && styles.packageCardActive]}
-                  onPress={() => setActivePackage(pkg)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.packageName, activePackage.id === pkg.id && { color: '#FF4F87' }]}>{pkg.name}</Text>
-                  <Text style={[styles.packagePrice, activePackage.id === pkg.id && { color: '#FF4F87' }]}>₹{pkg.price.toLocaleString('en-IN')}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </>
-        )}
-        
-        <Text style={styles.sectionTitle}>Selected Package</Text>
-        <View style={styles.serviceOptionCardActive}>
-          <View style={styles.serviceMainRow}>
-            <View style={{ flex: 1, paddingRight: 8 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                <View style={{ backgroundColor: '#F3E8FF', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, marginRight: 8 }}>
-                  <Text style={{ fontSize: 10, color: '#9333EA', fontWeight: 'bold' }}>{activePackage.packageLevel || 'Package'}</Text>
+        {/* Packages / Services Toggle Header */}
+        {loadingPackages ? (
+          <View style={{ paddingVertical: 20 }}>
+            <ActivityIndicator size="small" color="#FF4F87" />
+          </View>
+        ) : (
+          <View>
+            {hasPackages && hasServices && (
+              <View style={styles.modeToggleContainer}>
+                <Text style={styles.sectionTitle}>Choose What You Want to Book</Text>
+                <View style={styles.modeToggleRow}>
+                  <TouchableOpacity
+                    style={[styles.modeToggleBtn, bookingMode === 'packages' && styles.modeToggleBtnActive]}
+                    onPress={() => setBookingMode('packages')}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.modeToggleText, bookingMode === 'packages' && styles.modeToggleTextActive]}>Packages</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modeToggleBtn, bookingMode === 'services' && styles.modeToggleBtnActive]}
+                    onPress={() => setBookingMode('services')}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.modeToggleText, bookingMode === 'services' && styles.modeToggleTextActive]}>Individual Services</Text>
+                  </TouchableOpacity>
                 </View>
-                <Text style={styles.optionTextActive} numberOfLines={1}>
-                  {activePackage.name}
-                </Text>
               </View>
-              <Text style={styles.unitPriceText}>
-                ₹{activePackage.price.toLocaleString('en-IN')} / person
-              </Text>
-              <Text style={{ fontSize: 11, color: '#999', marginTop: 4 }}>⏱ {activePackage.duration}</Text>
-            </View>
-
-            <View style={styles.stepperWrapper}>
-              <TouchableOpacity
-                style={[styles.stepperButton, peopleCount === 1 && styles.stepperButtonDisabled]}
-                onPress={() => setPeopleCount(Math.max(1, peopleCount - 1))}
-                disabled={peopleCount === 1}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="remove" size={16} color={peopleCount === 1 ? '#CCC' : '#FF4F87'} />
-              </TouchableOpacity>
-
-              <View style={styles.stepperCountBadge}>
-                <Text style={[styles.stepperCountText, { color: '#FF4F87' }]}>
-                  {peopleCount}
-                </Text>
+            )}
+            {hasPackages && !hasServices && (
+              <Text style={styles.sectionTitle}>Select Package</Text>
+            )}
+            {!hasPackages && hasServices && (
+              <Text style={styles.sectionTitle}>Select Services</Text>
+            )}
+            {!hasPackages && !hasServices && (
+              <View style={styles.emptyStateContainer}>
+                <Text style={styles.emptyStateText}>This artist hasn't configured any packages or services yet.</Text>
               </View>
+            )}
 
-              <TouchableOpacity
-                style={styles.stepperButton}
-                onPress={() => setPeopleCount(peopleCount + 1)}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="add" size={16} color="#FF4F87" />
-              </TouchableOpacity>
-            </View>
-          </View>
+            {/* Packages Content */}
+            {bookingMode === 'packages' && hasPackages && (
+              <View>
+                {!route.params.selectedPackage && packages.length > 1 && (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+                    {packages.map((pkg) => (
+                      <TouchableOpacity
+                        key={pkg.id}
+                        style={[styles.packageCard, activePackage?.id === pkg.id && styles.packageCardActive]}
+                        onPress={() => setActivePackage(pkg)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[styles.packageName, activePackage?.id === pkg.id && { color: '#FF4F87' }]}>{pkg.name}</Text>
+                        <Text style={[styles.packagePrice, activePackage?.id === pkg.id && { color: '#FF4F87' }]}>₹{parsePrice(pkg.price).toLocaleString('en-IN')}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                )}
 
-          <View style={styles.serviceSubtotalRow}>
-            <Text style={styles.serviceSubtotalLabel}>
-              {peopleCount} {peopleCount === 1 ? 'person' : 'people'} selected
-            </Text>
-            <Text style={styles.serviceSubtotalPrice}>
-              Subtotal: ₹{(activePackage.price * peopleCount).toLocaleString('en-IN')}
-            </Text>
+                {activePackage && (
+                  <View style={styles.serviceOptionCardActive}>
+                    <Text style={styles.sectionTitleInner}>Selected Package</Text>
+                    <View style={styles.serviceMainRow}>
+                      <View style={{ flex: 1, paddingRight: 8 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                          <View style={{ backgroundColor: '#F3E8FF', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, marginRight: 8 }}>
+                            <Text style={{ fontSize: 10, color: '#9333EA', fontWeight: 'bold' }}>{activePackage.packageLevel || 'Package'}</Text>
+                          </View>
+                          <Text style={styles.optionTextActive} numberOfLines={1}>
+                            {activePackage.name}
+                          </Text>
+                        </View>
+                        <Text style={styles.unitPriceText}>
+                          ₹{parsePrice(activePackage.price).toLocaleString('en-IN')} / person
+                        </Text>
+                        <Text style={{ fontSize: 11, color: '#999', marginTop: 4 }}>⏱ {activePackage.duration || '2 - 3 hrs'}</Text>
+                        {activePackage.description ? (
+                          <Text style={styles.packageDescriptionText}>{activePackage.description}</Text>
+                        ) : null}
+                      </View>
+
+                      <View style={styles.stepperWrapper}>
+                        <TouchableOpacity
+                          style={[styles.stepperButton, packagePeopleCount === 1 && styles.stepperButtonDisabled]}
+                          onPress={() => setPackagePeopleCount(Math.max(1, packagePeopleCount - 1))}
+                          disabled={packagePeopleCount === 1}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="remove" size={16} color={packagePeopleCount === 1 ? '#CCC' : '#FF4F87'} />
+                        </TouchableOpacity>
+
+                        <View style={styles.stepperCountBadge}>
+                          <Text style={[styles.stepperCountText, { color: '#FF4F87' }]}>
+                            {packagePeopleCount}
+                          </Text>
+                        </View>
+
+                        <TouchableOpacity
+                          style={styles.stepperButton}
+                          onPress={() => setPackagePeopleCount(packagePeopleCount + 1)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="add" size={16} color="#FF4F87" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    <View style={styles.serviceSubtotalRow}>
+                      <Text style={styles.serviceSubtotalLabel}>
+                        {packagePeopleCount} {packagePeopleCount === 1 ? 'person' : 'people'} selected
+                      </Text>
+                      <Text style={styles.serviceSubtotalPrice}>
+                        Subtotal: ₹{(parsePrice(activePackage.price) * packagePeopleCount).toLocaleString('en-IN')}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* Individual Services Content */}
+            {bookingMode === 'services' && hasServices && (
+              <View style={styles.servicesListContainer}>
+                {services.map((service, index) => {
+                  const serviceId = service.id || service.specialization || index.toString();
+                  const count = selectedServicesMap[serviceId] || 0;
+                  const unitPrice = parsePrice(service.priceRange || service.price);
+                  return (
+                    <View key={serviceId} style={styles.serviceItemCard}>
+                      <View style={{ flex: 1, paddingRight: 8 }}>
+                        <Text style={[styles.optionTextActive, count > 0 && { color: '#FF4F87' }]}>
+                          {service.specialization || service.name}
+                        </Text>
+                        <Text style={styles.unitPriceText}>
+                          ₹{unitPrice.toLocaleString('en-IN')} / person
+                        </Text>
+                        <Text style={{ fontSize: 11, color: '#999', marginTop: 4 }}>
+                          ⏱ {service.duration || '1 hr'}
+                        </Text>
+                      </View>
+
+                      <View style={styles.stepperWrapper}>
+                        <TouchableOpacity
+                          style={[styles.stepperButton, count === 0 && styles.stepperButtonDisabled]}
+                          onPress={() => decrementService(serviceId)}
+                          disabled={count === 0}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="remove" size={16} color={count === 0 ? '#CCC' : '#FF4F87'} />
+                        </TouchableOpacity>
+
+                        <View style={styles.stepperCountBadge}>
+                          <Text style={[styles.stepperCountText, count > 0 ? { color: '#FF4F87' } : { color: '#CCC' }]}>
+                            {count}
+                          </Text>
+                        </View>
+
+                        <TouchableOpacity
+                          style={styles.stepperButton}
+                          onPress={() => incrementService(serviceId)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="add" size={16} color="#FF4F87" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                })}
+
+                {/* Subtotal row for services */}
+                {(() => {
+                  let subtotal = 0;
+                  let totalCount = 0;
+                  services.forEach((s, index) => {
+                    const c = selectedServicesMap[s.id || s.specialization || index.toString()] || 0;
+                    if (c > 0) {
+                      subtotal += c * parsePrice(s.priceRange || s.price);
+                      totalCount += c;
+                    }
+                  });
+                  return totalCount > 0 ? (
+                    <View style={styles.serviceOptionCardActive}>
+                       <Text style={styles.sectionTitleInner}>Selected Services Summary</Text>
+                       <View style={styles.serviceSubtotalRow}>
+                         <Text style={styles.serviceSubtotalLabel}>
+                           {totalCount} {totalCount === 1 ? 'service' : 'services'} selected
+                         </Text>
+                         <Text style={styles.serviceSubtotalPrice}>
+                           Subtotal: ₹{subtotal.toLocaleString('en-IN')}
+                         </Text>
+                       </View>
+                    </View>
+                  ) : null;
+                })()}
+              </View>
+            )}
           </View>
-        </View>
+        )}
 
         {/* Locations Segment */}
-        <Text style={styles.sectionTitle}>Location</Text>
+        <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Location</Text>
 
         {/* At Artist's Parlour Box */}
         {(() => {
@@ -455,9 +664,10 @@ const BookAppointmentScreen = ({ navigation, route }) => {
 
         {/* Next Trigger Button */}
         <TouchableOpacity
-          style={styles.nextButton}
+          style={[styles.nextButton, (!hasPackages && !hasServices) && { backgroundColor: '#CCC' }]}
           onPress={handleNext}
           activeOpacity={0.8}
+          disabled={!hasPackages && !hasServices}
         >
           <Text style={styles.nextButtonText}>Next</Text>
         </TouchableOpacity>
@@ -493,6 +703,54 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
   },
+  modeToggleContainer: {
+    marginBottom: 16,
+  },
+  modeToggleRow: {
+    flexDirection: 'row',
+    backgroundColor: '#F5F5F5',
+    borderRadius: 10,
+    padding: 4,
+    marginTop: 8,
+  },
+  modeToggleBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  modeToggleBtnActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  modeToggleText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#888',
+  },
+  modeToggleTextActive: {
+    color: '#FF4F87',
+    fontWeight: '700',
+  },
+  emptyStateContainer: {
+    padding: 20,
+    alignItems: 'center',
+    backgroundColor: '#F9F9F9',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#EEE',
+    marginBottom: 20,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: '#888',
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
   serviceOptionCardActive: {
     backgroundColor: '#FFF9FB',
     borderRadius: 14,
@@ -501,16 +759,71 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FF4F87',
   },
+  servicesListContainer: {
+    marginBottom: 20,
+  },
+  serviceItemCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFF',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  packageCard: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#EFEFEF',
+    borderRadius: 12,
+    padding: 12,
+    marginRight: 10,
+    minWidth: 140,
+    maxWidth: 200,
+  },
+  packageCardActive: {
+    borderColor: '#FF4F87',
+    backgroundColor: '#FFF0F5',
+  },
+  packageName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 4,
+  },
+  packagePrice: {
+    fontSize: 13,
+    color: '#777',
+  },
+  sectionTitleInner: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111',
+    marginBottom: 12,
+    letterSpacing: 0.2,
+  },
+  packageDescriptionText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 6,
+    lineHeight: 18,
+  },
   serviceMainRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   optionTextActive: {
-    flex: 1,
     fontSize: 16,
     fontWeight: '700',
-    color: '#FF4F87',
+    color: '#333',
   },
   unitPriceText: {
     fontSize: 13,
@@ -533,7 +846,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   serviceSubtotalPrice: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     color: '#FF4F87',
   },

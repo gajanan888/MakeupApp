@@ -795,7 +795,7 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
                 selectedCategory: route.params?.selectedCategory,
               });
             } else {
-              navigation.navigate('EnterBookingAddress', { artist: currentArtist });
+              navigation.navigate('SelectDateTime', { artist: currentArtist });
             }
           }}
         >
