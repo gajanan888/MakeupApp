@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { getArtistProfile, updateArtistProfile, getArtistDashboard, changeArtistPassword } from '../../api/auth';
+import { getArtistProfile, updateArtistProfile, getArtistDashboard, changeArtistPassword, getArtistReviews } from '../../api/auth';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { uploadFile } from '../../api/files';
 import { DEFAULT_AVATAR } from '../../utils/artistImageHelper';
@@ -100,6 +100,25 @@ const ArtistProfileScreen = ({ onBack }) => {
     reviewCount: 0,
   });
 
+  const [artistReviews, setArtistReviews] = useState([]);
+  const [loadingArtistReviews, setLoadingArtistReviews] = useState(false);
+
+  const loadArtistReviews = async () => {
+    try {
+      setLoadingArtistReviews(true);
+      const data = await getArtistProfile();
+      if (data?.id) {
+        const revs = await getArtistReviews(data.id);
+        setArtistReviews(revs || []);
+      }
+    } catch (err) {
+      console.warn('Failed to load artist reviews:', err);
+    } finally {
+      setLoadingArtistReviews(false);
+    }
+  };
+
+
   // Notification States
   const [notifications, setNotifications] = useState({
     push: true,
@@ -135,9 +154,13 @@ const ArtistProfileScreen = ({ onBack }) => {
   const [newSpecName, setNewSpecName] = useState('');
   const [newSpecDuration, setNewSpecDuration] = useState('');
   const [newSpecPrice, setNewSpecPrice] = useState('');
+  const [newSpecHasPremium, setNewSpecHasPremium] = useState(false);
+  const [newSpecPremiumPrice, setNewSpecPremiumPrice] = useState('');
   const [editingSpecName, setEditingSpecName] = useState(null);
   const [editSpecDuration, setEditSpecDuration] = useState('');
   const [editSpecPrice, setEditSpecPrice] = useState('');
+  const [editSpecHasPremium, setEditSpecHasPremium] = useState(false);
+  const [editSpecPremiumPrice, setEditSpecPremiumPrice] = useState('');
   const [durationPickerVisible, setDurationPickerVisible] = useState(false);
   const [durationPickerTarget, setDurationPickerTarget] = useState(null);
 
@@ -480,6 +503,7 @@ const ArtistProfileScreen = ({ onBack }) => {
     const trimmedName = newSpecName.trim();
     const trimmedDuration = newSpecDuration.trim();
     const trimmedPrice = newSpecPrice.trim();
+    const trimmedPremiumPrice = newSpecPremiumPrice.trim();
 
     if (!trimmedName) {
       Alert.alert('Validation Error', 'Please enter or select a specialization name.');
@@ -490,7 +514,11 @@ const ArtistProfileScreen = ({ onBack }) => {
       return;
     }
     if (!trimmedPrice) {
-      Alert.alert('Validation Error', 'Please enter the price or price range for this specialization (e.g. ₹5,000 - ₹12,000).');
+      Alert.alert('Validation Error', 'Please enter the basic package price for this specialization.');
+      return;
+    }
+    if (newSpecHasPremium && (!trimmedPremiumPrice || isNaN(trimmedPremiumPrice) || Number(trimmedPremiumPrice) <= 0)) {
+      Alert.alert('Validation Error', 'Please enter a valid numeric price for the premium package.');
       return;
     }
 
@@ -505,6 +533,8 @@ const ArtistProfileScreen = ({ onBack }) => {
       duration: trimmedDuration,
       timeRange: 'Flexible / Any Time',
       priceRange: trimmedPrice,
+      hasPremium: newSpecHasPremium,
+      premiumPriceRange: trimmedPremiumPrice,
     };
     const updatedServices = [...services.filter(s => s.specialization !== trimmedName), newServiceObj];
 
@@ -519,7 +549,9 @@ const ArtistProfileScreen = ({ onBack }) => {
       setNewSpecName('');
       setNewSpecDuration('');
       setNewSpecPrice('');
-      Alert.alert('Success', `Specialization '${trimmedName}' added with Time (${trimmedDuration}) and Price (${trimmedPrice}).`);
+      setNewSpecHasPremium(false);
+      setNewSpecPremiumPrice('');
+      Alert.alert('Success', `Specialization '${trimmedName}' added successfully.`);
       await loadProfile();
     } catch (err) {
       Alert.alert('Error', err.message || 'Failed to add specialization.');
@@ -533,11 +565,14 @@ const ArtistProfileScreen = ({ onBack }) => {
     setEditingSpecName(spec);
     setEditSpecDuration(serviceObj?.duration || '');
     setEditSpecPrice(serviceObj?.priceRange || '');
+    setEditSpecHasPremium(!!serviceObj?.hasPremium);
+    setEditSpecPremiumPrice(serviceObj?.premiumPriceRange || serviceObj?.premiumPrice || '');
   };
 
   const handleSaveEditSpecialization = async (spec) => {
     const trimmedDuration = editSpecDuration.trim();
     const trimmedPrice = editSpecPrice.trim();
+    const trimmedPremiumPrice = editSpecPremiumPrice.trim();
 
     if (!trimmedDuration) {
       Alert.alert('Validation Error', 'Time / duration is required.');
@@ -545,6 +580,10 @@ const ArtistProfileScreen = ({ onBack }) => {
     }
     if (!trimmedPrice) {
       Alert.alert('Validation Error', 'Price / price range is required.');
+      return;
+    }
+    if (editSpecHasPremium && (!trimmedPremiumPrice || isNaN(trimmedPremiumPrice) || Number(trimmedPremiumPrice) <= 0)) {
+      Alert.alert('Validation Error', 'Please enter a valid numeric price for the premium package.');
       return;
     }
 
@@ -556,6 +595,8 @@ const ArtistProfileScreen = ({ onBack }) => {
           ...s,
           duration: trimmedDuration,
           priceRange: trimmedPrice,
+          hasPremium: editSpecHasPremium,
+          premiumPriceRange: trimmedPremiumPrice,
         };
       }
       return s;
@@ -566,6 +607,8 @@ const ArtistProfileScreen = ({ onBack }) => {
         specialization: spec,
         duration: trimmedDuration,
         priceRange: trimmedPrice,
+        hasPremium: editSpecHasPremium,
+        premiumPriceRange: trimmedPremiumPrice,
         timeRange: 'Flexible / Any Time',
       });
     }
@@ -1149,14 +1192,39 @@ const ArtistProfileScreen = ({ onBack }) => {
                         <Ionicons name="chevron-down-outline" size={18} color="#FF4F8F" />
                       </TouchableOpacity>
 
-                      <Text style={{ fontSize: 12, fontWeight: '700', color: '#555', marginBottom: 4 }}>Price / Price Range *</Text>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: '#555', marginBottom: 4 }}>Basic Package Price *</Text>
                       <TextInput
                         style={[styles.textInput, { marginBottom: 12 }]}
                         value={editSpecPrice}
                         onChangeText={setEditSpecPrice}
-                        placeholder="e.g. ₹5,000 or ₹10,000 - ₹18,000"
+                        placeholder="e.g. 5000"
                         placeholderTextColor="#B7A9A1"
+                        keyboardType="numeric"
                       />
+
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FAF5FF', padding: 10, borderRadius: 10, marginBottom: 12 }}>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#4C1D95' }}>Offers Premium Package?</Text>
+                        <Switch
+                          value={editSpecHasPremium}
+                          onValueChange={setEditSpecHasPremium}
+                          trackColor={{ false: '#E0E0E0', true: '#FFB8D2' }}
+                          thumbColor={editSpecHasPremium ? '#FF4F8F' : '#F4F3F4'}
+                        />
+                      </View>
+
+                      {editSpecHasPremium && (
+                        <>
+                          <Text style={{ fontSize: 12, fontWeight: '700', color: '#8A2BE2', marginBottom: 4 }}>⭐ Premium Package Price *</Text>
+                          <TextInput
+                            style={[styles.textInput, { marginBottom: 12, borderColor: '#D8B4FE', borderWidth: 1.5 }]}
+                            value={editSpecPremiumPrice}
+                            onChangeText={setEditSpecPremiumPrice}
+                            placeholder="e.g. 8000"
+                            placeholderTextColor="#B7A9A1"
+                            keyboardType="numeric"
+                          />
+                        </>
+                      )}
 
                       <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
                         <TouchableOpacity 
@@ -1181,7 +1249,12 @@ const ArtistProfileScreen = ({ onBack }) => {
                     <View style={{ flex: 1 }}>
                       <Text style={styles.specManageTitle}>{spec}</Text>
                       <Text style={styles.specManageDuration}>⏱ Time Required: {duration}</Text>
-                      <Text style={styles.specManagePrice}>💰 Price: {price}</Text>
+                      <Text style={styles.specManagePrice}>💰 Basic Price: ₹{price}</Text>
+                      {!!serviceObj?.hasPremium && (
+                        <Text style={[styles.specManagePrice, { color: '#8A2BE2', fontWeight: '700' }]}>
+                          ⭐ Premium Price: ₹{serviceObj.premiumPriceRange || serviceObj.premiumPrice}
+                        </Text>
+                      )}
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <TouchableOpacity onPress={() => handleStartEditSpecialization(spec)} style={{ padding: 6, marginRight: 4 }}>
@@ -1254,14 +1327,39 @@ const ArtistProfileScreen = ({ onBack }) => {
                 <Ionicons name="chevron-down-outline" size={18} color="#FF4F8F" />
               </TouchableOpacity>
 
-              <Text style={styles.inputLabel}>Price / Price Range *</Text>
+              <Text style={styles.inputLabel}>Basic Package Price *</Text>
               <TextInput
                 style={styles.textInput}
                 value={newSpecPrice}
                 onChangeText={setNewSpecPrice}
-                placeholder="e.g. ₹5,000 or ₹10,000 - ₹18,000"
+                placeholder="e.g. 5000"
                 placeholderTextColor="#B7A9A1"
+                keyboardType="numeric"
               />
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FAF5FF', padding: 10, borderRadius: 10, marginBottom: 12, marginTop: 4 }}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#4C1D95' }}>Offers Premium Package?</Text>
+                <Switch
+                  value={newSpecHasPremium}
+                  onValueChange={setNewSpecHasPremium}
+                  trackColor={{ false: '#E0E0E0', true: '#FFB8D2' }}
+                  thumbColor={newSpecHasPremium ? '#FF4F8F' : '#F4F3F4'}
+                />
+              </View>
+
+              {newSpecHasPremium && (
+                <>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#8A2BE2', marginBottom: 4 }}>⭐ Premium Package Price *</Text>
+                  <TextInput
+                    style={[styles.textInput, { marginBottom: 12, borderColor: '#D8B4FE', borderWidth: 1.5 }]}
+                    value={newSpecPremiumPrice}
+                    onChangeText={setNewSpecPremiumPrice}
+                    placeholder="e.g. 8000"
+                    placeholderTextColor="#B7A9A1"
+                    keyboardType="numeric"
+                  />
+                </>
+              )}
 
               <TouchableOpacity style={styles.modalSubmitButton} onPress={handleAddSpecialization}>
                 <Text style={styles.modalSubmitText}>Add Specialization (Time & Price Required)</Text>
@@ -1635,6 +1733,21 @@ const ArtistProfileScreen = ({ onBack }) => {
               </View>
               <Ionicons name="chevron-forward-outline" size={16} color="#8A7D77" />
             </TouchableOpacity>
+
+            {/* Client Reviews & Ratings */}
+            <TouchableOpacity style={styles.optionRow} onPress={() => { loadArtistReviews(); setActiveModal('client_reviews'); }}>
+              <View style={styles.optionLeft}>
+                <Ionicons name="star-outline" size={20} color="#FFB800" />
+                <Text style={styles.optionLabel}>Client Reviews & Ratings</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ fontSize: 12, color: '#FFB800', fontWeight: '700', marginRight: 4 }}>
+                  {stats.rating > 0 ? Number(stats.rating).toFixed(1) : '0.0'} ★ ({stats.reviewCount || 0})
+                </Text>
+                <Ionicons name="chevron-forward-outline" size={16} color="#8A7D77" />
+              </View>
+            </TouchableOpacity>
+
 
             {/* Specializations & Pricing */}
             <TouchableOpacity style={styles.optionRow} onPress={() => setActiveModal('specializations')}>
@@ -2184,10 +2297,114 @@ const ArtistProfileScreen = ({ onBack }) => {
           </View>
         );
 
+      case 'client_reviews':
+        return (
+          <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+            <Text style={styles.modalSubTitle}>Client Reviews & Ratings</Text>
+
+            {/* Rating Summary Header Box */}
+            <View style={{
+              backgroundColor: '#FFF8F0',
+              borderRadius: 14,
+              padding: 16,
+              marginBottom: 16,
+              alignItems: 'center',
+              borderWidth: 1,
+              borderColor: '#FFE0B2',
+            }}>
+              <Text style={{ fontSize: 34, fontWeight: '800', color: '#D97706' }}>
+                {stats.rating > 0 ? Number(stats.rating).toFixed(1) : '0.0'}
+              </Text>
+              <View style={{ flexDirection: 'row', marginVertical: 4 }}>
+                {[1, 2, 3, 4, 5].map(star => (
+                  <Ionicons
+                    key={star}
+                    name={star <= Math.round(stats.rating) ? "star" : "star-outline"}
+                    size={20}
+                    color="#FFB800"
+                    style={{ marginHorizontal: 2 }}
+                  />
+                ))}
+              </View>
+              <Text style={{ fontSize: 13, color: '#92400E', fontWeight: '600', marginTop: 2 }}>
+                Based on {stats.reviewCount || 0} client {stats.reviewCount === 1 ? 'review' : 'reviews'}
+              </Text>
+            </View>
+
+            {/* Reviews List */}
+            {loadingArtistReviews ? (
+              <ActivityIndicator size="large" color="#FF4F8F" style={{ marginVertical: 30 }} />
+            ) : artistReviews.length > 0 ? (
+              artistReviews.map((rev) => {
+                const revDate = rev.createdAt ? new Date(rev.createdAt).toLocaleDateString('en-IN', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                }) : '';
+
+                return (
+                  <View key={rev.id} style={{
+                    backgroundColor: '#FFF',
+                    borderRadius: 12,
+                    padding: 14,
+                    marginBottom: 12,
+                    borderWidth: 1,
+                    borderColor: '#FFE4ED',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: 0.05,
+                    shadowRadius: 2,
+                    elevation: 1,
+                  }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: '#111' }}>
+                        {rev.customer?.name || 'Verified Client'}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: '#888' }}>
+                        {revDate}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <Ionicons
+                          key={star}
+                          name={star <= Math.round(rev.rating) ? "star" : "star-outline"}
+                          size={14}
+                          color="#FFB800"
+                          style={{ marginRight: 2 }}
+                        />
+                      ))}
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: '#333', marginLeft: 6 }}>
+                        {rev.rating} / 5
+                      </Text>
+                    </View>
+                    {rev.comment ? (
+                      <Text style={{ fontSize: 13, color: '#444', marginTop: 8, lineHeight: 18 }}>
+                        "{rev.comment}"
+                      </Text>
+                    ) : null}
+                  </View>
+                );
+              })
+            ) : (
+              <View style={{ alignItems: 'center', paddingVertical: 36 }}>
+                <Ionicons name="chatbox-ellipses-outline" size={48} color="#FFD1E1" />
+                <Text style={{ fontSize: 14, color: '#888', marginTop: 10, fontWeight: '500' }}>
+                  No client reviews yet.
+                </Text>
+                <Text style={{ fontSize: 12, color: '#AAA', marginTop: 4, textAlign: 'center' }}>
+                  Reviews given by clients after completed services will appear here.
+                </Text>
+              </View>
+            )}
+          </ScrollView>
+        );
+
       default:
         return null;
     }
   };
+
 
   if (loading) {
     return (
@@ -2239,10 +2456,11 @@ const ArtistProfileScreen = ({ onBack }) => {
               <Text style={styles.nameText}>{profile.name}</Text>
               <Ionicons name="checkmark-circle" size={18} color="#1890FF" style={{ marginLeft: 6 }} />
             </View>
-            <View style={styles.ratingRow}>
+            <TouchableOpacity style={styles.ratingRow} onPress={() => { loadArtistReviews(); setActiveModal('client_reviews'); }}>
               <Ionicons name="star" size={14} color="#FFC53D" />
               <Text style={styles.ratingText}> {stats.rating > 0 ? stats.rating : '0.0'} ({stats.reviewCount || 0})</Text>
-            </View>
+            </TouchableOpacity>
+
             <View style={styles.locationRow}>
               <Ionicons name="location-outline" size={14} color="#8A7D77" />
               <Text style={styles.locationText} numberOfLines={2} ellipsisMode="tail">
@@ -2262,10 +2480,11 @@ const ArtistProfileScreen = ({ onBack }) => {
             <Text style={styles.statLabel}>Bookings</Text>
           </View>
           <View style={styles.statDivider} />
-          <View style={styles.statColumn}>
+          <TouchableOpacity style={styles.statColumn} onPress={() => { loadArtistReviews(); setActiveModal('client_reviews'); }}>
             <Text style={styles.statValue}>{stats.rating > 0 ? stats.rating : '0.0'}</Text>
             <Text style={styles.statLabel}>Rating</Text>
-          </View>
+          </TouchableOpacity>
+
           <View style={styles.statDivider} />
           <View style={styles.statColumn}>
             <Text style={styles.statValue}>{profile.experience ? profile.experience : 'N/A'}</Text>

@@ -295,11 +295,18 @@ const ArtistRegisterSummaryScreen = ({ navigation }) => {
               <View key={idx} style={styles.serviceItemCard}>
                 <View style={styles.serviceHeader}>
                   <Text style={styles.serviceTitle}>{srv.specialization || 'Makeup Package'}</Text>
-                  {!!srv.priceRange && (
-                    <View style={styles.pricePill}>
-                      <Text style={styles.pricePillText}>{srv.priceRange}</Text>
-                    </View>
-                  )}
+                  <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
+                    {!!srv.priceRange && (
+                      <View style={styles.pricePill}>
+                        <Text style={styles.pricePillText}>Basic: ₹{srv.priceRange}</Text>
+                      </View>
+                    )}
+                    {!!srv.hasPremium && !!(srv.premiumPriceRange || srv.premiumPrice) && (
+                      <View style={[styles.pricePill, { backgroundColor: '#F3E8FF', borderColor: '#D8B4FE' }]}>
+                        <Text style={[styles.pricePillText, { color: '#7E22CE' }]}>⭐ Premium: ₹{srv.premiumPriceRange || srv.premiumPrice}</Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
 
                 {Array.isArray(srv.services) && srv.services.length > 0 && (

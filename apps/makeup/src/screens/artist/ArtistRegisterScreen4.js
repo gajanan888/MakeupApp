@@ -16,6 +16,7 @@ import {
   Alert,
   Modal,
   Pressable,
+  Switch,
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -47,6 +48,8 @@ const ArtistRegisterScreen4 = ({ navigation, route }) => {
             return {
               ...rest,
               specialization: spec,
+              hasPremium: !!existingMap[key].hasPremium,
+              premiumPriceRange: existingMap[key].premiumPriceRange || existingMap[key].premiumPrice || '',
             };
           }
           return {
@@ -54,10 +57,16 @@ const ArtistRegisterScreen4 = ({ navigation, route }) => {
             specialization: spec,
             duration: '',
             priceRange: '',
+            hasPremium: false,
+            premiumPriceRange: '',
           };
         });
       }
-      return data.services.map(({ timeRange, ...rest }) => rest);
+      return data.services.map(({ timeRange, ...rest }) => ({
+        ...rest,
+        hasPremium: !!rest.hasPremium,
+        premiumPriceRange: rest.premiumPriceRange || rest.premiumPrice || '',
+      }));
     }
     
     // If no existing services but we have step 3 specializations
@@ -67,6 +76,8 @@ const ArtistRegisterScreen4 = ({ navigation, route }) => {
         specialization: spec,
         duration: '',
         priceRange: '',
+        hasPremium: false,
+        premiumPriceRange: '',
       }));
     }
     
@@ -77,6 +88,8 @@ const ArtistRegisterScreen4 = ({ navigation, route }) => {
         specialization: '',
         duration: '',
         priceRange: '',
+        hasPremium: false,
+        premiumPriceRange: '',
       },
     ];
   };
@@ -111,6 +124,8 @@ const ArtistRegisterScreen4 = ({ navigation, route }) => {
       specialization: '',
       duration: '',
       priceRange: '',
+      hasPremium: false,
+      premiumPriceRange: '',
     };
 
     setServicesState([...services, newService]);
@@ -213,12 +228,12 @@ const ArtistRegisterScreen4 = ({ navigation, route }) => {
                 <Text style={styles.suggestionText}>Select maximum time required</Text>
               </View>
 
-              {/* PRICE */}
+              {/* BASIC PRICE */}
               <View style={styles.inputGroup}>
                 <View style={styles.labelRow}>
-                  <Text style={styles.fieldLabel}>Price</Text>
+                  <Text style={styles.fieldLabel}>Basic Package Price</Text>
                   <TouchableOpacity
-                    onPress={() => Alert.alert('Price Info', 'Select maximum price for the service')}
+                    onPress={() => Alert.alert('Price Info', 'Enter standard / basic price for this service')}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
                     <Ionicons name="information-circle-outline" size={16} color="#FF4F8F" style={{ marginLeft: 4 }} />
@@ -234,8 +249,48 @@ const ArtistRegisterScreen4 = ({ navigation, route }) => {
                   keyboardType="numeric"
                   style={styles.input}
                 />
-                <Text style={styles.suggestionText}>Select maximum price for the service</Text>
+                <Text style={styles.suggestionText}>Standard / basic package price</Text>
               </View>
+
+              {/* PREMIUM PACKAGE TOGGLE */}
+              <View style={styles.toggleRowContainer}>
+                <View style={{ flex: 1, paddingRight: 8 }}>
+                  <Text style={styles.toggleLabel}>Offers Premium Package?</Text>
+                  <Text style={styles.toggleSubtext}>Allow clients to choose a high-tier version of this service</Text>
+                </View>
+                <Switch
+                  value={!!service.hasPremium}
+                  onValueChange={val => updateService(service.id, 'hasPremium', val)}
+                  trackColor={{ false: '#E0E0E0', true: '#FFB8D2' }}
+                  thumbColor={service.hasPremium ? '#FF4F8F' : '#F4F3F4'}
+                />
+              </View>
+
+              {/* PREMIUM PRICE INPUT */}
+              {!!service.hasPremium && (
+                <View style={[styles.inputGroup, { marginTop: 12 }]}>
+                  <View style={styles.labelRow}>
+                    <Text style={[styles.fieldLabel, { color: '#8A2BE2' }]}>⭐ Premium Package Price</Text>
+                    <TouchableOpacity
+                      onPress={() => Alert.alert('Premium Package Info', 'Enter price for the premium tier of this service')}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Ionicons name="information-circle-outline" size={16} color="#8A2BE2" style={{ marginLeft: 4 }} />
+                    </TouchableOpacity>
+                  </View>
+                  <TextInput
+                    placeholder="e.g. 3000"
+                    placeholderTextColor="#C7AAA0"
+                    value={service.premiumPriceRange}
+                    onChangeText={text =>
+                      updateService(service.id, 'premiumPriceRange', text.replace(/[^0-9]/g, ''))
+                    }
+                    keyboardType="numeric"
+                    style={[styles.input, { borderColor: '#D8B4FE', borderWidth: 1.5 }]}
+                  />
+                  <Text style={styles.suggestionText}>Price for premium features/products</Text>
+                </View>
+              )}
             </View>
           ))}
 
@@ -278,7 +333,7 @@ const ArtistRegisterScreen4 = ({ navigation, route }) => {
                 }
                 
                 if (!s.priceRange.trim()) {
-                  Alert.alert('Validation Error', `Price is required for ${specName}`);
+                  Alert.alert('Validation Error', `Basic package price is required for ${specName}`);
                   return;
                 }
                 
@@ -286,14 +341,26 @@ const ArtistRegisterScreen4 = ({ navigation, route }) => {
                 const isSinglePrice = /^\d+$/.test(priceTrimmed);
                 
                 if (!isSinglePrice) {
-                  Alert.alert('Validation Error', `Price for ${specName} must be a valid number (e.g. '1500')`);
+                  Alert.alert('Validation Error', `Basic price for ${specName} must be a valid number (e.g. '1500')`);
                   return;
                 }
                 
                 const priceVal = parseInt(priceTrimmed, 10);
                 if (priceVal <= 0) {
-                  Alert.alert('Validation Error', `Price for ${specName} must be greater than 0`);
+                  Alert.alert('Validation Error', `Basic price for ${specName} must be greater than 0`);
                   return;
+                }
+
+                if (s.hasPremium) {
+                  if (!s.premiumPriceRange || !s.premiumPriceRange.trim()) {
+                    Alert.alert('Validation Error', `Premium package price is required for ${specName} since premium option is enabled.`);
+                    return;
+                  }
+                  const premTrimmed = s.premiumPriceRange.trim();
+                  if (!/^\d+$/.test(premTrimmed) || parseInt(premTrimmed, 10) <= 0) {
+                    Alert.alert('Validation Error', `Premium package price for ${specName} must be a valid positive number.`);
+                    return;
+                  }
                 }
               }
 
@@ -486,6 +553,30 @@ const styles = StyleSheet.create({
     color: '#111',
     fontSize: 15,
     marginBottom: 14,
+  },
+
+  toggleRowContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FAF5FF',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E9D5FF',
+    marginBottom: 12,
+  },
+
+  toggleLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#4C1D95',
+  },
+
+  toggleSubtext: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginTop: 2,
   },
 
   // ADD BUTTON

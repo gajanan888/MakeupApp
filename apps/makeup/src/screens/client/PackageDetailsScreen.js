@@ -30,9 +30,9 @@ const PackageDetailsScreen = () => {
   const handleBookNow = () => {
     navigation.navigate('SelectDateTime', {
       artist: pkg.artist || artist,
-      selectedPackage: pkg,
     });
   };
+
 
   if (loading || !pkg) {
     return (

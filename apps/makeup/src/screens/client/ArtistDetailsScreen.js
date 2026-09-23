@@ -345,7 +345,7 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
 
         {/* Tabs */}
         <View style={styles.tabsContainer}>
-          {['Portfolio', 'Packages', 'About', 'Services', 'Reviews'].map(tab => (
+          {['Portfolio', 'Services', 'About', 'Reviews'].map(tab => (
             <TouchableOpacity
               key={tab}
               onPress={() => setActiveTab(tab)}
@@ -363,6 +363,7 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
             </TouchableOpacity>
           ))}
         </View>
+
 
         {/* Dynamic Content */}
         {activeTab === 'Portfolio' && (
@@ -493,74 +494,8 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
           </View>
         )}
 
-        {activeTab === 'Packages' && (
-          <View style={{ paddingBottom: 20 }}>
-            
-            {/* 1. SELECT OCCASION */}
-            <Text style={[styles.sectionTitle, { marginTop: 0 }]}>
-              Packages
-            </Text>
-            <Text style={styles.sectionSubtitle}>Select a package to view details and book</Text>
-
-            {loadingPackages ? (
-              <ActivityIndicator size="large" color="#FF4F87" style={{ marginTop: 30 }} />
-            ) : packages.length > 0 ? (
-              packages.map(pkg => {
-                let brands = [];
-                if (pkg.products) {
-                  pkg.products.forEach(p => {
-                    if (p.brand && !brands.includes(p.brand.name)) brands.push(p.brand.name);
-                  });
-                }
-                return (
-                  <View key={pkg.id} style={styles.newPackageCard}>
-                    <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-                      <Image 
-                        source={{ uri: 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?auto=format&fit=crop&w=150&q=80' }} 
-                        style={styles.newPackageImage} 
-                      />
-                      <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text style={styles.newPackageName}>{pkg.name}</Text>
-                        <Text style={styles.newPackagePrice}>₹{pkg.price} / person</Text>
-                        
-                        <Text style={styles.newPackageSubtext} numberOfLines={2}>
-                          {pkg.description || `${pkg.makeupLook || 'Custom Look'} with premium products.`}
-                        </Text>
-
-                        <View style={styles.newPackageBrandsRow}>
-                          {brands.slice(0, 3).map(b => (
-                            <Text key={b} style={styles.newPackageBrandChip}>{b}</Text>
-                          ))}
-                        </View>
-                      </View>
-                    </View>
-                    <TouchableOpacity 
-                      style={styles.newPackageSelectBtn}
-                      onPress={() => {
-                        navigation.navigate('PackageDetails', { 
-                          packageId: pkg.id, 
-                          artist: currentArtist,
-                        });
-                      }}
-                    >
-                      <Text style={styles.newPackageSelectBtnText}>View Details & Select</Text>
-                      <Ionicons name="chevron-forward" size={16} color="#FFF" />
-                    </TouchableOpacity>
-                  </View>
-                );
-              })
-            ) : (
-              <View style={{ alignItems: 'center', paddingVertical: 40 }}>
-                <Ionicons name="cube-outline" size={48} color="#FFD1E1" />
-                <Text style={{ fontSize: 14, color: '#888', marginTop: 10 }}>
-                  No packages created yet.
-                </Text>
-              </View>
-            )}
-          </View>
-        )}
-
         {activeTab === 'Reviews' && (
+
           <View style={{ minHeight: 150 }}>
             {loadingReviews ? (
               <ActivityIndicator size="large" color="#FF4F87" style={{ marginTop: 30 }} />
@@ -787,7 +722,7 @@ const ArtistDetailsScreen = ({ route, navigation }) => {
         <TouchableOpacity
           style={styles.bookButton}
           onPress={() => {
-            if (route.params?.fromBookingFlow) {
+            if (route.params?.fromBookingFlow && route.params?.selectedDate && route.params?.selectedTime) {
               navigation.navigate('BookAppointment', {
                 artist: currentArtist,
                 selectedDate: route.params?.selectedDate,

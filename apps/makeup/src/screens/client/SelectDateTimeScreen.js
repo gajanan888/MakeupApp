@@ -207,7 +207,7 @@ const buildCalendar = (year, month, minBookingTime) => {
     const isPast = dateMidnight < today;
 
     const maxSlotStartTimeOnDate = new Date(year, month, d, 23, 59, 59, 999);
-    const isAdvanceRestricted = dateMidnight.getTime() === today.getTime() ? false : maxSlotStartTimeOnDate < minBookingTime;
+    const isAdvanceRestricted = maxSlotStartTimeOnDate < minBookingTime;
 
     const isUnavailable = isPast || isAdvanceRestricted;
 
@@ -361,12 +361,8 @@ const SelectDateTimeScreen = ({ navigation, route }) => {
         }
       }
 
-      // 3. Check minimum advance notice limit requirement (Night Slot available for tonight testing)
-      if (slot.includes('Night')) {
-        return { slot, isAvailable: true, statusText: null };
-      }
-
-      const startHour = SLOT_START_HOURS[slot] || 7;
+      // 3. Check minimum advance notice limit requirement
+      const startHour = slot.includes('Night') ? 20 : (SLOT_START_HOURS[slot] || 7);
       const slotStartTime = new Date(selectedDate);
       slotStartTime.setHours(startHour, 0, 0, 0);
 
@@ -416,11 +412,11 @@ const SelectDateTimeScreen = ({ navigation, route }) => {
 
     navigation.navigate('BookAppointment', {
       artist: artistData || artist,
-      selectedPackage: selectedPackage,
       selectedDate: selectedDate.toISOString(),
       selectedTime: finalTimeString,
       dateStr,
     });
+
   };
 
   // Format selected date label e.g. "Thu, 16 May 2024"

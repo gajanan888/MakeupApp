@@ -39,10 +39,11 @@ const BookingConfirmationScreen = ({ navigation, route }) => {
     if (!val) return 0;
     return parseFloat(String(val).replace(/[^0-9]/g, '')) || 0;
   };
-  const numericServicePrice = parseAmount(servicePrice) * peopleCount;
+  const numericServicePrice = parseAmount(servicePrice);
   const numericAddonsTotal = parseAmount(addonsTotal);
   const numericInsuranceFee = hasInsurance ? (insuranceFee || 1000) : 0;
   const total = numericServicePrice + numericAddonsTotal + numericInsuranceFee;
+
 
   const [loading, setLoading] = useState(false);
   const [isConsentChecked, setIsConsentChecked] = useState(false);
@@ -144,12 +145,26 @@ const BookingConfirmationScreen = ({ navigation, route }) => {
         </View>
         {/* Service */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Service</Text>
+          <Text style={styles.sectionTitle}>Selected Services</Text>
           <Text style={styles.detail}>
             {selectedService?.name || (typeof selectedService === 'string' ? selectedService : 'N/A')}
             {peopleCount > 1 ? ` (×${peopleCount} People)` : ''}
           </Text>
-          <Text style={styles.price}>₹{numericServicePrice.toLocaleString('en-IN')}</Text>
+          {Array.isArray(selectedService?.items) && selectedService.items.length > 0 && (
+            <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#FFE4ED' }}>
+              {selectedService.items.map((item, idx) => (
+                <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 13, color: '#444', flex: 1, paddingRight: 6 }}>
+                    • {item.name} {item.count > 1 ? `(x${item.count})` : ''}
+                  </Text>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#111' }}>
+                    ₹{(item.totalPrice || (item.unitPrice ? item.unitPrice * item.count : 0) || 0).toLocaleString('en-IN')}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+          <Text style={styles.price}>Total Services Price: ₹{numericServicePrice.toLocaleString('en-IN')}</Text>
         </View>
         {/* Location */}
         <View style={styles.section}>

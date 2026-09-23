@@ -24,13 +24,12 @@ class EmbeddingService:
         if EmbeddingService._global_model is not None or self._failed_load:
             return
 
-        # Local imports to delay loading heavy libraries
-        import torch
-        from transformers import AutoProcessor, AutoModel, AutoImageProcessor
-
-        EmbeddingService._global_device = "cuda" if torch.cuda.is_available() else "cpu"
-        logger.info(f"Loading embedding model '{self.model_name}' on device '{EmbeddingService._global_device}'...")
         try:
+            import torch
+            from transformers import AutoProcessor, AutoModel, AutoImageProcessor
+
+            EmbeddingService._global_device = "cuda" if torch.cuda.is_available() else "cpu"
+            logger.info(f"Loading embedding model '{self.model_name}' on device '{EmbeddingService._global_device}'...")
             import torch
             from transformers import AutoProcessor, AutoModel, AutoImageProcessor
 

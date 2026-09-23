@@ -422,6 +422,39 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
               </View>
             </View>
 
+            {/* BOOKED SERVICES & PACKAGE TIERS */}
+            {(() => {
+              const bookedItems = booking.items || booking.rawBooking?.items || [];
+              if (!bookedItems || bookedItems.length === 0) return null;
+              return (
+                <View style={{ marginBottom: 15 }}>
+                  <Text style={styles.sectionTitle}>BOOKED SERVICES & PACKAGE TIERS</Text>
+                  <View style={styles.addOnsCard}>
+                    {bookedItems.map((item, index) => {
+                      const isPremium = item.tier === 'Premium' || (item.name && item.name.includes('Premium'));
+                      return (
+                        <View key={item.id || index} style={styles.addOnRow}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.addOnName}>
+                              💄 {item.name || item.serviceNameOnly || 'Service'} {item.count > 1 ? `(x${item.count})` : ''}
+                            </Text>
+                            <View style={{ marginTop: 2 }}>
+                              <Text style={{ fontSize: 11, fontWeight: '700', color: isPremium ? '#8A2BE2' : '#FF4F8F' }}>
+                                Package Tier: {isPremium ? '⭐ Premium Package' : 'Standard Basic Package'}
+                              </Text>
+                            </View>
+                          </View>
+                          <Text style={styles.addOnPrice}>
+                            ₹{(item.totalPrice || (item.unitPrice ? item.unitPrice * item.count : 0) || 0).toLocaleString('en-IN')}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+              );
+            })()}
+
             {/* EXTRA CUSTOMERS & SERVICES */}
             {addOnsList && addOnsList.length > 0 && (
               <View style={{ marginBottom: 15 }}>

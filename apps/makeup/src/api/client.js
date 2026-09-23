@@ -3,12 +3,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Base URLs in order of priority (Active Wi-Fi, ADB reverse USB, Android Emulator)
 export const API_BASE_URLS = [
-  'http://10.85.57.172:5000',   // Active Wi-Fi IP (Laptop on local network)
+  'http://192.168.29.53:5000',  // Active Wi-Fi IP (Current network host)
   'http://127.0.0.1:5000',     // adb reverse loopback fallback
   'http://localhost:5000',     // localhost fallback
   'http://10.0.2.2:5000',      // Android Emulator loopback
   'http://192.168.56.1:5000',  // VirtualBox host-only adapter
 ];
+
 
 const api = axios.create({
   baseURL: API_BASE_URLS[0],

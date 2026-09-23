@@ -48,9 +48,10 @@ const PaymentScreen = ({ navigation, route }) => {
     if (!val) return 0;
     return parseFloat(String(val).replace(/[^0-9]/g, '')) || 0;
   };
-  const numericServicePrice = parseAmount(servicePrice) * peopleCount;
+  const numericServicePrice = parseAmount(servicePrice);
   const numericAddonsTotal = parseAmount(addonsTotal);
   const numericInsuranceFee = hasInsurance ? (insuranceFee || 1000) : (insuranceFee || 0);
+
   
   const total = isAdvancePayment ? advanceAmount : (numericServicePrice + numericAddonsTotal + numericInsuranceFee);
 
