@@ -2418,9 +2418,6 @@ const ArtistProfileScreen = ({ onBack }) => {
     <View style={styles.container}>
       {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.headerButton} onPress={onBack}>
-          <Ionicons name="arrow-back-outline" size={24} color="#111" />
-        </TouchableOpacity>
         
         <Text style={styles.headerTitle}>Profile</Text>
 

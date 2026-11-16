@@ -229,15 +229,9 @@ const ArtistCalenderScreen = ({ onBack }) => {
     <View style={styles.container}>
       {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.headerButton} onPress={onBack}>
-          <Ionicons name="chevron-back-outline" size={24} color="#111" />
-        </TouchableOpacity>
         
         <Text style={styles.headerTitle}>Calendar</Text>
 
-        <TouchableOpacity style={styles.headerButton}>
-          <Ionicons name="notifications-outline" size={24} color="#111" />
-        </TouchableOpacity>
       </View>
 
       {/* CALENDAR MONTH HEADER */}

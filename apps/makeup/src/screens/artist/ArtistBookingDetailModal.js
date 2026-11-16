@@ -727,14 +727,14 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
                       <Text style={styles.actionBtnText}>Complete Service</Text>
                     </TouchableOpacity>
                     <TouchableOpacity 
-                      style={[styles.actionBtn, styles.declineBtn]}
+                      style={[styles.actionBtn, styles.disabledCancelActionBtn]}
+                      disabled={true}
+                      activeOpacity={1}
                       onPress={() => {
-                        setDialogType('cancel');
-                        setRejectionReasonText('');
-                        setRejectModalVisible(true);
+                        Alert.alert('Service In Progress', 'You cannot cancel an appointment once the service has started.');
                       }}
                     >
-                      <Text style={[styles.actionBtnText, styles.declineText]}>Cancel</Text>
+                      <Text style={[styles.actionBtnText, styles.disabledCancelActionText]}>Cancel</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -783,6 +783,10 @@ const ArtistBookingDetailModal = ({ visible, onClose, booking, onStatusUpdate, o
                     setUpdating(true);
                     setRejectModalVisible(false);
                     if (dialogType === 'cancel') {
+                      if (booking.rawStatus === 'in_progress') {
+                        Alert.alert('Service In Progress', 'You cannot cancel an appointment once the service has started.');
+                        return;
+                      }
                       await cancelArtistBooking(booking.id, rejectionReasonText.trim());
                       Alert.alert('Success', 'Booking cancelled.');
                     } else if (dialogType === 'backup_reject') {
@@ -1251,200 +1255,15 @@ const styles = StyleSheet.create({
   declineText: {
     color: '#CF1322',
   },
-  startBtn: {
-    backgroundColor: '#FF4F8F',
-    flex: 1,
-    marginRight: 10,
-  },
-  completeBtn: {
-    backgroundColor: '#389E0D',
-    flex: 1,
-    marginRight: 10,
-  },
-  disabledBtn: {
-    backgroundColor: '#E0D8DB',
-    flex: 1,
-    marginRight: 10,
-  },
-  disabledBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#8A7D77',
-    fontFamily: 'serif',
-  },
-  dialogOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  dialogContainer: {
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    padding: 20,
-    width: '100%',
-    maxWidth: 340,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  dialogTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111',
-    marginBottom: 8,
-    fontFamily: 'serif',
-  },
-  dialogLabel: {
-    fontSize: 13,
-    color: '#666',
-    marginBottom: 12,
-    lineHeight: 18,
-    fontFamily: 'serif',
-  },
-  dialogInput: {
-    borderWidth: 1,
-    borderColor: '#E6E6E6',
-    borderRadius: 8,
-    padding: 10,
-    height: 80,
-    textAlignVertical: 'top',
-    fontSize: 14,
-    color: '#222',
-    backgroundColor: '#FAFAFA',
-    marginBottom: 16,
-  },
-  dialogButtons: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-  },
-  dialogBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginLeft: 8,
-  },
-  dialogCancelBtn: {
-    backgroundColor: '#F5F5F5',
-  },
-  dialogCancelText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#666',
-    fontFamily: 'serif',
-  },
-  dialogSubmitBtn: {
-    backgroundColor: '#CF1322',
-  },
-  dialogSubmitText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#FFF',
-    fontFamily: 'serif',
-  },
-  addOnsCard: {
-    backgroundColor: '#FFF0F4',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 15,
-    borderWidth: 1,
-    borderColor: '#FFE4ED',
-  },
-  addOnRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  addOnName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#5E1735',
-    fontFamily: 'serif',
-  },
-  addOnNotes: {
-    fontSize: 11,
-    color: '#8A7D77',
-    fontFamily: 'serif',
-    marginTop: 2,
-  },
-  addOnPrice: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FF4F8F',
-    fontFamily: 'serif',
-  },
-  rejectionBox: {
-    backgroundColor: '#FFF1F0',
-    borderColor: '#FFA39E',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 10,
-    marginTop: 10,
-    marginBottom: 5,
-  },
-  rejectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#CF1322',
-    fontFamily: 'serif',
-  },
-  rejectionText: {
-    fontSize: 12,
-    color: '#595959',
-    marginTop: 2,
-    fontFamily: 'serif',
-  },
-  backupCardBox: {
-    backgroundColor: '#FFF0F5',
-    borderColor: '#FFD6E5',
+  disabledCancelActionBtn: {
+    backgroundColor: '#F3F4F6',
     borderWidth: 1.5,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 15,
-  },
-  backupCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 4,
-  },
-  backupCardTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FF4F87',
-  },
-  actionBtn: {
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFF',
-    fontFamily: 'serif',
-  },
-  doubleActions: {
-    flexDirection: 'row',
-  },
-  acceptBtn: {
-    backgroundColor: '#389E0D',
-    flex: 1,
-    marginRight: 10,
-  },
-  declineBtn: {
-    backgroundColor: '#FFF',
-    borderWidth: 1.5,
-    borderColor: '#CF1322',
+    borderColor: '#E5E7EB',
     flex: 0.4,
+    opacity: 0.6,
   },
-  declineText: {
-    color: '#CF1322',
+  disabledCancelActionText: {
+    color: '#9CA3AF',
   },
   startBtn: {
     backgroundColor: '#FF4F8F',

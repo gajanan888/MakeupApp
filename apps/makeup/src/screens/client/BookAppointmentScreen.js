@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -68,6 +69,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
   const [services] = useState(normalizedServices);
   const [selectedServicesMap, setSelectedServicesMap] = useState({});
   const [selectedTierMap, setSelectedTierMap] = useState({});
+  const [premiumInfoVisible, setPremiumInfoVisible] = useState(false);
 
   const getServiceTier = (serviceId) => selectedTierMap[serviceId] || 'Basic';
 
@@ -261,6 +263,24 @@ const BookAppointmentScreen = ({ navigation, route }) => {
 
   const isValidDate = selectedDate && !isNaN(dateObj.getTime());
 
+  let totalSelectedClients = 0;
+  let totalSelectedPrice = 0;
+  services.forEach(s => {
+    const serviceId = s.id || s.specialization;
+    const countBasic = selectedServicesMap[`${serviceId}_basic`] || 0;
+    if (countBasic > 0) {
+      totalSelectedPrice += countBasic * parsePrice(s.priceRange || s.price);
+      totalSelectedClients += countBasic;
+    }
+    if (s.hasPremium) {
+      const countPremium = selectedServicesMap[`${serviceId}_premium`] || 0;
+      if (countPremium > 0) {
+        totalSelectedPrice += countPremium * parsePrice(s.premiumPriceRange || s.premiumPrice);
+        totalSelectedClients += countPremium;
+      }
+    }
+  });
+
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -323,8 +343,10 @@ const BookAppointmentScreen = ({ navigation, route }) => {
                 const basicPriceNum = parsePrice(service.priceRange || service.price);
                 const premPriceNum = parsePrice(service.premiumPriceRange || service.premiumPrice);
 
+                const isSelected = countBasic > 0 || countPremium > 0;
+
                 return (
-                  <View key={serviceId} style={styles.serviceItemCard}>
+                  <View key={serviceId} style={[styles.serviceItemCard, isSelected && styles.serviceItemCardActive]}>
                     {/* Service Header: Name & Duration */}
                     <View style={styles.serviceCardHeader}>
                       <Text style={styles.serviceTitleText}>
@@ -337,7 +359,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
 
                     {/* BASIC PACKAGE COUNTER ROW */}
                     <View style={styles.packageRow}>
-                      <View style={{ flex: 1 }}>
+                      <View style={{ flex: 1, marginRight: 12 }}>
                         <Text style={styles.packageTierTitle}>Basic Package</Text>
                         <Text style={styles.packagePriceSubtext}>
                           ₹{basicPriceNum.toLocaleString('en-IN')} / person
@@ -373,8 +395,18 @@ const BookAppointmentScreen = ({ navigation, route }) => {
                     {/* PREMIUM PACKAGE COUNTER ROW (IF OFFERED) */}
                     {!!service.hasPremium && (
                       <View style={[styles.packageRow, styles.packageRowPremium]}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.packageTierTitle, { color: '#7E22CE' }]}>⭐ Premium Package</Text>
+                        <View style={{ flex: 1, marginRight: 12 }}>
+                          <View style={styles.tierTitleWithInfo}>
+                            <Text style={[styles.packageTierTitle, { color: '#7E22CE' }]}>⭐ Premium Package</Text>
+                            <TouchableOpacity
+                              onPress={() => setPremiumInfoVisible(true)}
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                              style={styles.infoIconButton}
+                              activeOpacity={0.6}
+                            >
+                              <Ionicons name="information-circle" size={18} color="#7E22CE" />
+                            </TouchableOpacity>
+                          </View>
                           <Text style={[styles.packagePriceSubtext, { color: '#6B21A8' }]}>
                             ₹{premPriceNum.toLocaleString('en-IN')} / person
                           </Text>
@@ -411,39 +443,19 @@ const BookAppointmentScreen = ({ navigation, route }) => {
               })}
 
               {/* Subtotal row for services */}
-              {(() => {
-                let subtotal = 0;
-                let totalCount = 0;
-                services.forEach(s => {
-                  const serviceId = s.id || s.specialization;
-                  const countBasic = selectedServicesMap[`${serviceId}_basic`] || 0;
-                  if (countBasic > 0) {
-                    subtotal += countBasic * parsePrice(s.priceRange || s.price);
-                    totalCount += countBasic;
-                  }
-
-                  if (s.hasPremium) {
-                    const countPremium = selectedServicesMap[`${serviceId}_premium`] || 0;
-                    if (countPremium > 0) {
-                      subtotal += countPremium * parsePrice(s.premiumPriceRange || s.premiumPrice);
-                      totalCount += countPremium;
-                    }
-                  }
-                });
-                return totalCount > 0 ? (
-                  <View style={styles.serviceOptionCardActive}>
-                     <Text style={styles.sectionTitleInner}>Selected Services Summary</Text>
-                     <View style={styles.serviceSubtotalRow}>
-                       <Text style={styles.serviceSubtotalLabel}>
-                         {totalCount} {totalCount === 1 ? 'client' : 'clients'} selected
-                       </Text>
-                       <Text style={styles.serviceSubtotalPrice}>
-                         Subtotal: ₹{subtotal.toLocaleString('en-IN')}
-                       </Text>
-                     </View>
+              {totalSelectedClients > 0 && (
+                <View style={styles.serviceOptionCardActive}>
+                  <Text style={styles.sectionTitleInner}>Selected Services Summary</Text>
+                  <View style={styles.serviceSubtotalRow}>
+                    <Text style={styles.serviceSubtotalLabel}>
+                      {totalSelectedClients} {totalSelectedClients === 1 ? 'client' : 'clients'} selected
+                    </Text>
+                    <Text style={styles.serviceSubtotalPrice}>
+                      Subtotal: ₹{totalSelectedPrice.toLocaleString('en-IN')}
+                    </Text>
                   </View>
-                ) : null;
-              })()}
+                </View>
+              )}
             </View>
           </View>
 
@@ -617,17 +629,128 @@ const BookAppointmentScreen = ({ navigation, route }) => {
           </View>
         )}
 
-        {/* Next Trigger Button */}
-        <TouchableOpacity
-          style={styles.nextButton}
-          onPress={handleNext}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.nextButtonText}>Next</Text>
-        </TouchableOpacity>
-
         </ScrollView>
+
+        {/* Sticky Bottom Action Bar */}
+        <View style={styles.bottomBar}>
+          <View style={styles.bottomPriceCol}>
+            <Text style={styles.bottomPriceLabel}>
+              {totalSelectedClients > 0
+                ? `${totalSelectedClients} ${totalSelectedClients === 1 ? 'client' : 'clients'} selected`
+                : 'Select Services'}
+            </Text>
+            <Text style={styles.bottomPriceValue}>
+              ₹{totalSelectedPrice.toLocaleString('en-IN')}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={[
+              styles.nextButton,
+              totalSelectedClients === 0 && styles.nextButtonDisabled,
+            ]}
+            onPress={handleNext}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.nextButtonText, totalSelectedClients === 0 && styles.nextButtonTextDisabled]}>Next</Text>
+            <Ionicons
+              name="arrow-forward"
+              size={18}
+              color={totalSelectedClients === 0 ? '#9CA3AF' : '#FFFFFF'}
+              style={{ marginLeft: 6 }}
+            />
+          </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
+
+      {/* Premium Package Info Modal */}
+      <Modal
+        visible={premiumInfoVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPremiumInfoVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setPremiumInfoVisible(false)}
+        >
+          <TouchableOpacity
+            style={styles.premiumModalCard}
+            activeOpacity={1}
+            onPress={(e) => e?.stopPropagation?.()}
+          >
+            {/* Modal Header */}
+            <View style={styles.premiumModalHeader}>
+              <View style={styles.premiumModalIconContainer}>
+                <Ionicons name="sparkles" size={22} color="#7E22CE" />
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.premiumModalTitle}>⭐ Premium Package</Text>
+                <Text style={styles.premiumModalSubtitle}>Luxury products & extra care</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setPremiumInfoVisible(false)}
+                style={styles.modalCloseBtn}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={20} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Perks List */}
+            <View style={styles.premiumPerksList}>
+              <View style={styles.perkItem}>
+                <Ionicons name="checkmark-circle" size={18} color="#7E22CE" style={styles.perkIcon} />
+                <View style={styles.perkTextCol}>
+                  <Text style={styles.perkTitle}>Luxury & International Brands</Text>
+                  <Text style={styles.perkDescription}>
+                    Created using high-end cosmetic lines (MAC, Charlotte Tilbury, Estée Lauder, Huda Beauty & NARS).
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.perkItem}>
+                <Ionicons name="checkmark-circle" size={18} color="#7E22CE" style={styles.perkIcon} />
+                <View style={styles.perkTextCol}>
+                  <Text style={styles.perkTitle}>Extra Care & Custom Prep</Text>
+                  <Text style={styles.perkDescription}>
+                    Includes deep skin preparation, delicate face sculpting & contouring, and premium faux lash application.
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.perkItem}>
+                <Ionicons name="checkmark-circle" size={18} color="#7E22CE" style={styles.perkIcon} />
+                <View style={styles.perkTextCol}>
+                  <Text style={styles.perkTitle}>12+ Hour HD Long-Stay Finish</Text>
+                  <Text style={styles.perkDescription}>
+                    Flawless, camera-ready waterproof & sweat-resistant finish sealed with luxury setting sprays.
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.perkItem}>
+                <Ionicons name="checkmark-circle" size={18} color="#7E22CE" style={styles.perkIcon} />
+                <View style={styles.perkTextCol}>
+                  <Text style={styles.perkTitle}>Sanitized & Skin-Safe Tools</Text>
+                  <Text style={styles.perkDescription}>
+                    Hospital-grade sterilized brushes, disposable wands, and hypoallergenic formulas tailored for delicate skin.
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Close Button */}
+            <TouchableOpacity
+              style={styles.premiumModalGotItBtn}
+              onPress={() => setPremiumInfoVisible(false)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.premiumModalGotItText}>Got It</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -718,20 +841,21 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   serviceItemCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFF',
+    backgroundColor: '#FFFFFF',
     padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
+    borderRadius: 14,
+    borderWidth: 1.5,
     borderColor: '#F0F0F0',
-    marginBottom: 10,
+    marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  serviceItemCardActive: {
+    borderColor: '#FFD6E5',
+    backgroundColor: '#FFFAFC',
   },
   packageCard: {
     backgroundColor: '#FFFFFF',
@@ -809,15 +933,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFF0F5',
-    borderRadius: 24,
+    borderRadius: 20,
     padding: 3,
     borderWidth: 1,
     borderColor: '#FFD6E5',
   },
   stepperButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
@@ -828,15 +952,18 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   stepperButtonDisabled: {
-    backgroundColor: '#F7F7F7',
+    backgroundColor: '#F5F5F5',
   },
   stepperCountBadge: {
-    paddingHorizontal: 12,
+    minWidth: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
   },
   stepperCountText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#666',
+    color: '#374151',
   },
   artistRow: {
     flexDirection: 'row',
@@ -1035,69 +1162,219 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginLeft: 6,
   },
-  nextButton: {
-    backgroundColor: '#FF4F87',
-    borderRadius: 14,
-    height: 56,
-    justifyContent: 'center',
+  bottomBar: {
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 20,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: Platform.OS === 'ios' ? 16 : 14,
+    borderTopWidth: 1,
+    borderTopColor: '#EEEEEE',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 10,
+  },
+  bottomPriceCol: {
+    flex: 1,
+    marginRight: 16,
+  },
+  bottomPriceLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  bottomPriceValue: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#111827',
+    marginTop: 2,
+  },
+  nextButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FF4F87',
+    paddingHorizontal: 28,
+    height: 50,
+    borderRadius: 14,
     shadowColor: '#FF4F87',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  nextButtonDisabled: {
+    backgroundColor: '#E5E7EB',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   nextButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    fontWeight: '700',
+  },
+  nextButtonTextDisabled: {
+    color: '#9CA3AF',
   },
   serviceCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: 8,
-    marginBottom: 8,
+    paddingBottom: 10,
+    marginBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
   },
   serviceTitleText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#111',
+    color: '#111827',
+    flex: 1,
+    marginRight: 8,
   },
   serviceDurationBadge: {
     fontSize: 12,
-    color: '#666',
+    fontWeight: '600',
+    color: '#4B5563',
     backgroundColor: '#F3F4F6',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   packageRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 6,
+    paddingVertical: 8,
   },
   packageRowPremium: {
-    marginTop: 6,
-    paddingTop: 8,
+    marginTop: 8,
+    paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: '#F3E8FF',
   },
   packageTierTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#374151',
+    color: '#1F2937',
   },
   packagePriceSubtext: {
+    fontSize: 13,
+    color: '#4B5563',
+    marginTop: 3,
+    fontWeight: '500',
+  },
+  tierTitleWithInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  infoIconButton: {
+    marginLeft: 6,
+    padding: 2,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  premiumModalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 22,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  premiumModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 18,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3E8FF',
+  },
+  premiumModalIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F3E8FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  premiumModalTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#581C87',
+  },
+  premiumModalSubtitle: {
+    fontSize: 12,
+    color: '#7E22CE',
+    marginTop: 2,
+    fontWeight: '600',
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  premiumPerksList: {
+    marginBottom: 20,
+  },
+  perkItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  perkIcon: {
+    marginTop: 2,
+    marginRight: 10,
+  },
+  perkTextCol: {
+    flex: 1,
+  },
+  perkTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  perkDescription: {
     fontSize: 12,
     color: '#6B7280',
     marginTop: 2,
+    lineHeight: 17,
+  },
+  premiumModalGotItBtn: {
+    backgroundColor: '#7E22CE',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#7E22CE',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  premiumModalGotItText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 });
 

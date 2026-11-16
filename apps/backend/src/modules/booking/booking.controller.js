@@ -26,6 +26,7 @@ import {
   validateCreateBooking,
 } from "../../validators/booking.validator.js";
 import { logActivity } from "../../utils/activityLogger.js";
+import { getIO } from "../../socket/index.js";
 
 export const createBookingController = async (req, res) => {
   try {
@@ -477,6 +478,16 @@ export const startBookingController = async (req, res) => {
       req,
     });
 
+    try {
+      getIO().to(`customer_${booking.customerId}`).emit("booking_updated", {
+        bookingId: booking.id,
+        status: "in_progress",
+        endOtp: booking.endOtp,
+      });
+    } catch (socketErr) {
+      console.warn("[startBookingController] Socket emit warning:", socketErr.message);
+    }
+
     res.json({
       success: true,
       message: "Booking started",
@@ -506,6 +517,22 @@ export const requestEndOtpController = async (req, res) => {
       bookingId,
       artistId: req.artist.id,
     });
+
+    try {
+      if (result.customerId) {
+        getIO().to(`customer_${result.customerId}`).emit("booking_updated", {
+          bookingId: result.bookingId,
+          status: "in_progress",
+          endOtp: result.endOtp,
+        });
+        getIO().to(`customer_${result.customerId}`).emit("end_otp_requested", {
+          bookingId: result.bookingId,
+          endOtp: result.endOtp,
+        });
+      }
+    } catch (socketErr) {
+      console.warn("[requestEndOtpController] Socket emit warning:", socketErr.message);
+    }
 
     res.json({
       success: true,
@@ -550,6 +577,15 @@ export const completeBookingController = async (req, res) => {
       details: `Completed booking appointment. Balance settled.`,
       req,
     });
+
+    try {
+      getIO().to(`customer_${booking.customerId}`).emit("booking_updated", {
+        bookingId: booking.id,
+        status: "completed",
+      });
+    } catch (socketErr) {
+      console.warn("[completeBookingController] Socket emit warning:", socketErr.message);
+    }
 
     res.json({
       success: true,

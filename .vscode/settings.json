@@ -1,3 +1,4 @@
 {
-    "pyrefly.enable":  false
+    "pyrefly.enable": false,
+    "terminal.integrated.windowsEnableConpty": false
 }

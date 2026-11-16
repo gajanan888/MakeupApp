@@ -26,7 +26,12 @@ def main():
     logger.info("Starting portfolio embeddings synchronization...")
     
     # 1. Initialize database connection
-    engine = create_engine(settings.database_url)
+    db_url = settings.database_url
+    if db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql+psycopg://", 1)
+    elif db_url.startswith("postgresql://") and "+psycopg" not in db_url:
+        db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
+    engine = create_engine(db_url)
     
     with engine.begin() as conn:
         logger.info("Enabling pgvector extension if not exists...")

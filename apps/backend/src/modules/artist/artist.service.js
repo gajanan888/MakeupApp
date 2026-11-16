@@ -402,17 +402,117 @@ export const getArtistDashboardStats = async (artistId) => {
     ],
   });
 
-  const completedBookings = bookings.filter((b) => (b.status || '').toLowerCase() === "completed").length;
-  const cancelledBookings = bookings.filter((b) => (b.status || '').toLowerCase() === "cancelled").length;
-  // Booking count increases strictly ONLY after successful completion of service
-  const totalBookings = completedBookings;
-  const totalEarningsVal = bookings
-    .filter((b) => (b.status || '').toLowerCase() === "completed")
-    .reduce((sum, b) => sum + (b.price || 0), 0);
-  const totalPenaltyVal = bookings
-    .filter((b) => (b.status || '').toLowerCase() === "cancelled" && b.artistPenalty)
-    .reduce((sum, b) => sum + (b.artistPenalty || 0), 0);
-  const totalEarnings = Math.max(0, totalEarningsVal - totalPenaltyVal);
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+
+  const isCurrentMonth = (dateStr) => {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+  };
+
+  const isLastMonth = (dateStr) => {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    let targetYear = currentYear;
+    let targetMonth = currentMonth - 1;
+    if (targetMonth < 0) {
+      targetMonth = 11;
+      targetYear -= 1;
+    }
+    return d.getFullYear() === targetYear && d.getMonth() === targetMonth;
+  };
+
+  const isCurrentYear = (dateStr) => {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    return d.getFullYear() === currentYear;
+  };
+
+  const isLastYear = (dateStr) => {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    return d.getFullYear() === currentYear - 1;
+  };
+
+  const getNetEarning = (b) => {
+    const price = b.price || 0;
+    const advance = (b.advanceAmount !== undefined && b.advanceAmount !== null && Number(b.advanceAmount) > 0)
+      ? Number(b.advanceAmount)
+      : Math.round(price * 0.10);
+    return Math.max(0, price - advance);
+  };
+
+  const computeForList = (list) => {
+    const completed = list.filter((b) => (b.status || '').toLowerCase() === "completed");
+    const cancelled = list.filter((b) => (b.status || '').toLowerCase() === "cancelled");
+    const totalEarningsVal = completed.reduce((sum, b) => sum + getNetEarning(b), 0);
+    const totalPenaltyVal = cancelled.reduce((sum, b) => sum + (b.artistPenalty || 0), 0);
+    return {
+      totalBookings: completed.length,
+      completedBookings: completed.length,
+      cancelledBookings: cancelled.length,
+      totalEarnings: Math.max(0, totalEarningsVal - totalPenaltyVal),
+    };
+  };
+
+  const thisMonthList = bookings.filter((b) => isCurrentMonth(b.date));
+  const lastMonthList = bookings.filter((b) => isLastMonth(b.date));
+  const thisYearList = bookings.filter((b) => isCurrentYear(b.date));
+  const lastYearList = bookings.filter((b) => isLastYear(b.date));
+
+  const thisMonthStats = computeForList(thisMonthList);
+  const lastMonthStats = computeForList(lastMonthList);
+  const thisYearStats = computeForList(thisYearList);
+  const lastYearStats = computeForList(lastYearList);
+  const allTimeStats = computeForList(bookings);
+
+  const calcGrowth = (curr, prev) => {
+    if (prev <= 0) return curr > 0 ? 100 : 0;
+    return Number((((curr - prev) / prev) * 100).toFixed(1));
+  };
+
+  const reviews = await Review.findAll({ where: { artistId } });
+  let liveRating = 0;
+  let reviewCount = 0;
+
+  if (reviews.length > 0) {
+    const sum = reviews.reduce((acc, r) => acc + (r.rating || 0), 0);
+    liveRating = Number((sum / reviews.length).toFixed(1));
+    reviewCount = reviews.length;
+  }
+
+  const periodStats = {
+    'This Month': {
+      ...thisMonthStats,
+      earningsGrowth: calcGrowth(thisMonthStats.totalEarnings, lastMonthStats.totalEarnings),
+      growthLabel: 'vs last month',
+      rating: liveRating,
+      reviewCount,
+    },
+    'Last Month': {
+      ...lastMonthStats,
+      earningsGrowth: 0,
+      growthLabel: 'vs prev month',
+      rating: liveRating,
+      reviewCount,
+    },
+    'This Year': {
+      ...thisYearStats,
+      earningsGrowth: calcGrowth(thisYearStats.totalEarnings, lastYearStats.totalEarnings),
+      growthLabel: 'vs last year',
+      rating: liveRating,
+      reviewCount,
+    },
+    'All Time': {
+      ...allTimeStats,
+      earningsGrowth: 0,
+      growthLabel: 'overall',
+      rating: liveRating,
+      reviewCount,
+    },
+  };
 
   const upcomingBookingsRaw = await Booking.findAll({
     where: {
@@ -447,25 +547,9 @@ export const getArtistDashboardStats = async (artistId) => {
     return json;
   });
 
-  const reviews = await Review.findAll({ where: { artistId } });
-  let liveRating = 0;
-  let reviewCount = 0;
-
-  if (reviews.length > 0) {
-    const sum = reviews.reduce((acc, r) => acc + (r.rating || 0), 0);
-    liveRating = Number((sum / reviews.length).toFixed(1));
-    reviewCount = reviews.length;
-  }
-
   return {
-    stats: {
-      totalBookings,
-      completedBookings,
-      cancelledBookings,
-      totalEarnings,
-      rating: liveRating,
-      reviewCount,
-    },
+    stats: periodStats['This Month'],
+    periodStats,
     upcomingBookings,
   };
 };

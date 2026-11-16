@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Base URLs in order of priority (Active Wi-Fi, ADB reverse USB, Android Emulator)
 export const API_BASE_URLS = [
-  'http://192.168.29.53:5000',  // Active Wi-Fi IP (Current network host)
+  'http://192.168.31.184:5000',  // Active Wi-Fi IP (Current network host)
   'http://127.0.0.1:5000',     // adb reverse loopback fallback
   'http://localhost:5000',     // localhost fallback
   'http://10.0.2.2:5000',      // Android Emulator loopback
@@ -37,7 +37,7 @@ api.interceptors.request.use(async (config) => {
       const cleanToken = String(token).trim().replace(/[^\x00-\x7F]/g, '');
       config.headers.Authorization = `Bearer ${cleanToken}`;
     }
-  } catch (_) {}
+  } catch (_) { }
 
   if (config.headers) {
     Object.keys(config.headers).forEach((key) => {

@@ -12,12 +12,14 @@ import {
   Alert,
   Modal,
   TextInput,
+  RefreshControl,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { getCustomerBookings, cancelCustomerBooking, declineCustomerBookingAdvance, getCustomerProfile, submitBookingReview } from '../../api/auth';
 import BottomNavigation from '../../components/BottomNavigation';
 import { useCall } from '../../context/CallContext';
 import { getUniqueProfileImage, DEFAULT_AVATAR } from '../../utils/artistImageHelper';
+import SocketService from '../../services/socketService';
 
 const CountdownTimer = ({ deadline, onExpire, label = "Pay within:" }) => {
   const [timeLeft, setTimeLeft] = useState('');
@@ -69,6 +71,13 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
   const [selectedBookingForDetails, setSelectedBookingForDetails] = useState(null);
   const [clientConsents, setClientConsents] = useState({});
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchBookings(true);
+    setRefreshing(false);
+  };
 
   const toggleConsent = (bookingId, key) => {
     setClientConsents(prev => {
@@ -236,6 +245,7 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
     }
 
     if (booking.rawStatus === 'in_progress') {
+      const completionOtp = booking.endOtp || booking.rawBooking?.endOtp || '----';
       return (
         <View style={[styles.otpCardBox, { backgroundColor: '#F0FDF4', borderColor: '#86EFAC' }, isModal && { marginVertical: 10 }]}>
           <View style={styles.otpActiveContent}>
@@ -246,7 +256,11 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
             <Text style={{ fontSize: 12, color: '#15803D', marginTop: 4, marginBottom: 8, fontWeight: '500' }}>
               Your makeup service is in progress! Once completed to your satisfaction, share this Completion OTP with your artist:
             </Text>
-            <Text style={[styles.otpCode, { color: '#15803D', letterSpacing: 6 }]}>{booking.endOtp || '----'}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginVertical: 4 }}>
+              <Text style={[styles.otpCode, { color: '#15803D', letterSpacing: 6 }]}>
+                {completionOtp}
+              </Text>
+            </View>
             <Text style={[styles.otpSubtitle, { color: '#166534' }]}>
               Give this 4-digit OTP to your artist only when the makeup look is finished.
             </Text>
@@ -416,10 +430,19 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
           refundStatus: b.refundStatus,
           createdAt: b.createdAt,
           startOtp: b.startOtp,
+          endOtp: b.endOtp,
+          rawBooking: b,
         };
       });
 
       setBookings(mapped);
+
+      // Keep details modal synchronized if currently open
+      setSelectedBookingForDetails(prev => {
+        if (!prev) return null;
+        const fresh = mapped.find(x => x.id === prev.id);
+        return fresh || prev;
+      });
 
       // Auto-prompt review modal for completed unreviewed services
       if (!hasAutoPromptedReview) {
@@ -444,14 +467,24 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
 
     const interval = setInterval(() => {
       fetchBookings(true);
-    }, 30 * 1000); // 30 seconds
+    }, 10 * 1000); // 10 seconds polling for real-time status & OTP updates
 
     const unsubscribe = navigation.addListener('focus', () => {
       fetchBookings();
     });
+
+    const handleBookingUpdate = () => {
+      fetchBookings(true);
+    };
+
+    SocketService.on('booking_updated', handleBookingUpdate);
+    SocketService.on('end_otp_requested', handleBookingUpdate);
+
     return () => {
       clearInterval(interval);
       unsubscribe();
+      SocketService.off('booking_updated', handleBookingUpdate);
+      SocketService.off('end_otp_requested', handleBookingUpdate);
     };
   }, [navigation]);
 
@@ -471,6 +504,10 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
   };
 
   const handleCancelBooking = (booking, onCancelSuccess) => {
+    if (booking?.rawStatus === 'in_progress') {
+      Alert.alert('Service In Progress', 'Service has already started and cannot be cancelled.');
+      return;
+    }
     let cancelMsg = 'Are you sure you want to cancel this appointment? This action cannot be undone.';
     if (booking.rawStatus === 'confirmed') {
       let hours = 12;
@@ -584,6 +621,14 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#FF4F87']}
+              tintColor="#FF4F87"
+            />
+          }
         >
           {/* PENDING REVIEW PROMPT BANNER */}
           {(() => {
@@ -614,7 +659,8 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
 
             filteredBookings.map(booking => {
               const badgeColors = getBadgeColors(booking.rawStatus);
-              const showCancelBtn = ['pending', 'accepted', 'confirmed'].includes(booking.rawStatus);
+              const isInProgress = booking.rawStatus === 'in_progress';
+              const showCancelBtn = ['pending', 'accepted', 'confirmed', 'in_progress'].includes(booking.rawStatus);
               const showChatBtn = ['confirmed', 'in_progress'].includes(booking.rawStatus);
 
               return (
@@ -805,10 +851,24 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
                     <View style={[styles.cardFooter, (showCancelBtn && showChatBtn) && styles.actionRow]}>
                       {showCancelBtn && (
                         <TouchableOpacity
-                          style={[styles.cancelBtn, showChatBtn && { flex: 1, marginRight: 8 }]}
-                          onPress={() => handleCancelBooking(booking)}
+                          style={[
+                            styles.cancelBtn,
+                            isInProgress && styles.disabledCancelBtn,
+                            showChatBtn && { flex: 1, marginRight: 8 }
+                          ]}
+                          disabled={isInProgress}
+                          activeOpacity={isInProgress ? 1 : 0.7}
+                          onPress={() => {
+                            if (isInProgress) {
+                              Alert.alert('Service In Progress', 'You cannot cancel an appointment once the service has started.');
+                              return;
+                            }
+                            handleCancelBooking(booking);
+                          }}
                         >
-                          <Text style={styles.cancelBtnText}>Cancel Booking</Text>
+                          <Text style={[styles.cancelBtnText, isInProgress && styles.disabledCancelBtnText]}>
+                            {isInProgress ? 'Cancel' : 'Cancel Booking'}
+                          </Text>
                         </TouchableOpacity>
                       )}
 
@@ -974,7 +1034,18 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
             </View>
 
             {selectedBookingForDetails && (
-              <ScrollView style={styles.detailsScroll} showsVerticalScrollIndicator={false}>
+              <ScrollView
+                style={styles.detailsScroll}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    colors={['#FF4F87']}
+                    tintColor="#FF4F87"
+                  />
+                }
+              >
                 {/* Artist & Status Header */}
                 <View style={[styles.modalBody, { paddingTop: 10, borderBottomWidth: 1, borderBottomColor: '#F5F5F5', paddingBottom: 16 }]}>
                   <Image
@@ -1104,6 +1175,15 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
                   </View>
                 )}
 
+                {selectedBookingForDetails.rawStatus === 'in_progress' && (
+                  <View style={[styles.policyBox, { borderColor: '#E5E7EB', backgroundColor: '#F9FAFB' }]}>
+                    <Text style={[styles.policyTitle, { color: '#4B5563' }]}>Service In Progress</Text>
+                    <Text style={[styles.policyText, { color: '#6B7280' }]}>
+                      The artist has verified the start OTP and the service is currently underway. Cancellations cannot be made once service has started.
+                    </Text>
+                  </View>
+                )}
+
                 {/* Cancel Booking Action inside details */}
                 {['pending', 'accepted', 'confirmed'].includes(selectedBookingForDetails.rawStatus) && (
                   <TouchableOpacity
@@ -1111,6 +1191,17 @@ const CustomerBookingsScreen = ({ navigation, isTab = false }) => {
                     onPress={() => handleCancelBooking(selectedBookingForDetails, () => setDetailsModalVisible(false))}
                   >
                     <Text style={styles.cancelModalBtnText}>Cancel Booking</Text>
+                  </TouchableOpacity>
+                )}
+
+                {selectedBookingForDetails.rawStatus === 'in_progress' && (
+                  <TouchableOpacity
+                    style={[styles.cancelModalBtn, styles.disabledCancelModalBtn]}
+                    disabled={true}
+                    activeOpacity={1}
+                    onPress={() => Alert.alert('Service In Progress', 'You cannot cancel an appointment once the service has started.')}
+                  >
+                    <Text style={styles.disabledCancelModalBtnText}>Cancel Booking</Text>
                   </TouchableOpacity>
                 )}
               </ScrollView>
@@ -1294,6 +1385,14 @@ const styles = StyleSheet.create({
     color: '#FF4F87',
     fontWeight: '700',
     fontFamily: 'serif',
+  },
+  disabledCancelBtn: {
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F3F4F6',
+    opacity: 0.7,
+  },
+  disabledCancelBtnText: {
+    color: '#9CA3AF',
   },
   emptyContainer: {
     alignItems: 'center',
@@ -1634,6 +1733,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     fontFamily: 'serif',
+  },
+  disabledCancelModalBtn: {
+    backgroundColor: '#F3F4F6',
+    borderColor: '#E5E7EB',
+    opacity: 0.7,
+  },
+  disabledCancelModalBtnText: {
+    color: '#9CA3AF',
   },
   addonItem: {
     flexDirection: 'row',

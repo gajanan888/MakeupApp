@@ -541,6 +541,11 @@ export const cancelBooking = async ({ bookingId, customerId, artistId, reason })
     throw new Error("Booking not found");
   }
 
+  // Prevent cancellation if service has already started
+  if (booking.status === "in_progress") {
+    throw new Error("Service has already started and cannot be cancelled.");
+  }
+
   // Allow cancellation of pending/accepted bookings normally
   if (["pending", "accepted"].includes(booking.status)) {
     booking.status = "cancelled";
@@ -715,6 +720,7 @@ export const requestEndBookingOtp = async ({ bookingId, artistId }) => {
 
   return {
     bookingId: booking.id,
+    customerId: booking.customerId,
     endOtp: booking.endOtp,
     message: "Service completion OTP generated. Client can now view the OTP on their app."
   };

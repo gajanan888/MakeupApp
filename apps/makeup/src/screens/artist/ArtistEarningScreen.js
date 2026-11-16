@@ -9,17 +9,39 @@ import {
   StatusBar,
   Modal,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { getArtistBookings } from '../../api/auth';
 
+const getBookingFinancials = (b) => {
+  const price = typeof b.price === 'number' ? b.price : (parseFloat(String(b.price || 0).replace(/[^0-9.]/g, '')) || 0);
+
+  // Advance payment is 10% of base price (+ insurance fee if applicable)
+  let advance = 0;
+  if (b.advanceAmount !== undefined && b.advanceAmount !== null && Number(b.advanceAmount) > 0) {
+    advance = Number(b.advanceAmount);
+  } else {
+    advance = Math.round(price * 0.10);
+  }
+
+  // Actual net earning is booking price after deduction of the advance payment
+  const actualEarning = Math.max(0, price - advance);
+
+  return {
+    grossPrice: price,
+    advanceDeduction: advance,
+    actualEarning,
+  };
+};
+
 const calculateEarningsData = (allBookings = []) => {
-  const completed = allBookings.filter(b => b.status === 'completed');
-  
+  const completed = allBookings.filter(b => (b.status || '').toLowerCase() === 'completed');
+
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth();
-  
+
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   const isCurrentMonth = (dateStr) => {
@@ -46,14 +68,36 @@ const calculateEarningsData = (allBookings = []) => {
     return d.getFullYear() === currentYear;
   };
 
+  const getPeriodMetrics = (bookingsInPeriod) => {
+    let grossTotal = 0;
+    let advanceTotal = 0;
+    let netTotal = 0;
+
+    bookingsInPeriod.forEach(b => {
+      const { grossPrice, advanceDeduction, actualEarning } = getBookingFinancials(b);
+      grossTotal += grossPrice;
+      advanceTotal += advanceDeduction;
+      netTotal += actualEarning;
+    });
+
+    return {
+      grossTotal,
+      advanceTotal,
+      netTotal,
+    };
+  };
+
   const thisMonthBookings = completed.filter(b => isCurrentMonth(b.date));
-  const thisMonthTotal = thisMonthBookings.reduce((sum, b) => sum + (b.price || 0), 0);
-  
+  const thisMonthMetrics = getPeriodMetrics(thisMonthBookings);
+  const thisMonthTotal = thisMonthMetrics.netTotal;
+
   const lastMonthBookings = completed.filter(b => isLastMonth(b.date));
-  const lastMonthTotal = lastMonthBookings.reduce((sum, b) => sum + (b.price || 0), 0);
-  
+  const lastMonthMetrics = getPeriodMetrics(lastMonthBookings);
+  const lastMonthTotal = lastMonthMetrics.netTotal;
+
   const thisYearBookings = completed.filter(b => isCurrentYear(b.date));
-  const thisYearTotal = thisYearBookings.reduce((sum, b) => sum + (b.price || 0), 0);
+  const thisYearMetrics = getPeriodMetrics(thisYearBookings);
+  const thisYearTotal = thisYearMetrics.netTotal;
 
   let growthPercent = 0;
   if (lastMonthTotal > 0) {
@@ -69,13 +113,14 @@ const calculateEarningsData = (allBookings = []) => {
   const buildMonthChart = (bookingsInPeriod, year, month) => {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const buckets = Array(12).fill(0);
-    
+
     bookingsInPeriod.forEach(b => {
       if (!b.date) return;
       const d = new Date(b.date);
       const day = d.getDate();
       const bucketIdx = Math.min(11, Math.floor(((day - 1) / daysInMonth) * 12));
-      buckets[bucketIdx] += (b.price || 0);
+      const { actualEarning } = getBookingFinancials(b);
+      buckets[bucketIdx] += actualEarning;
     });
 
     const maxVal = Math.max(...buckets);
@@ -103,7 +148,8 @@ const calculateEarningsData = (allBookings = []) => {
       const d = new Date(b.date);
       const month = d.getMonth();
       const bucketIdx = Math.floor(month / 2);
-      buckets[bucketIdx] += (b.price || 0);
+      const { actualEarning } = getBookingFinancials(b);
+      buckets[bucketIdx] += actualEarning;
     });
 
     const maxVal = Math.max(...buckets);
@@ -126,7 +172,8 @@ const calculateEarningsData = (allBookings = []) => {
       if (!b.date) return;
       const dateStr = b.date;
       if (!groups[dateStr]) groups[dateStr] = 0;
-      groups[dateStr] += (b.price || 0);
+      const { actualEarning } = getBookingFinancials(b);
+      groups[dateStr] += actualEarning;
     });
 
     const payoutsList = Object.entries(groups).map(([dateStr, amount], idx) => {
@@ -142,7 +189,7 @@ const calculateEarningsData = (allBookings = []) => {
       return {
         id: `p-${idx}-${dateStr}`,
         date: formattedDate,
-        amount: `₹${amount.toLocaleString()}`,
+        amount: `₹${amount.toLocaleString('en-IN')}`,
         status: 'Paid',
         rawAmount: amount,
         rawDate: dateStr
@@ -161,38 +208,47 @@ const calculateEarningsData = (allBookings = []) => {
 
   return {
     'This Month': {
-      total: `₹${thisMonthTotal.toLocaleString()}`,
+      total: `₹${thisMonthTotal.toLocaleString('en-IN')}`,
       growth: growthText,
       chartPoints: thisMonthChart.chartPoints,
       chartLabels: thisMonthChart.chartLabels,
       breakdown: {
-        service: `₹${Math.round(thisMonthTotal * 0.88).toLocaleString()}`,
-        addons: `₹${Math.round(thisMonthTotal * 0.08).toLocaleString()}`,
-        tips: `₹${Math.round(thisMonthTotal * 0.04).toLocaleString()}`
+        gross: `₹${thisMonthMetrics.grossTotal.toLocaleString('en-IN')}`,
+        advanceDeduction: `-₹${thisMonthMetrics.advanceTotal.toLocaleString('en-IN')}`,
+        netEarning: `₹${thisMonthTotal.toLocaleString('en-IN')}`,
+        service: `₹${thisMonthMetrics.grossTotal.toLocaleString('en-IN')}`,
+        addons: `-₹${thisMonthMetrics.advanceTotal.toLocaleString('en-IN')}`,
+        tips: `₹${thisMonthTotal.toLocaleString('en-IN')}`
       },
       payouts: thisMonthPayouts.length > 0 ? thisMonthPayouts : defaultPayouts
     },
     'Last Month': {
-      total: `₹${lastMonthTotal.toLocaleString()}`,
+      total: `₹${lastMonthTotal.toLocaleString('en-IN')}`,
       growth: lastMonthGrowthText,
       chartPoints: lastMonthChart.chartPoints,
       chartLabels: lastMonthChart.chartLabels,
       breakdown: {
-        service: `₹${Math.round(lastMonthTotal * 0.88).toLocaleString()}`,
-        addons: `₹${Math.round(lastMonthTotal * 0.08).toLocaleString()}`,
-        tips: `₹${Math.round(lastMonthTotal * 0.04).toLocaleString()}`
+        gross: `₹${lastMonthMetrics.grossTotal.toLocaleString('en-IN')}`,
+        advanceDeduction: `-₹${lastMonthMetrics.advanceTotal.toLocaleString('en-IN')}`,
+        netEarning: `₹${lastMonthTotal.toLocaleString('en-IN')}`,
+        service: `₹${lastMonthMetrics.grossTotal.toLocaleString('en-IN')}`,
+        addons: `-₹${lastMonthMetrics.advanceTotal.toLocaleString('en-IN')}`,
+        tips: `₹${lastMonthTotal.toLocaleString('en-IN')}`
       },
       payouts: lastMonthPayouts.length > 0 ? lastMonthPayouts : defaultPayouts
     },
     'This Year': {
-      total: `₹${thisYearTotal.toLocaleString()}`,
+      total: `₹${thisYearTotal.toLocaleString('en-IN')}`,
       growth: yearGrowthText,
       chartPoints: thisYearChart.chartPoints,
       chartLabels: thisYearChart.chartLabels,
       breakdown: {
-        service: `₹${Math.round(thisYearTotal * 0.88).toLocaleString()}`,
-        addons: `₹${Math.round(thisYearTotal * 0.08).toLocaleString()}`,
-        tips: `₹${Math.round(thisYearTotal * 0.04).toLocaleString()}`
+        gross: `₹${thisYearMetrics.grossTotal.toLocaleString('en-IN')}`,
+        advanceDeduction: `-₹${thisYearMetrics.advanceTotal.toLocaleString('en-IN')}`,
+        netEarning: `₹${thisYearTotal.toLocaleString('en-IN')}`,
+        service: `₹${thisYearMetrics.grossTotal.toLocaleString('en-IN')}`,
+        addons: `-₹${thisYearMetrics.advanceTotal.toLocaleString('en-IN')}`,
+        tips: `₹${thisYearTotal.toLocaleString('en-IN')}`
       },
       payouts: thisYearPayouts.length > 0 ? thisYearPayouts : defaultPayouts
     }
@@ -204,13 +260,14 @@ const ArtistEarningScreen = () => {
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [seeAllPayouts, setSeeAllPayouts] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [filterData, setFilterData] = useState({
     'This Month': {
       total: '₹0',
       growth: '+0.0% vs last month',
       chartPoints: [15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15],
       chartLabels: ['1 May', '8 May', '15 May', '22 May', '31 May'],
-      breakdown: { service: '₹0', addons: '₹0', tips: '₹0' },
+      breakdown: { gross: '₹0', advanceDeduction: '₹0', netEarning: '₹0', service: '₹0', addons: '₹0', tips: '₹0' },
       payouts: []
     },
     'Last Month': {
@@ -218,7 +275,7 @@ const ArtistEarningScreen = () => {
       growth: '+0.0% vs prev month',
       chartPoints: [15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15],
       chartLabels: ['1 Apr', '8 Apr', '15 Apr', '22 Apr', '30 Apr'],
-      breakdown: { service: '₹0', addons: '₹0', tips: '₹0' },
+      breakdown: { gross: '₹0', advanceDeduction: '₹0', netEarning: '₹0', service: '₹0', addons: '₹0', tips: '₹0' },
       payouts: []
     },
     'This Year': {
@@ -226,7 +283,7 @@ const ArtistEarningScreen = () => {
       growth: '+0.0% vs last year',
       chartPoints: [15, 15, 15, 15, 15, 15],
       chartLabels: ['Jan-Feb', 'Mar-Apr', 'May-Jun', 'Jul-Aug', 'Sep-Oct', 'Nov-Dec'],
-      breakdown: { service: '₹0', addons: '₹0', tips: '₹0' },
+      breakdown: { gross: '₹0', advanceDeduction: '₹0', netEarning: '₹0', service: '₹0', addons: '₹0', tips: '₹0' },
       payouts: []
     }
   });
@@ -241,6 +298,19 @@ const ArtistEarningScreen = () => {
       console.warn('Failed to fetch earnings data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    try {
+      setRefreshing(true);
+      const bookings = await getArtistBookings();
+      const computed = calculateEarningsData(bookings);
+      setFilterData(computed);
+    } catch (error) {
+      console.warn('Failed to refresh earnings data:', error);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -272,10 +342,10 @@ const ArtistEarningScreen = () => {
     <View style={styles.container}>
       {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.headerButton}>
+        {/* <TouchableOpacity style={styles.headerButton}>
           <Ionicons name="menu-outline" size={24} color="#111" />
-        </TouchableOpacity>
-        
+        </TouchableOpacity> */}
+
         <Text style={styles.headerTitle}>Earnings</Text>
 
         <TouchableOpacity
@@ -290,11 +360,23 @@ const ArtistEarningScreen = () => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContainer}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#FF4F8F']}
+            tintColor="#FF4F8F"
+          />
+        }
       >
         {/* TOTAL EARNINGS */}
         <View style={styles.earningsSummary}>
           <Text style={styles.totalEarningsLabel}>Total Earnings</Text>
           <Text style={styles.totalEarningsValue}>{currentData.total}</Text>
+          <View style={styles.deductionBadge}>
+            <Ionicons name="shield-checkmark-outline" size={13} color="#059669" style={{ marginRight: 4 }} />
+            <Text style={styles.deductionSubtext}>Net earnings after 10% advance payment deduction</Text>
+          </View>
           <Text style={styles.growthText}>
             <Text style={styles.greenText}>{currentData.growth.split(' ')[0]}</Text>
             {' ' + currentData.growth.split(' ').slice(1).join(' ')}
@@ -347,37 +429,37 @@ const ArtistEarningScreen = () => {
         </View>
 
         <View style={styles.breakdownCard}>
-          {/* Row 1: Service Revenue */}
+          {/* Row 1: Gross Bookings Value */}
           <View style={styles.breakdownRow}>
             <View style={styles.breakdownRowLeft}>
-              <View style={styles.iconWrapper}>
-                <Ionicons name="cut-outline" size={18} color="#FF4F8F" />
+              <View style={[styles.iconWrapper, { backgroundColor: '#EFF6FF' }]}>
+                <Ionicons name="receipt-outline" size={18} color="#2563EB" />
               </View>
-              <Text style={styles.breakdownLabel}>Service Revenue</Text>
+              <Text style={styles.breakdownLabel}>Gross Bookings Value</Text>
             </View>
-            <Text style={styles.breakdownValue}>{currentData.breakdown.service}</Text>
+            <Text style={styles.breakdownValue}>{currentData.breakdown.gross || currentData.breakdown.service}</Text>
           </View>
 
-          {/* Row 2: Add-ons */}
+          {/* Row 2: Advance Payment Deduction (10%) */}
           <View style={styles.breakdownRow}>
             <View style={styles.breakdownRowLeft}>
-              <View style={styles.iconWrapper}>
-                <Ionicons name="sparkles-outline" size={18} color="#FF4F8F" />
+              <View style={[styles.iconWrapper, { backgroundColor: '#FFF1F2' }]}>
+                <Ionicons name="trending-down-outline" size={18} color="#E11D48" />
               </View>
-              <Text style={styles.breakdownLabel}>Add-ons</Text>
+              <Text style={styles.breakdownLabel}>Advance Deductions (10%)</Text>
             </View>
-            <Text style={styles.breakdownValue}>{currentData.breakdown.addons}</Text>
+            <Text style={[styles.breakdownValue, { color: '#E11D48' }]}>{currentData.breakdown.advanceDeduction || currentData.breakdown.addons}</Text>
           </View>
 
-          {/* Row 3: Tips */}
+          {/* Row 3: Net Actual Earnings */}
           <View style={[styles.breakdownRow, { borderBottomWidth: 0, paddingBottom: 0 }]}>
             <View style={styles.breakdownRowLeft}>
-              <View style={styles.iconWrapper}>
-                <Ionicons name="gift-outline" size={18} color="#FF4F8F" />
+              <View style={[styles.iconWrapper, { backgroundColor: '#F0FDF4' }]}>
+                <Ionicons name="wallet-outline" size={18} color="#16A34A" />
               </View>
-              <Text style={styles.breakdownLabel}>Tips</Text>
+              <Text style={[styles.breakdownLabel, { fontWeight: '700', color: '#166534' }]}>Net Actual Earnings</Text>
             </View>
-            <Text style={styles.breakdownValue}>{currentData.breakdown.tips}</Text>
+            <Text style={[styles.breakdownValue, { color: '#16A34A', fontWeight: '800' }]}>{currentData.breakdown.netEarning || currentData.total}</Text>
           </View>
         </View>
 
@@ -520,6 +602,26 @@ const styles = StyleSheet.create({
     color: '#111',
     fontFamily: 'serif',
     marginTop: 4,
+  },
+
+  deductionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: '#DCFCE7',
+  },
+
+  deductionSubtext: {
+    fontSize: 11,
+    color: '#15803D',
+    fontWeight: '600',
+    fontFamily: 'serif',
   },
 
   growthText: {

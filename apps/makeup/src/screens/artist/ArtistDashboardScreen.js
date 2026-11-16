@@ -10,6 +10,8 @@ import {
   StatusBar,
   PermissionsAndroid,
   ActivityIndicator,
+  Modal,
+  RefreshControl,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -32,6 +34,9 @@ const ArtistDashboardScreen = ({ onNavigate }) => {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [artistProfile, setArtistProfile] = useState(null);
   const [addClientsModalVisible, setAddClientsModalVisible] = useState(false);
+  const [selectedPeriod, setSelectedPeriod] = useState('This Month');
+  const [periodModalVisible, setPeriodModalVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -239,10 +244,41 @@ const ArtistDashboardScreen = ({ onNavigate }) => {
     setSelectedBooking(detailObj);
   };
 
+  const onRefresh = async () => {
+    try {
+      setRefreshing(true);
+      await fetchDashboardData(false);
+    } catch (err) {
+      console.warn('Dashboard refresh error:', err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const activeStats = dashboardData.periodStats?.[selectedPeriod] || dashboardData.stats || {
+    totalBookings: 0,
+    completedBookings: 0,
+    cancelledBookings: 0,
+    totalEarnings: 0,
+    rating: 4.8,
+  };
+
+  const growthVal = activeStats.earningsGrowth ?? 0;
+  const growthSign = growthVal > 0 ? '+' : '';
+  const growthLabel = activeStats.growthLabel || (selectedPeriod === 'This Year' ? 'vs last year' : 'vs last month');
+
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.scrollContainer}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={['#FF4F8F']}
+          tintColor="#FF4F8F"
+        />
+      }
     >
       {/* HEADER */}
       <View style={styles.header}>
@@ -277,17 +313,23 @@ const ArtistDashboardScreen = ({ onNavigate }) => {
       <View style={styles.earningsCard}>
         <View style={styles.earningsRow}>
           <Text style={styles.earningsLabel}>Total Earnings</Text>
-          <TouchableOpacity style={styles.dropdownSelector}>
-            <Text style={styles.dropdownText}>This Month</Text>
+          <TouchableOpacity
+            style={styles.dropdownSelector}
+            onPress={() => setPeriodModalVisible(true)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.dropdownText}>{selectedPeriod}</Text>
             <Ionicons name="chevron-down" size={12} color="#FFF" style={{ marginLeft: 4 }} />
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.earningsAmount}>₹{dashboardData.stats.totalEarnings}</Text>
+        <Text style={styles.earningsAmount}>₹{(activeStats.totalEarnings || 0).toLocaleString('en-IN')}</Text>
 
         <Text style={styles.earningsTrend}>
-          <Text style={styles.trendGreen}>+0.0% </Text>
-          vs last month
+          <Text style={growthVal >= 0 ? styles.trendGreen : styles.trendRed}>
+            {growthSign}{growthVal}%{' '}
+          </Text>
+          {growthLabel}
         </Text>
       </View>
 
@@ -296,28 +338,28 @@ const ArtistDashboardScreen = ({ onNavigate }) => {
         {/* Bookings */}
         <View style={styles.statCard}>
           <Text style={styles.statLabel}>Bookings</Text>
-          <Text style={styles.statValue}>{dashboardData.stats.totalBookings}</Text>
-          <Text style={styles.trendUp}>+0%</Text>
+          <Text style={styles.statValue}>{activeStats.totalBookings || 0}</Text>
+          <Text style={styles.trendUp}>Total</Text>
         </View>
 
         {/* Completed */}
         <View style={styles.statCard}>
           <Text style={styles.statLabel}>Completed</Text>
-          <Text style={styles.statValue}>{dashboardData.stats.completedBookings}</Text>
-          <Text style={styles.trendUp}>+0%</Text>
+          <Text style={styles.statValue}>{activeStats.completedBookings || 0}</Text>
+          <Text style={styles.trendUp}>Done</Text>
         </View>
 
         {/* Cancelled */}
         <View style={styles.statCard}>
           <Text style={styles.statLabel}>Cancelled</Text>
-          <Text style={styles.statValue}>{dashboardData.stats.cancelledBookings}</Text>
-          <Text style={styles.trendDown}>-0%</Text>
+          <Text style={styles.statValue}>{activeStats.cancelledBookings || 0}</Text>
+          <Text style={styles.trendDown}>Dropped</Text>
         </View>
 
         {/* Reviews */}
         <View style={styles.statCard}>
           <Text style={styles.statLabel}>Reviews</Text>
-          <Text style={styles.statValue}>{dashboardData.stats.rating}</Text>
+          <Text style={styles.statValue}>{activeStats.rating || dashboardData.stats?.rating || 4.8}</Text>
           <View style={styles.starsRow}>
             <Ionicons name="star" size={10} color="#FFA000" />
             <Text style={{ fontSize: 9, color: '#8A7D77', marginLeft: 2 }}>rating</Text>
@@ -489,6 +531,49 @@ const ArtistDashboardScreen = ({ onNavigate }) => {
         artistServices={artistProfile?.services || artistProfile?.specializations || []}
         upcomingBookings={dashboardData.upcomingBookings || []}
       />
+
+      {/* Period Selection Modal */}
+      <Modal
+        visible={periodModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setPeriodModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setPeriodModalVisible(false)}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>Select Period</Text>
+              <TouchableOpacity onPress={() => setPeriodModalVisible(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="close" size={20} color="#666" />
+              </TouchableOpacity>
+            </View>
+            {['This Month', 'Last Month', 'This Year', 'All Time'].map((period) => {
+              const isSelected = selectedPeriod === period;
+              return (
+                <TouchableOpacity
+                  key={period}
+                  style={[styles.filterOption, isSelected && styles.selectedFilterOption]}
+                  onPress={() => {
+                    setSelectedPeriod(period);
+                    setPeriodModalVisible(false);
+                  }}
+                >
+                  <Text style={[styles.filterOptionText, isSelected && styles.selectedFilterOptionText]}>
+                    {period}
+                  </Text>
+                  {isSelected && (
+                    <Ionicons name="checkmark" size={18} color="#FF4F8F" />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </ScrollView>
   );
 };
@@ -613,6 +698,10 @@ const styles = StyleSheet.create({
     color: '#32C766',
     fontWeight: '700',
   },
+  trendRed: {
+    color: '#FF6B6B',
+    fontWeight: '700',
+  },
 
   statsGrid: {
     flexDirection: 'row',
@@ -622,7 +711,7 @@ const styles = StyleSheet.create({
   },
 
   statCard: {
-    width: '23%',
+    width: '24%',
     backgroundColor: '#FFF',
     borderRadius: 14,
     padding: 10,
@@ -902,6 +991,56 @@ const styles = StyleSheet.create({
   },
   extraBadgeText: {
     fontSize: 11,
+    color: '#FF4F8F',
+    fontWeight: '700',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '80%',
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111',
+    fontFamily: 'serif',
+  },
+  filterOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F6EFF2',
+  },
+  selectedFilterOption: {
+    borderBottomColor: '#FFE4ED',
+  },
+  filterOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#8A7D77',
+    fontFamily: 'serif',
+  },
+  selectedFilterOptionText: {
     color: '#FF4F8F',
     fontWeight: '700',
   },
