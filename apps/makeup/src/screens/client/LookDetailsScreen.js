@@ -4,12 +4,12 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   Platform,
   Image,
   ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import ScreenHeader from '../../components/ScreenHeader';
 
 const DEFAULT_PRODUCTS = ['Lip Tint', 'Mascara', 'Base', 'Brush'];
@@ -86,7 +86,7 @@ const LookDetailsScreen = ({ navigation, route }) => {
   }, [activeLook]);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
 
       <ScreenHeader title="Look Details" onBack={() => navigation.goBack()} />
@@ -216,7 +216,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#FFF',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
   },
   content: {
     paddingHorizontal: 16,

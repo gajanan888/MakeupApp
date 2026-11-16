@@ -11,7 +11,6 @@ import {
   Platform,
   StatusBar,
   ScrollView,
-  SafeAreaView,
   PermissionsAndroid,
   Modal,
   Pressable,
@@ -22,7 +21,7 @@ import {
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DEFAULT_AVATAR } from '../../utils/artistImageHelper';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { uploadFile } from '../../api/files';
@@ -368,7 +367,7 @@ const CustomerMessageScreen = ({ isTab = false, activeTab }) => {
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, isTab && { paddingTop: 0 }]}>
+    <SafeAreaView style={styles.safeArea} edges={isTab ? [] : ['top']}>
       <View
         style={[
           styles.container,
@@ -631,7 +630,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#FAFAFA',
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0,
   },
   container: {
     flex: 1,

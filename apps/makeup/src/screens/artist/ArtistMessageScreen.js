@@ -11,7 +11,6 @@ import {
   Platform,
   StatusBar,
   ScrollView,
-  SafeAreaView,
   PermissionsAndroid,
   Modal,
   Pressable,
@@ -21,7 +20,7 @@ import {
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DEFAULT_AVATAR } from '../../utils/artistImageHelper';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { uploadFile } from '../../api/files';
@@ -319,7 +318,7 @@ const ArtistMessageScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
@@ -346,7 +345,7 @@ const ArtistMessageScreen = () => {
                 renderItem={renderContactItem}
                 keyExtractor={item => item.id}
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.contactsList}
+                contentContainerStyle={[styles.contactsList, { paddingBottom: (insets.bottom || 0) + 16 }]}
                 ListEmptyComponent={
                   <View style={styles.emptyContainer}>
                     <Ionicons name="chatbubble-ellipses-outline" size={48} color="#FFCDDF" />
@@ -528,7 +527,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#FCFCFC',
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0,
   },
 
   container: {

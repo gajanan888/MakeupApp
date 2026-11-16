@@ -9,12 +9,12 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
-  SafeAreaView,
   Platform,
   StatusBar,
   Image,
   KeyboardAvoidingView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import BottomNavigation from '../../components/BottomNavigation';
@@ -258,7 +258,7 @@ const ProfileScreen = ({ navigation, isTab = false }) => {
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, isTab && { paddingTop: 0 }]}>
+    <SafeAreaView style={styles.safeArea} edges={isTab ? [] : ['top']}>
       {/* Header */}
       <View style={styles.header}>
         {isTab ? (
@@ -569,7 +569,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#FCFCFC',
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0,
   },
   header: {
     height: 56,

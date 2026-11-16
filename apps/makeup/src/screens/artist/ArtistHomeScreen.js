@@ -4,12 +4,11 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   Platform,
   BackHandler,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import ArtistDashboardScreen from './ArtistDashboardScreen';
 import ArtistBookingScreen from './ArtistBookingScreen';
 import ArtistCalenderScreen from './ArtistCalenderScreen';
@@ -71,7 +70,7 @@ const ArtistHomeScreen = () => {
   ];
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.container}>
         {/* Main Content Area */}
         <View style={styles.contentContainer}>

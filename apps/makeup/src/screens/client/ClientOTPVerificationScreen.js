@@ -7,12 +7,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  SafeAreaView,
   StatusBar,
   KeyboardAvoidingView,
   Platform,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Icon from 'react-native-vector-icons/Feather';
 import { registerClient, sendOtp, verifyOtp } from '../../api/auth';
@@ -142,7 +142,7 @@ const ClientOTPVerificationScreen = ({ navigation, route }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <StatusBar backgroundColor="#F7F7F7" barStyle="dark-content" />
 
       <KeyboardAvoidingView

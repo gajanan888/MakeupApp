@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   Platform,
   Image,
@@ -13,6 +12,7 @@ import {
   TouchableOpacity,
   Share,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import ScreenHeader from '../../components/ScreenHeader';
 import { getPreview, getAiBaseUrl } from '../../api/aiClient';
@@ -67,7 +67,7 @@ const VirtualPreviewResultScreen = ({ navigation, route }) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#FF4F87" />
           <Text style={styles.loadingText}>Retrieving your preview...</Text>
@@ -78,7 +78,7 @@ const VirtualPreviewResultScreen = ({ navigation, route }) => {
 
   if (!preview) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={48} color="#FF4F87" />
           <Text style={styles.errorText}>Preview could not be loaded.</Text>
@@ -126,7 +126,7 @@ const VirtualPreviewResultScreen = ({ navigation, route }) => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor="#FCFCFC" />
       <ScreenHeader
         title="Virtual Try-On Result"
@@ -259,7 +259,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#FCFCFC',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
   },
   loadingContainer: {
     flex: 1,

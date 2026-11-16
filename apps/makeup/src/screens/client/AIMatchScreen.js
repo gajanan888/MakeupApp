@@ -7,12 +7,12 @@ import {
   ScrollView,
   FlatList,
   ActivityIndicator,
-  SafeAreaView,
   Platform,
   StatusBar,
   Dimensions,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { getArtists } from '../../api/auth';
 import ScreenHeader from '../../components/ScreenHeader';
@@ -303,7 +303,7 @@ const AIMatchScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScreenHeader title="AI Recommendation Wizard" onBack={handleBackStep} />
 
       {/* Step Indicator */}
@@ -562,7 +562,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#FCFCFC',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
   },
   stepIndicatorContainer: {
     flexDirection: 'row',
